@@ -1,31 +1,102 @@
-# CoreLab
+# CoreLab — インフラ運用トレーニングゲーム
 
-CoreLab is an offline-first operations training prototype for Kubernetes and Linux. Its first mission asks you to inspect a simulated cluster, find and edit a Deployment manifest, apply it, and verify service connectivity.
+Kubernetes・Docker・Harbor・OpenShift・AWS の「よくある障害」を、ブラウザの中の本物そっくりなターミナルで解決しながら学ぶゲームです。クリアするほど XP が貯まってランクが上がり、ホーム画面の「あなたのデータセンター」のラックが稼働していきます。
 
-## Start
+- インストール不要・オフラインで動作（外部 CDN も不使用）
+- すべての操作はブラウザ内のシミュレーション。実際のクラスタ・クラウド・ネットワークには一切接続しません
+- 表示されるホスト名・IP・ログ・脆弱性・顧客データ・パスワードはすべて訓練用の架空データです
 
-Open `index.html` in a desktop browser. It has no package install, container runtime, account, or cloud dependency. The default language is English (UK); Japanese, Korean, and Traditional Chinese are also available.
+## 起動
 
-## Shell interaction
+`index.html` をブラウザで開くだけで遊べます。ローカルサーバーで動かす場合:
 
-The virtual shell starts in `/home/operator`. Its files and directories exist only in the simulator. Use the shell to discover them; the YAML is not shown in the workspace until you inspect or edit it.
+```bash
+python -m http.server 8123
+```
 
-- Linux basics: `pwd`, `ls`, `ll`, `cd`, `tree`, `cat`, `less`, `head`, `tail`, `grep`, `find`, `mkdir`, `touch`, `cp`, `mv`, `rm`, `echo`, `history`, `vi`, `ip`, `ping`, `route`, `dig`, `ss`, `df`, `free`, `ps`
-- Kubernetes: `kubectl` (also `k`), resource shortcuts such as `no`, `po`, `deploy`, `svc`, `ep`, `ns`, `cm`, and `ds`; `get`, `describe`, `logs`, `apply -f`, `exec`, `rollout status`, and `config current-context`
-- Docker: `docker ps`, `images`, `logs`, `inspect`, `exec`, `start`, `stop`, `version`, and `compose ps`
-- Keyboard: Tab completes commands, resource names, paths, and filenames; Up/Down recalls command history; Ctrl+C or Esc clears the shell input.
-- Editor: `vi <file>` opens the simulated editor. Tab inserts indentation, Ctrl+S or `:w` saves, `:wq` saves and exits, and `:q!` exits while discarding edits.
+→ http://localhost:8123/
 
-The mission offers a separate hint button at each objective. After all three are complete, **Continue to free-build lab** opens the sandbox mode. Use the reset button to restart the mission and restore the original virtual files.
+開発用に全ミッションを解放するには URL に `?unlock=all` を付けます（例: `http://localhost:8123/?unlock=all`）。
 
-## Simulation boundary
+## ミッション（19 本 + フリーラボ）
 
-All shell commands, Kubernetes resources, files, and Docker output are simulated in browser memory. Linux file operations affect only the virtual workspace. No command reaches the Windows filesystem, a Docker daemon, a Kubernetes cluster, AWS, or the network. This prototype supports a practical command subset; it does not implement complete Linux, Kubernetes, Docker, or Vim behaviour.
+| トラック | ミッション |
+| --- | --- |
+| Linux 基礎 | 初日の当番（grep/パイプ）・Web サーバーが起動しない（ssh/systemctl/journalctl/nginx -t） |
+| Docker | はじめてのコンテナ・Compose が立ち上がらない・イメージをビルドせよ |
+| Harbor | 社内レジストリへ push・脆弱性ポリシーに止められた・private イメージを pull せよ（robot + imagePullSecret） |
+| Kubernetes | キャパシティ復旧・Service に繋がらない・悪いリリースを戻せ・設定が足りない Pod・Pending から抜け出せ・ノードのディスクが満杯 |
+| OpenShift | はじめての OpenShift（login/new-project/new-app/Route）・root で動かないコンテナ（SCC） |
+| AWS | EKS クラスタにつなげ・HTTPS が届かない（SG）・S3 公開事故を止めろ |
 
-## Project files
+各トラックは順番に解放されます。★3 = ヒントなし＆目標時間内。
 
-- `index.html` — application structure and editor dialog
-- `app.css` — layout, readable type, responsive styles, and editor appearance
-- `app.js` — virtual filesystem, shell, Kubernetes and Docker command simulation, mission state, and translations
+## シミュレータが扱えるもの（抜粋）
 
-The topology, addresses, image names, and logs are fictional teaching data. They do not encode a Docomo design or represent a verified AWS/Kubernetes procedure.
+- **シェル**: パイプ・リダイレクト（`>` `>>` `2>`）・`&&` `||` `;`・`$VAR`・グロブ、`ls cat grep awk sed sort uniq wc find du df tail head vi ssh sudo systemctl journalctl curl ping nslookup jq base64` ほか
+- **kubectl / oc**: get（-o wide/yaml/json/name/jsonpath, -l, -A, --show-labels）・describe・logs・apply/create/delete/edit/patch・scale・set image/env・rollout status/history/undo/restart・exec・run --rm・expose・top・cordon/drain・config。OpenShift は login・new-project・new-app・expose（Route）・SCC
+- **Kubernetes の挙動**: スケジューラ（requests・taint・DiskPressure）、イメージ pull（存在しないタグ・401・Harbor ポリシー）、ConfigMap/Secret 参照、RollingUpdate（失敗時に旧 Pod を残す）、Service/Endpoints（selector・targetPort）、readinessProbe
+- **docker**: run/ps/logs/exec/build（Dockerfile 解析・BuildKit 風出力）/tag/push/pull/login、`docker compose up/ps/logs/down`（サービス名 DNS）
+- **harbor**: プロジェクト・自動スキャン・脆弱性一覧・脆弱性ブロック・robot アカウント
+- **aws**: sts・ec2（インスタンス・SG の追加/削除）・s3/s3api（Block Public Access）・eks update-kubeconfig、`--query`（JMESPath サブセット）/`--output text`
+
+## 開発者向け
+
+```
+index.html            画面構造（スクリプトの読み込み順もここが正）
+css/app.css           テーマ・レイアウト・レスポンシブ
+js/core/util.js       共通処理・YAML パーサ/シリアライザ・仮想ファイルシステム
+js/sim/               シミュレーションモデル（DOM 非依存）
+  images.js           イメージカタログとコンテナ起動判定
+  world.js            1 ミッション分の世界（ホスト・クラスタ・HTTP 経路解決）
+  k8s.js              Kubernetes/OpenShift クラスタ（reconcile・Pod 状態計算）
+  docker.js harbor.js aws.js   各サービスのモデル + CLI
+js/cmd/shell.js       bash 風シェル・Linux コマンド・Tab 補完
+js/cmd/kubectl.js     kubectl / oc
+js/game/engine.js     トラック・ランク・バッジ・セッション（目標判定/採点）・進捗保存
+js/game/missions/*.js ミッション定義（データ駆動）
+js/ui/datacenter.js   アイソメトリックのデータセンター描画（Canvas 2D）
+js/ui/app.js          画面制御（ホーム・ミッション・ターミナル・エディタ）
+tests/run-solutions.js 全ミッションの模範解答を自動プレイして解けることを検証
+```
+
+### テスト
+
+```bash
+node tests/run-solutions.js          # 全ミッション
+node tests/run-solutions.js k8s-03 -v # 1 本を出力付きで
+```
+
+各ミッションについて「開始時点で目標が未達成であること」と「模範解答で全目標を達成できること」を確認します。ミッションやシミュレータを変更したら必ず実行してください。
+
+### ミッションの追加
+
+`js/game/missions/` のファイルで `IG.registerMission({...})` を呼ぶだけです。
+
+```js
+IG.registerMission({
+  id: 'k8s-07', track: 'k8s', order: 7, difficulty: 2, par: 420, xp: 180,
+  title: 'タイトル', summary: '一覧に出る一行説明',
+  story: ['ブリーフィング本文…'],
+  setup(w, B) {                       // w = IG.World, B = IG.build ヘルパー
+    const cl = B.cluster(w, { name: 'training-cluster', namespaces: ['demo'], ns: 'demo' });
+    w.addImage('registry.lab.local/demo/app:1.0', { kind: 'app', app: 'app', port: 8080 });
+    B.apply(cl, B.deploy('app', 'demo', { image: 'registry.lab.local/demo/app:1.0', port: 8080, replicas: 2 }));
+    B.files(w, { '/home/operator/manifests/app.yaml': '...' });
+  },
+  objectives: [
+    { title: '目標', detail: '説明', hints: ['ヒント1', 'ヒント2 `コマンド`'],
+      check: (w, c) => c.cluster().healthy('demo', 'app', 2) },  // c.ran(/re/), c.http(fn), c.file(path) など
+  ],
+  solution: ['kubectl get pods', '...'],   // テストで自動実行される模範解答
+  debrief: { points: ['学び'], commands: [['kubectl …', '説明']] },
+});
+```
+
+新しいファイルを作ったら `index.html` の `<script>` に追加してください（テストも同じ順序で読み込みます）。
+
+## ロードマップ
+
+- 3D 化: `IG.DC.sceneFromWorld()` / `sceneFromProgress()` が返すシーン（ゾーン・ラック・ユニット・リンク）は描画方式に依存しないデータです。将来は Three.js などの 3D レンダラに差し替えて、Steam の Data Center のようにデータセンター内を歩き回れる形を目指します。
+- ミッション追加（NetworkPolicy・PV/PVC・HPA・Ingress・IAM・Terraform など）
+- 時間経過で悪化するインシデント（SLA ゲージ）・ランダム障害モード

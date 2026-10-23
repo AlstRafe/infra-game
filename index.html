@@ -1,109 +1,213 @@
 <!doctype html>
-<html lang="en-GB">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="theme-color" content="#101719" />
-    <title>CoreLab — Infrastructure training</title>
-    <link rel="stylesheet" href="./app.css" />
-  </head>
-  <body>
-    <div class="app-shell">
-      <header class="topbar">
-        <a class="brand" href="#" aria-label="CoreLab home">
-          <span class="brand-mark"><span></span><span></span><span></span></span>
-          <span>CORE<span class="brand-light">LAB</span></span>
-        </a>
-        <div class="top-meta"><span class="environment-dot"></span><span data-i18n="simulation">LOCAL SIMULATION</span><span class="meta-divider"></span><span id="scenarioTag" data-i18n="scenarioTag">SCENARIO 01 / 03</span></div>
-        <div class="top-actions">
-          <label class="sr-only" for="language" data-i18n="language">Language</label>
-          <select id="language" class="language-select" aria-label="Language">
-            <option value="en-GB">English (UK)</option>
-            <option value="ja">日本語</option>
-            <option value="ko">한국어</option>
-            <option value="zh-TW">繁體中文</option>
-          </select>
-          <button id="resetButton" class="icon-button" title="Reset scenario" aria-label="Reset scenario">↻</button>
-        </div>
-      </header>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#0a0f15">
+  <meta name="description" content="Kubernetes / Docker / AWS / OpenShift / Harbor の障害対応を、ブラウザの中のシミュレーションで遊びながら学ぶインフラ運用トレーニングゲーム。">
+  <title>CoreLab — インフラ運用トレーニング</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%230a0f15'/%3E%3Cpath d='M8 21l8-4 8 4-8 4z' fill='%2338d6c4'/%3E%3Cpath d='M8 15l8-4 8 4-8 4z' fill='%234f7cf0'/%3E%3Cpath d='M8 9l8-4 8 4-8 4z' fill='%23f5a524'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="./css/app.css">
+</head>
+<body>
+  <a class="skip" href="#main">本文へ移動</a>
+  <header class="topbar">
+    <a class="brand" href="#/" aria-label="CoreLab ホーム">
+      <span class="brand-mark" aria-hidden="true"><i></i><i></i><i></i></span>
+      <span class="brand-text">CORE<b>LAB</b><small>INFRA OPS TRAINING</small></span>
+    </a>
+    <nav class="topnav" aria-label="メイン">
+      <a href="#/" data-nav="home">ミッション</a>
+      <a href="#/play/sandbox" data-nav="sandbox">フリーラボ</a>
+      <button type="button" id="howtoBtn">遊び方</button>
+    </nav>
+    <div class="profile" id="profileChip" title="キャリア">
+      <span class="rank-badge" id="rankBadge">Lv1</span>
+      <span class="profile-text"><strong id="rankName">見習いオペレーター</strong><span class="xpbar"><i id="xpFill"></i></span><small id="xpText">0 XP</small></span>
+    </div>
+  </header>
 
-      <main class="workspace">
-        <aside class="sidebar">
-          <div class="sidebar-heading" data-i18n="trainingPath">TRAINING PATH</div>
-          <div class="path-card active" id="scenarioCard" data-scenario="1" role="button" tabindex="0" aria-pressed="true">
-            <span class="path-index">01</span><span class="path-copy"><strong data-i18n="scenarioTitle">Cluster recovery</strong><small data-i18n="scenarioSub">Kubernetes · Beginner</small></span><span class="path-state" id="scenarioState">●</span>
+  <main id="main">
+    <!-- ============================== HOME -->
+    <section id="viewHome" class="view" aria-label="ホーム">
+      <div class="hero">
+        <canvas id="dcHome" class="dc-canvas" aria-label="あなたのデータセンター（クリアしたミッションに応じて設備が稼働します）"></canvas>
+        <div class="hero-copy">
+          <p class="eyebrow">YOUR DATA CENTER</p>
+          <h1>障害を直して、<br>データセンターを育てよう。</h1>
+          <p class="lead">Kubernetes・Docker・Harbor・OpenShift・AWS の「よくある障害」を、本物そっくりのターミナルで解決するトレーニングゲーム。クリアするほどラックが稼働していきます。</p>
+          <div class="hero-actions">
+            <button class="btn primary" id="continueBtn">▶ はじめる</button>
+            <a class="btn ghost" href="#/play/sandbox">フリーラボで遊ぶ</a>
           </div>
-          <div class="path-card" id="scenarioTwo" data-scenario="2" role="button" tabindex="0" aria-pressed="false"><span class="path-index">02</span><span class="path-copy"><strong data-i18n="scenarioTwo">Service routing</strong><small data-i18n="scenarioTwoSub">Kubernetes · Services</small></span><span class="path-state"></span></div>
-          <div class="path-card" id="scenarioThree" data-scenario="3" role="button" tabindex="0" aria-pressed="false"><span class="path-index">03</span><span class="path-copy"><strong data-i18n="scenarioThree">Resilience drill</strong><small data-i18n="scenarioThreeSub">Kubernetes · Workloads</small></span><span class="path-state"></span></div>
-          <div class="sidebar-bottom">
-            <div class="profile-chip"><span class="avatar">◈</span><span><strong data-i18n="operator">OPERATOR</strong><small data-i18n="trainingMode">Training mode</small></span></div>
-            <div class="safety-note"><span class="shield">◇</span><span data-i18n="offlineNote">Offline sandbox. No cluster or cloud is connected.</span></div>
+          <dl class="hero-stats">
+            <div><dt>クリア</dt><dd id="statClear">0/0</dd></div>
+            <div><dt>獲得 ★</dt><dd id="statStars">0</dd></div>
+            <div><dt>バッジ</dt><dd id="statBadges">0</dd></div>
+          </dl>
+        </div>
+        <div class="dc-tip" id="homeTip" hidden></div>
+      </div>
+
+      <div class="first-run" id="firstRun" hidden>
+        <div>
+          <strong>はじめての方へ</strong>
+          <p>画面下のターミナルにコマンドを打ってミッションを解決します。<b>何を壊しても大丈夫</b>（すべてブラウザ内のシミュレーション）。詰まったら各目標の「ヒント」を押せば、使うコマンドまで教えてくれます。まずは Linux 基礎の「初日の当番」から。</p>
+        </div>
+        <button class="btn primary" data-play="basics-01">初日の当番をはじめる</button>
+        <button class="icon-btn" id="dismissFirstRun" aria-label="閉じる">×</button>
+      </div>
+
+      <div class="home-grid">
+        <section class="tracks" id="trackList" aria-label="トラック一覧"></section>
+        <aside class="side-panel">
+          <section class="card">
+            <h2 class="card-title">キャリア</h2>
+            <ol class="rank-ladder" id="rankLadder"></ol>
+          </section>
+          <section class="card">
+            <h2 class="card-title">バッジ</h2>
+            <div class="badges" id="badgeList"></div>
+          </section>
+          <section class="card small-print">
+            <p>表示されるホスト名・IP・ログ・脆弱性・顧客データはすべて訓練用の架空データです。実在の環境・手順書を表すものではありません。</p>
+            <button class="link-btn" id="resetProgress">進捗をリセット</button>
+          </section>
+        </aside>
+      </div>
+    </section>
+
+    <!-- ============================== MISSION -->
+    <section id="viewMission" class="view" aria-label="ミッション" hidden>
+      <div class="mission-bar">
+        <a class="btn ghost small" href="#/" aria-label="ミッション一覧に戻る">← マップ</a>
+        <span class="track-chip" id="mTrack"></span>
+        <h1 id="mTitle"></h1>
+        <div class="mission-meta">
+          <span title="経過時間">⏱ <b id="mTimer">0:00</b></span>
+          <span title="使ったヒント">💡 <b id="mHints">0</b></span>
+          <span class="star-preview" id="mStars" title="現在の評価">★★★</span>
+          <button class="btn ghost small" id="resetMission" title="最初からやり直す">↻ リセット</button>
+          <button class="btn ghost small" id="showSolution" title="模範解答を見る（XP なし）">解答</button>
+        </div>
+      </div>
+
+      <div class="mission-layout">
+        <aside class="brief" aria-label="ブリーフィングと目標">
+          <details class="story" id="storyBox" open>
+            <summary>ブリーフィング</summary>
+            <div id="mStory"></div>
+          </details>
+          <h2 class="section-label">目標 <span id="mProgress">0/3</span></h2>
+          <ol class="objectives" id="mObjectives"></ol>
+          <div class="sandbox-note" id="sandboxNote" hidden>
+            <p>フリーラボには目標がありません。好きなコマンドを試してみましょう。</p>
           </div>
         </aside>
 
-        <section class="main-column">
-          <div class="page-heading">
-            <div><div class="eyebrow" id="missionLabel" data-i18n="missionLabel">MISSION 01 · KUBERNETES OPERATIONS</div><h1 id="pageTitle" data-i18n="pageTitle">Restore service capacity</h1><p id="pageDescription" data-i18n="pageDescription">Inspect the cluster, repair the deployment configuration, then verify service connectivity.</p></div>
-            <div class="mission-status" id="missionStatus"><span class="status-dot"></span><span data-i18n="inProgress">IN PROGRESS</span></div>
-          </div>
-
-          <section class="panel topology-panel">
-            <div class="panel-head"><div><span class="section-kicker" data-i18n="liveTopology">LIVE TOPOLOGY</span><h2 data-i18n="clusterOverview">Cluster overview</h2></div><div class="panel-head-right"><span class="cluster-chip"><i></i> eks-training-01</span><span class="region-label">ap-northeast-1</span></div></div>
-            <div class="topology-canvas">
-              <svg class="connections" viewBox="0 0 760 210" preserveAspectRatio="none" aria-hidden="true"><path d="M140 103 C205 103 203 103 265 103"/><path d="M375 103 C432 103 425 53 486 53"/><path d="M375 103 C432 103 425 153 486 153"/><path class="connection-active" d="M585 53 C640 53 634 103 694 103"/><path class="connection-muted" d="M585 153 C640 153 634 103 694 103"/></svg>
-              <div class="topo-node client-node"><span class="node-icon">⌘</span><div><strong data-i18n="bastion">Bastion</strong><small>EC2 · admin</small></div><span class="node-health good"></span></div>
-              <div class="topo-node control-node"><span class="node-icon">⌬</span><div><strong>Cluster</strong><small data-i18n="controlPlane">Control plane</small></div><span class="node-health good"></span></div>
-              <div class="topo-node pod-node amf-node"><span class="pod-symbol">●</span><div><strong>AMF</strong><small id="amfReady" data-i18n="ready">Ready · 1/1</small></div></div>
-              <div class="topo-node pod-node smf-node" id="smfNode"><span class="pod-symbol">●</span><div><strong>SMF-VOICE</strong><small id="smfReady">1/1 · Degraded</small></div></div>
-              <div class="topo-node service-node" id="serviceNode"><span class="node-icon">⇄</span><div><strong>smf-voice</strong><small data-i18n="service">Service · :8080</small></div><span class="node-health warn" id="serviceHealth"></span></div>
-              <div class="topology-legend"><span><i class="legend-good"></i><span data-i18n="healthy">Healthy</span></span><span><i class="legend-warn"></i><span data-i18n="degraded">Degraded</span></span><span class="flow-legend"><b></b><span data-i18n="traffic">Traffic path</span></span></div>
+        <div class="stage">
+          <section class="panel dc-panel">
+            <div class="panel-head"><span class="kicker"><i class="live-dot"></i>LIVE VIEW</span><span class="legend"><i class="ok"></i>正常<i class="warn"></i>注意<i class="bad"></i>異常<i class="off"></i>停止</span></div>
+            <canvas id="dcMission" class="dc-canvas" aria-label="ミッション環境の状態"></canvas>
+          </section>
+          <section class="panel terminal" id="terminal">
+            <div class="term-head">
+              <span class="term-dots" aria-hidden="true"><i></i><i></i><i></i></span>
+              <span class="term-title" id="termTitle">operator@bastion</span>
+              <span class="term-actions">
+                <button type="button" id="termMax" title="ターミナルを最大化">⛶</button>
+                <button type="button" id="termClear" title="画面をクリア（Ctrl+L）">Clear</button>
+              </span>
             </div>
-            <div class="resource-strip"><div><span data-i18n="nodes">NODES</span><strong>3 <small>/ 3</small></strong></div><div><span data-i18n="pods">PODS</span><strong id="podCount">4 <small>/ 4 ready</small></strong></div><div><span data-i18n="services">SERVICES</span><strong>6</strong></div><div><span data-i18n="clusterHealth">CLUSTER HEALTH</span><strong class="health-text" id="healthText"><i></i><span data-i18n="needsAttention">Needs attention</span></strong></div></div>
+            <div class="term-out" id="termOut" role="log" aria-live="polite"></div>
+            <form class="term-in" id="termForm" autocomplete="off">
+              <label class="prompt" for="termInput" id="termPrompt">operator@bastion:~$</label>
+              <input id="termInput" spellcheck="false" autocapitalize="off" autocomplete="off" aria-label="コマンド入力" placeholder="コマンドを入力（help で一覧）">
+            </form>
+            <div class="term-help">Tab 補完 · ↑↓ 履歴 · Ctrl+L クリア · Ctrl+C 中断</div>
           </section>
+        </div>
 
-          <div class="lower-grid">
-            <section class="panel mission-panel">
-              <div class="panel-head compact"><div><span class="section-kicker" data-i18n="objectives">OBJECTIVES</span><h2 id="missionChecklistTitle" data-i18n="missionChecklist">Mission checklist</h2></div><span class="progress-count" id="progressCount">0 / 3</span></div>
-              <div class="objective-list" id="objectiveList">
-                <div class="objective" id="objective1"><span class="check-circle">1</span><div><strong data-i18n="objective1">Inspect cluster state</strong><small data-i18n="objective1Hint">Check nodes and workloads with kubectl.</small><small class="hint-text" id="hintText1" hidden></small></div><button class="hint-button" data-hint="1" data-i18n="hintButton">Hint</button><span class="objective-check">✓</span></div>
-                <div class="objective" id="objective2"><span class="check-circle">2</span><div><strong data-i18n="objective2">Repair the deployment YAML</strong><small data-i18n="objective2Hint">Set the target replica count to 2 and apply it.</small><small class="hint-text" id="hintText2" hidden></small></div><button class="hint-button" data-hint="2" data-i18n="hintButton">Hint</button><span class="objective-check">✓</span></div>
-                <div class="objective" id="objective3"><span class="check-circle">3</span><div><strong data-i18n="objective3">Verify service connectivity</strong><small data-i18n="objective3Hint">Send a health request from AMF to SMF-VOICE.</small><small class="hint-text" id="hintText3" hidden></small></div><button class="hint-button" data-hint="3" data-i18n="hintButton">Hint</button><span class="objective-check">✓</span></div>
-              </div>
-              <div class="briefing"><span class="briefing-icon">✳</span><p id="briefingText" data-i18n="briefing">One SMF-VOICE replica is unavailable. Find the deployment setting, restore two healthy replicas, then verify the AMF-to-SMF health endpoint.</p></div>
-              <div class="next-step" id="nextStep" hidden><span class="next-step-icon">✓</span><div><strong data-i18n="missionCompleteTitle">Mission complete</strong><small data-i18n="missionCompleteText">The cluster meets the target. Continue in the sandbox or replay the mission.</small></div></div>
-              <button class="give-up-button" id="giveUpButton" type="button" data-i18n="giveUp">Give up</button>
-              <button class="primary-button" id="freeBuildButton" disabled><span data-i18n="freeBuild">Continue to free-build lab</span><span>↗</span></button>
-            </section>
-
-            <section class="panel workspace-panel">
-              <div class="panel-head compact"><div><span class="section-kicker" data-i18n="workspace">WORKSPACE</span><h2 id="currentDirectory">/home/operator</h2></div><span class="workspace-lock">⌘</span></div>
-              <div class="workspace-empty" id="workspaceListing"><span class="folder-icon">▱</span><strong data-i18n="workspaceEmpty">No file open</strong><p data-i18n="workspacePrompt">Explore directories and inspect files from the terminal.</p><div><kbd>ls</kbd><kbd>cd</kbd><kbd>cat</kbd><kbd>vi</kbd></div></div>
-            </section>
+        <aside class="side" aria-label="イベントと早見表">
+          <div class="tabs" role="tablist">
+            <button role="tab" aria-selected="true" data-tab="events">イベント</button>
+            <button role="tab" aria-selected="false" data-tab="cheat">早見表</button>
           </div>
-
-          <section class="panel terminal-panel" id="terminalPanel">
-            <div class="terminal-head"><div class="terminal-title"><span class="terminal-icon">›_</span><div><strong data-i18n="terminal">Terminal</strong><small><i></i><span data-i18n="simulatedShell">Simulated kubectl · bash</span></small></div></div><div class="terminal-head-actions"><button class="expand-button" id="terminalExpand" type="button" aria-label="Maximise terminal" title="Maximise terminal">⛶</button><button class="clear-button" id="clearTerminal" data-i18n="clear">Clear</button></div></div>
-            <div class="terminal-output" id="terminalOutput" aria-live="polite"><div class="terminal-welcome"><span data-i18n="welcome1">Commands run in an isolated training shell. Start by exploring the workspace.</span><br><span data-i18n="welcome2">Tab completes commands and paths · ↑ / ↓ recalls history</span></div></div>
-            <form class="terminal-input-row" id="terminalForm"><span class="prompt" id="shellPrompt">operator@eks-training-01:~ $</span><input id="commandInput" autocomplete="off" spellcheck="false" placeholder="Enter a command…" aria-label="Command input"/><button type="submit" data-i18n="run">Run</button></form>
-            <div class="command-hints"><span data-i18n="shellTip">SHELL</span><span class="shell-tip" data-i18n="shellTipText">Tab: complete · ↑/↓: history · Ctrl+C: clear input</span><button id="helpButton" data-i18n="help">Help</button></div>
-          </section>
-
-          <section class="panel event-panel"><div class="event-heading"><span class="event-symbol">◷</span><strong data-i18n="eventLog">EVENT LOG</strong><span class="event-live"><i></i><span data-i18n="live">LIVE</span></span><button id="clearEvents" data-i18n="clear">Clear</button></div><div class="event-list" id="eventList"></div></section>
-          <footer class="footer"><span>CORELAB <span data-i18n="prototype">TRAINING PROTOTYPE</span></span><span data-i18n="footerSafety">Simulation only · No external connections</span></footer>
-        </section>
-      </main>
-      <div class="toast" id="toast" role="status"></div>
-      <div class="editor-backdrop" id="editorBackdrop" hidden>
-        <section class="editor-dialog" role="dialog" aria-modal="true" aria-labelledby="editorTitle">
-          <div class="editor-dialog-head"><div><span class="section-kicker" data-i18n="editingFile">EDITING FILE</span><h2 id="editorTitle">file.yaml</h2></div><button class="icon-button" id="closeEditor" aria-label="Close editor">×</button></div>
-          <div class="editor-tabs"><span class="tab-active">YAML</span><span class="editor-mode" id="editorMode">INSERT</span><span class="editor-dots">•••</span></div>
-          <div class="code-editor"><div class="line-numbers" id="lineNumbers">1</div><textarea id="yamlEditor" spellcheck="false" aria-label="File editor"></textarea></div>
-          <div class="editor-footer"><span id="yamlStatus"><i></i><span data-i18n="unsaved">Unsaved changes</span></span><span data-i18n="vimHelp">Esc · :wq save · :q! discard</span></div>
-          <form class="vim-command-row" id="vimCommandForm" hidden><span>:</span><input id="vimCommandInput" autocomplete="off" spellcheck="false" aria-label="Vim command"/><span data-i18n="vimCommandHelp">Enter to run · Esc to cancel</span></form>
-          <div class="editor-dialog-actions"><span data-i18n="editorTip">Tab inserts spaces · Ctrl+S saves</span><button class="apply-button" id="saveFile"><span>↳</span><span data-i18n="saveFile">Save file</span><kbd>:wq</kbd></button></div>
-        </section>
+          <div class="tab-body" id="tabEvents"><ol class="events" id="eventList"></ol></div>
+          <div class="tab-body" id="tabCheat" hidden></div>
+        </aside>
       </div>
-    </div>
-    <script src="./app.js"></script>
-  </body>
+    </section>
+  </main>
+
+  <div class="dc-tip floating" id="missionTip" hidden></div>
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <!-- editor -->
+  <div class="modal-backdrop" id="editorModal" hidden>
+    <section class="modal editor" role="dialog" aria-modal="true" aria-labelledby="editorTitle">
+      <header><span class="kicker">EDIT</span><h2 id="editorTitle">file</h2><span class="mode" id="editorMode">INSERT</span><button class="icon-btn" id="editorClose" aria-label="閉じる">×</button></header>
+      <div class="code"><pre class="gutter" id="editorGutter">1</pre><textarea id="editorText" spellcheck="false" wrap="off" aria-label="ファイル内容"></textarea></div>
+      <form class="vim-cmd" id="vimForm" hidden><span>:</span><input id="vimInput" autocomplete="off" spellcheck="false" aria-label="コマンド"></form>
+      <footer><span id="editorStatus">Esc → :wq で保存して終了 / :q! で破棄 / Ctrl+S で保存</span><span class="spacer"></span><button class="btn ghost small" id="editorCancel">破棄して閉じる</button><button class="btn primary small" id="editorSave">保存して閉じる <kbd>:wq</kbd></button></footer>
+    </section>
+  </div>
+
+  <!-- result -->
+  <div class="modal-backdrop" id="resultModal" hidden>
+    <section class="modal result" role="dialog" aria-modal="true" aria-labelledby="resultTitle">
+      <div class="result-head"><p class="kicker">MISSION COMPLETE</p><h2 id="resultTitle">復旧完了！</h2><div class="big-stars" id="resultStars"></div></div>
+      <dl class="result-stats"><div><dt>タイム</dt><dd id="rTime"></dd></div><div><dt>ヒント</dt><dd id="rHints"></dd></div><div><dt>獲得 XP</dt><dd id="rXp"></dd></div></dl>
+      <div class="result-extra" id="rExtra"></div>
+      <h3>今回のポイント</h3>
+      <ul class="debrief" id="rPoints"></ul>
+      <h3>覚えておきたいコマンド</h3>
+      <table class="cmd-table" id="rCommands"></table>
+      <footer><button class="btn ghost" id="rStay">環境に残る</button><button class="btn ghost" id="rRetry">もう一度</button><button class="btn primary" id="rNext">次のミッション →</button></footer>
+    </section>
+  </div>
+
+  <!-- solution -->
+  <div class="modal-backdrop" id="solutionModal" hidden>
+    <section class="modal solution" role="dialog" aria-modal="true" aria-labelledby="solTitle">
+      <header><h2 id="solTitle">模範解答</h2><button class="icon-btn" data-close aria-label="閉じる">×</button></header>
+      <p class="muted">解答を見るとこのプレイでは XP を獲得できません（もう一度挑戦すれば獲得できます）。各行の「入力」でターミナルに貼り付けられます。</p>
+      <ol class="sol-list" id="solList"></ol>
+    </section>
+  </div>
+
+  <!-- how to -->
+  <div class="modal-backdrop" id="howtoModal" hidden>
+    <section class="modal howto" role="dialog" aria-modal="true" aria-labelledby="howtoTitle">
+      <header><h2 id="howtoTitle">遊び方</h2><button class="icon-btn" data-close aria-label="閉じる">×</button></header>
+      <ol class="howto-steps">
+        <li><b>ミッションを選ぶ</b><span>トラック（Linux / Docker / Harbor / Kubernetes / OpenShift / AWS）ごとに順番に解放されます。</span></li>
+        <li><b>ブリーフィングを読む</b><span>左側に状況と目標が出ます。目標は自動で判定され、達成するとチェックが付きます。</span></li>
+        <li><b>ターミナルで調査・修正</b><span>本物と同じ書式のコマンドが使えます。<code>help</code> で一覧、Tab で補完、↑ で履歴。ファイル編集は <code>vi ファイル名</code>。</span></li>
+        <li><b>LIVE VIEW で状態を確認</b><span>ラックの LED が緑＝正常、黄＝注意、赤＝異常。ラックにカーソルを合わせると詳細が見えます。</span></li>
+        <li><b>評価</b><span>★3: ヒントなし＆目標時間内。ヒントを使うと ★ が減ります。獲得 XP でランクが上がり、データセンターのラックが稼働します。</span></li>
+      </ol>
+      <p class="muted">すべての操作はブラウザ内のシミュレーションで、実際のクラスタ・クラウド・ネットワークには一切接続しません。</p>
+    </section>
+  </div>
+
+  <script src="./js/core/util.js"></script>
+  <script src="./js/sim/images.js"></script>
+  <script src="./js/sim/world.js"></script>
+  <script src="./js/sim/k8s.js"></script>
+  <script src="./js/sim/docker.js"></script>
+  <script src="./js/sim/harbor.js"></script>
+  <script src="./js/sim/aws.js"></script>
+  <script src="./js/cmd/shell.js"></script>
+  <script src="./js/cmd/kubectl.js"></script>
+  <script src="./js/game/engine.js"></script>
+  <script src="./js/game/missions/basics.js"></script>
+  <script src="./js/game/missions/docker.js"></script>
+  <script src="./js/game/missions/harbor.js"></script>
+  <script src="./js/game/missions/k8s.js"></script>
+  <script src="./js/game/missions/openshift.js"></script>
+  <script src="./js/game/missions/aws.js"></script>
+  <script src="./js/ui/datacenter.js"></script>
+  <script src="./js/ui/app.js"></script>
+</body>
 </html>
