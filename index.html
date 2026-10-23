@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="en-GB">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#101719" />
+    <title>CoreLab — Infrastructure training</title>
+    <link rel="stylesheet" href="./app.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <header class="topbar">
+        <a class="brand" href="#" aria-label="CoreLab home">
+          <span class="brand-mark"><span></span><span></span><span></span></span>
+          <span>CORE<span class="brand-light">LAB</span></span>
+        </a>
+        <div class="top-meta"><span class="environment-dot"></span><span data-i18n="simulation">LOCAL SIMULATION</span><span class="meta-divider"></span><span id="scenarioTag" data-i18n="scenarioTag">SCENARIO 01 / 03</span></div>
+        <div class="top-actions">
+          <label class="sr-only" for="language" data-i18n="language">Language</label>
+          <select id="language" class="language-select" aria-label="Language">
+            <option value="en-GB">English (UK)</option>
+            <option value="ja">日本語</option>
+            <option value="ko">한국어</option>
+            <option value="zh-TW">繁體中文</option>
+          </select>
+          <button id="resetButton" class="icon-button" title="Reset scenario" aria-label="Reset scenario">↻</button>
+        </div>
+      </header>
+
+      <main class="workspace">
+        <aside class="sidebar">
+          <div class="sidebar-heading" data-i18n="trainingPath">TRAINING PATH</div>
+          <div class="path-card active" id="scenarioCard" data-scenario="1" role="button" tabindex="0" aria-pressed="true">
+            <span class="path-index">01</span><span class="path-copy"><strong data-i18n="scenarioTitle">Cluster recovery</strong><small data-i18n="scenarioSub">Kubernetes · Beginner</small></span><span class="path-state" id="scenarioState">●</span>
+          </div>
+          <div class="path-card" id="scenarioTwo" data-scenario="2" role="button" tabindex="0" aria-pressed="false"><span class="path-index">02</span><span class="path-copy"><strong data-i18n="scenarioTwo">Service routing</strong><small data-i18n="scenarioTwoSub">Kubernetes · Services</small></span><span class="path-state"></span></div>
+          <div class="path-card" id="scenarioThree" data-scenario="3" role="button" tabindex="0" aria-pressed="false"><span class="path-index">03</span><span class="path-copy"><strong data-i18n="scenarioThree">Resilience drill</strong><small data-i18n="scenarioThreeSub">Kubernetes · Workloads</small></span><span class="path-state"></span></div>
+          <div class="sidebar-bottom">
+            <div class="profile-chip"><span class="avatar">◈</span><span><strong data-i18n="operator">OPERATOR</strong><small data-i18n="trainingMode">Training mode</small></span></div>
+            <div class="safety-note"><span class="shield">◇</span><span data-i18n="offlineNote">Offline sandbox. No cluster or cloud is connected.</span></div>
+          </div>
+        </aside>
+
+        <section class="main-column">
+          <div class="page-heading">
+            <div><div class="eyebrow" id="missionLabel" data-i18n="missionLabel">MISSION 01 · KUBERNETES OPERATIONS</div><h1 id="pageTitle" data-i18n="pageTitle">Restore service capacity</h1><p id="pageDescription" data-i18n="pageDescription">Inspect the cluster, repair the deployment configuration, then verify service connectivity.</p></div>
+            <div class="mission-status" id="missionStatus"><span class="status-dot"></span><span data-i18n="inProgress">IN PROGRESS</span></div>
+          </div>
+
+          <section class="panel topology-panel">
+            <div class="panel-head"><div><span class="section-kicker" data-i18n="liveTopology">LIVE TOPOLOGY</span><h2 data-i18n="clusterOverview">Cluster overview</h2></div><div class="panel-head-right"><span class="cluster-chip"><i></i> eks-training-01</span><span class="region-label">ap-northeast-1</span></div></div>
+            <div class="topology-canvas">
+              <svg class="connections" viewBox="0 0 760 210" preserveAspectRatio="none" aria-hidden="true"><path d="M140 103 C205 103 203 103 265 103"/><path d="M375 103 C432 103 425 53 486 53"/><path d="M375 103 C432 103 425 153 486 153"/><path class="connection-active" d="M585 53 C640 53 634 103 694 103"/><path class="connection-muted" d="M585 153 C640 153 634 103 694 103"/></svg>
+              <div class="topo-node client-node"><span class="node-icon">⌘</span><div><strong data-i18n="bastion">Bastion</strong><small>EC2 · admin</small></div><span class="node-health good"></span></div>
+              <div class="topo-node control-node"><span class="node-icon">⌬</span><div><strong>Cluster</strong><small data-i18n="controlPlane">Control plane</small></div><span class="node-health good"></span></div>
+              <div class="topo-node pod-node amf-node"><span class="pod-symbol">●</span><div><strong>AMF</strong><small id="amfReady" data-i18n="ready">Ready · 1/1</small></div></div>
+              <div class="topo-node pod-node smf-node" id="smfNode"><span class="pod-symbol">●</span><div><strong>SMF-VOICE</strong><small id="smfReady">1/1 · Degraded</small></div></div>
+              <div class="topo-node service-node" id="serviceNode"><span class="node-icon">⇄</span><div><strong>smf-voice</strong><small data-i18n="service">Service · :8080</small></div><span class="node-health warn" id="serviceHealth"></span></div>
+              <div class="topology-legend"><span><i class="legend-good"></i><span data-i18n="healthy">Healthy</span></span><span><i class="legend-warn"></i><span data-i18n="degraded">Degraded</span></span><span class="flow-legend"><b></b><span data-i18n="traffic">Traffic path</span></span></div>
+            </div>
+            <div class="resource-strip"><div><span data-i18n="nodes">NODES</span><strong>3 <small>/ 3</small></strong></div><div><span data-i18n="pods">PODS</span><strong id="podCount">4 <small>/ 4 ready</small></strong></div><div><span data-i18n="services">SERVICES</span><strong>6</strong></div><div><span data-i18n="clusterHealth">CLUSTER HEALTH</span><strong class="health-text" id="healthText"><i></i><span data-i18n="needsAttention">Needs attention</span></strong></div></div>
+          </section>
+
+          <div class="lower-grid">
+            <section class="panel mission-panel">
+              <div class="panel-head compact"><div><span class="section-kicker" data-i18n="objectives">OBJECTIVES</span><h2 id="missionChecklistTitle" data-i18n="missionChecklist">Mission checklist</h2></div><span class="progress-count" id="progressCount">0 / 3</span></div>
+              <div class="objective-list" id="objectiveList">
+                <div class="objective" id="objective1"><span class="check-circle">1</span><div><strong data-i18n="objective1">Inspect cluster state</strong><small data-i18n="objective1Hint">Check nodes and workloads with kubectl.</small><small class="hint-text" id="hintText1" hidden></small></div><button class="hint-button" data-hint="1" data-i18n="hintButton">Hint</button><span class="objective-check">✓</span></div>
+                <div class="objective" id="objective2"><span class="check-circle">2</span><div><strong data-i18n="objective2">Repair the deployment YAML</strong><small data-i18n="objective2Hint">Set the target replica count to 2 and apply it.</small><small class="hint-text" id="hintText2" hidden></small></div><button class="hint-button" data-hint="2" data-i18n="hintButton">Hint</button><span class="objective-check">✓</span></div>
+                <div class="objective" id="objective3"><span class="check-circle">3</span><div><strong data-i18n="objective3">Verify service connectivity</strong><small data-i18n="objective3Hint">Send a health request from AMF to SMF-VOICE.</small><small class="hint-text" id="hintText3" hidden></small></div><button class="hint-button" data-hint="3" data-i18n="hintButton">Hint</button><span class="objective-check">✓</span></div>
+              </div>
+              <div class="briefing"><span class="briefing-icon">✳</span><p id="briefingText" data-i18n="briefing">One SMF-VOICE replica is unavailable. Find the deployment setting, restore two healthy replicas, then verify the AMF-to-SMF health endpoint.</p></div>
+              <div class="next-step" id="nextStep" hidden><span class="next-step-icon">✓</span><div><strong data-i18n="missionCompleteTitle">Mission complete</strong><small data-i18n="missionCompleteText">The cluster meets the target. Continue in the sandbox or replay the mission.</small></div></div>
+              <button class="give-up-button" id="giveUpButton" type="button" data-i18n="giveUp">Give up</button>
+              <button class="primary-button" id="freeBuildButton" disabled><span data-i18n="freeBuild">Continue to free-build lab</span><span>↗</span></button>
+            </section>
+
+            <section class="panel workspace-panel">
+              <div class="panel-head compact"><div><span class="section-kicker" data-i18n="workspace">WORKSPACE</span><h2 id="currentDirectory">/home/operator</h2></div><span class="workspace-lock">⌘</span></div>
+              <div class="workspace-empty" id="workspaceListing"><span class="folder-icon">▱</span><strong data-i18n="workspaceEmpty">No file open</strong><p data-i18n="workspacePrompt">Explore directories and inspect files from the terminal.</p><div><kbd>ls</kbd><kbd>cd</kbd><kbd>cat</kbd><kbd>vi</kbd></div></div>
+            </section>
+          </div>
+
+          <section class="panel terminal-panel" id="terminalPanel">
+            <div class="terminal-head"><div class="terminal-title"><span class="terminal-icon">›_</span><div><strong data-i18n="terminal">Terminal</strong><small><i></i><span data-i18n="simulatedShell">Simulated kubectl · bash</span></small></div></div><div class="terminal-head-actions"><button class="expand-button" id="terminalExpand" type="button" aria-label="Maximise terminal" title="Maximise terminal">⛶</button><button class="clear-button" id="clearTerminal" data-i18n="clear">Clear</button></div></div>
+            <div class="terminal-output" id="terminalOutput" aria-live="polite"><div class="terminal-welcome"><span data-i18n="welcome1">Commands run in an isolated training shell. Start by exploring the workspace.</span><br><span data-i18n="welcome2">Tab completes commands and paths · ↑ / ↓ recalls history</span></div></div>
+            <form class="terminal-input-row" id="terminalForm"><span class="prompt" id="shellPrompt">operator@eks-training-01:~ $</span><input id="commandInput" autocomplete="off" spellcheck="false" placeholder="Enter a command…" aria-label="Command input"/><button type="submit" data-i18n="run">Run</button></form>
+            <div class="command-hints"><span data-i18n="shellTip">SHELL</span><span class="shell-tip" data-i18n="shellTipText">Tab: complete · ↑/↓: history · Ctrl+C: clear input</span><button id="helpButton" data-i18n="help">Help</button></div>
+          </section>
+
+          <section class="panel event-panel"><div class="event-heading"><span class="event-symbol">◷</span><strong data-i18n="eventLog">EVENT LOG</strong><span class="event-live"><i></i><span data-i18n="live">LIVE</span></span><button id="clearEvents" data-i18n="clear">Clear</button></div><div class="event-list" id="eventList"></div></section>
+          <footer class="footer"><span>CORELAB <span data-i18n="prototype">TRAINING PROTOTYPE</span></span><span data-i18n="footerSafety">Simulation only · No external connections</span></footer>
+        </section>
+      </main>
+      <div class="toast" id="toast" role="status"></div>
+      <div class="editor-backdrop" id="editorBackdrop" hidden>
+        <section class="editor-dialog" role="dialog" aria-modal="true" aria-labelledby="editorTitle">
+          <div class="editor-dialog-head"><div><span class="section-kicker" data-i18n="editingFile">EDITING FILE</span><h2 id="editorTitle">file.yaml</h2></div><button class="icon-button" id="closeEditor" aria-label="Close editor">×</button></div>
+          <div class="editor-tabs"><span class="tab-active">YAML</span><span class="editor-mode" id="editorMode">INSERT</span><span class="editor-dots">•••</span></div>
+          <div class="code-editor"><div class="line-numbers" id="lineNumbers">1</div><textarea id="yamlEditor" spellcheck="false" aria-label="File editor"></textarea></div>
+          <div class="editor-footer"><span id="yamlStatus"><i></i><span data-i18n="unsaved">Unsaved changes</span></span><span data-i18n="vimHelp">Esc · :wq save · :q! discard</span></div>
+          <form class="vim-command-row" id="vimCommandForm" hidden><span>:</span><input id="vimCommandInput" autocomplete="off" spellcheck="false" aria-label="Vim command"/><span data-i18n="vimCommandHelp">Enter to run · Esc to cancel</span></form>
+          <div class="editor-dialog-actions"><span data-i18n="editorTip">Tab inserts spaces · Ctrl+S saves</span><button class="apply-button" id="saveFile"><span>↳</span><span data-i18n="saveFile">Save file</span><kbd>:wq</kbd></button></div>
+        </section>
+      </div>
+    </div>
+    <script src="./app.js"></script>
+  </body>
+</html>
