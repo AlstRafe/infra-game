@@ -10,7 +10,7 @@
   const progress = new IG.Progress(storage);
   const unlockAll = /[?&]unlock=all\b/.test(location.search);
   let homeView = null, missionView = null, session = null, tick = null, toastTimer = null;
-  const term = { history: [], idx: 0, lastTab: '' };
+  const term = { history: [], idx: 0, lastTab: '', pending: null, search: null };
   const editor = { path: null, host: null, original: '', onSave: null, readonly: false };
 
   /* ------------------------------------------------------------ helpers */
@@ -145,7 +145,7 @@
     $('termOut').innerHTML = '';
     printLine('sys', 'CoreLab 訓練シェルに接続しました（すべてブラウザ内のシミュレーションです）');
     printLine('sys', m.sandbox ? 'help でコマンド一覧。README.md に例があります。' : 'help でコマンド一覧 · Tab で補完 · 左の「目標」を達成するとクリアです');
-    term.history = []; term.idx = 0;
+    term.history = []; term.idx = 0; term.pending = null; term.search = null;
     updatePrompt();
     if (!missionView) missionView = new IG.DC.View($('dcMission'), { compact: true, onHover: h => missionTip(h) });
     missionView.setScene(IG.DC.sceneFromWorld(session.world));
@@ -225,34 +225,78 @@
       return e.replace(HL, (m, bad, warn, good) => `<span class="${bad ? 's-bad' : warn ? 's-warn' : 's-ok'}">${m}</span>`);
     }).join('\n');
   }
+  // ANSI SGR (colour) sequences emitted by ls/grep/tree --color → spans
+  const ANSI_FG = { 30: 'k', 31: 'r', 32: 'g', 33: 'y', 34: 'b', 35: 'm', 36: 'c', 37: 'w', 90: 'k', 91: 'r', 92: 'g', 93: 'y', 94: 'b', 95: 'm', 96: 'c', 97: 'w' };
+  function ansi(text) {
+    let html = '', open = false;
+    const parts = String(text).split(/\x1b\[([\d;]*)m(?:\x1b\[K)?/);
+    for (let i = 0; i < parts.length; i++) {
+      if (i % 2 === 0) { html += esc(parts[i]); continue; }
+      if (open) { html += '</span>'; open = false; }
+      const codes = parts[i].split(';').filter(Boolean).map(Number);
+      if (!codes.length || codes.every(c => c === 0)) continue;
+      const cls = codes.map(c => (c === 1 ? 'a-bold' : ANSI_FG[c] ? 'a-' + ANSI_FG[c] : c >= 40 && c <= 47 ? 'a-bg' : '')).filter(Boolean).join(' ');
+      html += `<span class="${cls}">`; open = true;
+    }
+    return html + (open ? '</span>' : '');
+  }
   function printLine(cls, text, raw) {
     const out = $('termOut');
     const div = document.createElement('div');
     div.className = cls;
-    if (raw) div.innerHTML = raw; else if (cls === 'out' || cls === 'err') div.innerHTML = highlight(text); else div.textContent = text;
+    if (raw) div.innerHTML = raw;
+    else if (cls === 'out' || cls === 'err') div.innerHTML = /\x1b\[/.test(text) ? ansi(text) : highlight(text);
+    else div.textContent = text;
     out.appendChild(div);
-    while (out.children.length > 600) out.firstChild.remove();
+    while (out.children.length > 800) out.firstChild.remove();
     out.scrollTop = out.scrollHeight;
   }
+  function printChunks(chunks) {
+    // merge consecutive chunks of the same stream; drop the final newline of each block
+    const blocks = [];
+    for (const c of chunks) { const last = blocks[blocks.length - 1]; if (last && last.stream === c.stream) last.text += c.text; else blocks.push({ stream: c.stream, text: c.text }); }
+    for (const b of blocks) { const t = b.text.replace(/\n$/, ''); if (t || b.text) printLine(b.stream === 'err' ? 'err' : 'out', t); }
+  }
   function updatePrompt() {
-    const p = session.shell.prompt();
-    $('termPrompt').textContent = p;
-    $('termTitle').textContent = p.replace(/[$#]$/, '').replace(/:.*$/, '');
+    const p = term.pending !== null ? '>' : session.shell.prompt();
+    $('termPrompt').textContent = term.search ? `(reverse-i-search)\`${term.search.q}':` : p;
+    if (term.pending === null) $('termTitle').textContent = p.replace(/^\[/, '').replace(/[$#]$/, '').replace(/[:\s].*$/, '');
   }
   function submit(line) {
     if (!session) return;
-    const p = session.shell.prompt();
-    printLine('cmd', '', `<span class="p">${esc(p)}</span> ${esc(line)}`);
-    if (line.trim()) { term.history.push(line); }
-    term.idx = term.history.length;
+    const shownPrompt = term.pending !== null ? '>' : session.shell.prompt();
+    printLine('cmd', '', `<span class="p">${esc(shownPrompt)}</span> ${esc(line)}`);
+    const full = term.pending !== null ? term.pending + '\n' + line : line;
     const before = session.completed;
-    const r = session.run(line);
+    const r = session.run(full);
+    if (r.res.incomplete) { term.pending = full; updatePrompt(); return; }
+    term.pending = null;
+    if (full.trim()) term.history.push(full);
+    term.idx = term.history.length;
     if (r.res.clear) $('termOut').innerHTML = '';
-    if (r.res.out) printLine(r.res.err ? 'err' : 'out', r.res.out);
+    if (r.res.chunks) printChunks(r.res.chunks); else if (r.res.out) printLine(r.res.err ? 'err' : 'out', r.res.out);
     updatePrompt();
     handleProgress(r.newly, before);
     if (r.res.editor) openEditor(r.res.editor);
     onTick();
+  }
+  // Ctrl+R reverse history search
+  function searchUpdate() {
+    const s = term.search;
+    const hist = session ? session.shell.history : [];
+    s.match = '';
+    for (let i = hist.length - 1; i >= 0; i--) if (s.q && hist[i].includes(s.q)) { s.match = hist[i]; break; }
+    $('termInput').value = s.match;
+    $('termInput').placeholder = s.q && !s.match ? '（一致なし）' : '';
+    updatePrompt();
+  }
+  function searchEnd(run) {
+    const s = term.search;
+    term.search = null;
+    $('termInput').placeholder = 'コマンドを入力（help で一覧）';
+    updatePrompt();
+    if (run && s && s.match) { $('termInput').value = ''; submit(s.match); }
+    else if (s) $('termInput').value = s.match || '';
   }
   function handleProgress(newly, wasComplete) {
     let done = false;
@@ -290,6 +334,7 @@
   function openEditor(req) {
     const host = session.world.hosts[req.host || session.shell.host.name];
     editor.path = req.path; editor.host = host; editor.onSave = req.onSave || null; editor.readonly = !!req.readonly;
+    editor.owner = req.owner; editor.group = req.group; editor.umask = req.umask;
     editor.original = (host.vfs.read(req.path) ?? '');
     const ta = $('editorText');
     ta.value = editor.original;
@@ -314,7 +359,10 @@
   function saveEditor(close) {
     const text = $('editorText').value;
     if (editor.readonly) { toast('E45: 読み取り専用です。システムファイルは sudo vi <file> で開いてください'); return false; }
-    try { editor.host.vfs.write(editor.path, text); } catch (e) { toast('E212: 書き込みできません（ディレクトリが存在しない）'); return false; }
+    try {
+      const exists = editor.host.vfs.exists(editor.path);
+      editor.host.vfs.write(editor.path, text, exists || !editor.owner ? {} : { owner: editor.owner, group: editor.group, mode: 0o666 & ~(editor.umask ?? 0o002) });
+    } catch (e) { toast('E212: 書き込みできません（ディレクトリが存在しない）'); return false; }
     editor.original = text;
     gutter();
     if (editor.onSave) {
@@ -419,6 +467,22 @@
   $('termForm').addEventListener('submit', e => { e.preventDefault(); const v = $('termInput').value; $('termInput').value = ''; submit(v); });
   $('termInput').addEventListener('keydown', e => {
     const input = e.target;
+    if (term.search) {
+      const s = term.search;
+      if (e.key === 'Enter') { e.preventDefault(); searchEnd(true); return; }
+      if (e.key === 'Escape' || e.key === 'ArrowLeft' || e.key === 'ArrowRight' || e.key === 'Tab' || (e.ctrlKey && /^[cg]$/i.test(e.key))) { e.preventDefault(); searchEnd(false); return; }
+      if (e.ctrlKey && /^r$/i.test(e.key)) {
+        e.preventDefault();
+        const hist = session.shell.history;
+        const from = s.match ? hist.lastIndexOf(s.match) - 1 : hist.length - 1;
+        for (let i = from; i >= 0; i--) if (hist[i].includes(s.q) && hist[i] !== s.match) { s.match = hist[i]; input.value = s.match; break; }
+        return;
+      }
+      if (e.key === 'Backspace') { e.preventDefault(); s.q = s.q.slice(0, -1); searchUpdate(); return; }
+      if (e.key.length === 1 && !e.ctrlKey && !e.metaKey) { e.preventDefault(); s.q += e.key; searchUpdate(); return; }
+      return;
+    }
+    if (e.ctrlKey && /^r$/i.test(e.key)) { e.preventDefault(); if (session) { term.search = { q: '', match: '' }; searchUpdate(); } return; }
     if (e.key === 'Tab') {
       e.preventDefault();
       if (!session) return;
@@ -436,7 +500,7 @@
     if (e.key === 'ArrowUp') { e.preventDefault(); if (term.idx > 0) { term.idx--; input.value = term.history[term.idx]; } return; }
     if (e.key === 'ArrowDown') { e.preventDefault(); if (term.idx < term.history.length - 1) { term.idx++; input.value = term.history[term.idx]; } else { term.idx = term.history.length; input.value = ''; } return; }
     if (e.ctrlKey && (e.key === 'l' || e.key === 'L')) { e.preventDefault(); $('termOut').innerHTML = ''; return; }
-    if (e.ctrlKey && (e.key === 'c' || e.key === 'C') && input.selectionStart === input.selectionEnd) { e.preventDefault(); printLine('cmd', '', `<span class="p">${esc(session.shell.prompt())}</span> ${esc(input.value)}^C`); input.value = ''; return; }
+    if (e.ctrlKey && (e.key === 'c' || e.key === 'C') && input.selectionStart === input.selectionEnd) { e.preventDefault(); printLine('cmd', '', `<span class="p">${esc(term.pending !== null ? '>' : session.shell.prompt())}</span> ${esc(input.value)}^C`); input.value = ''; term.pending = null; updatePrompt(); return; }
     if (e.key === 'Escape') { if ($('terminal').classList.contains('max')) toggleMax(false); else input.value = ''; }
   });
 

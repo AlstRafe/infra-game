@@ -303,3 +303,9 @@ kbd { border: 1px solid var(--line2); border-bottom-width: 2px; border-radius: 4
   .result-stats { gap: 18px; }
 }
 @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+
+/* ANSI colours from ls --color / grep --color */
+.term-out .a-bold { font-weight: 700; }
+.term-out .a-k { color: #6b7a8c; } .term-out .a-r { color: #ff6b6b; } .term-out .a-g { color: #3ddc97; } .term-out .a-y { color: #f5b83d; }
+.term-out .a-b { color: #5aa9ff; } .term-out .a-m { color: #d68cff; } .term-out .a-c { color: #38d6c4; } .term-out .a-w { color: #e8f1fb; }
+.term-out .a-bg { background: #2a3a1f; }

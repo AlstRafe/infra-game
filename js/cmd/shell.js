@@ -32,7 +32,7 @@
       this.readonly = new Set();
       this.arrays = {};
       this.funcs = {};
-      this.aliases = { ll: 'ls -alF', la: 'ls -A', l: 'ls -CF', k: 'kubectl' };
+      this.aliases = { ls: 'ls --color=auto', grep: 'grep --color=auto', ll: 'ls -alF', la: 'ls -A', l: 'ls -CF', k: 'kubectl' };
       this.history = [];
       this.jobs = [];
       this.opts = {};
