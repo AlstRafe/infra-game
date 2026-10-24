@@ -118,6 +118,9 @@
     }
     run(line) {
       const res = this.shell.exec(line);
+      if (res.incomplete) return { res, newly: [], completed: false };
+      // ANSI colour codes are for the terminal view only; checks and tests see plain text
+      if (res.out) res.out = res.out.replace(/\x1b\[[\d;]*m(\x1b\[K)?/g, '');
       if (String(line).trim()) this.lines.push(String(line).trim());
       this.world.reconcile();
       const newly = this.evaluate();

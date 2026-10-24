@@ -130,9 +130,11 @@
   IG.registerMission({
     id: 'sandbox', track: null, order: 0, difficulty: 0, par: 0, xp: 0, sandbox: true,
     title: 'フリーラボ', summary: 'すべての環境がそろった自由練習場。壊しても大丈夫。',
-    story: ['ミッションの制約なしで自由にコマンドを試せる練習場です。', 'Kubernetes（training-cluster）、Docker、Harbor（dev01 / Training2026）、AWS（EC2・S3・EKS）が使えます。help でコマンド一覧を表示します。'],
+    story: ['ミッションの制約なしで自由にコマンドを試せる練習場です。', 'Kubernetes（training-cluster）、Docker、Harbor（dev01 / Training2026）、AWS（EC2・S3・EKS）が使えます。', 'Linux 練習用に `ssh lab-ubuntu`（Ubuntu 24.04・未フォーマットの追加ディスク付き）と `ssh lab-rhel`（RHEL 9）を用意しています。sudo・apt/dnf・systemctl・ufw/firewalld・parted/LVM/mkfs/fstab・ACL などを自由に試せます。対応範囲は docs/LINUX-COVERAGE.md にまとめています。'],
     cwd: HOME,
     setup(w, B) {
+      w.addHost('lab-ubuntu', { user: 'ubuntu', ip: '10.0.1.70', osVersion: '24.04', disks: [{ name: 'nvme1n1', sizeGiB: 20 }] });
+      w.addHost('lab-rhel', { os: 'rhel', user: 'ec2-user', ip: '10.0.1.71', disks: [{ name: 'nvme1n1', sizeGiB: 10 }] });
       ['docker', 'harbor', 'k8s', 'aws'].forEach(f => w.features.add(f));
       w.harbor = new IG.Harbor(w, { host: 'harbor.lab.local', users: { dev01: { password: 'Training2026' } } });
       w.harbor.createProject('sandbox', { public: true, members: ['dev01'] });

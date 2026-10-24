@@ -33,7 +33,7 @@ python -m http.server 8123
 
 ## シミュレータが扱えるもの（抜粋）
 
-- **シェル**: パイプ・リダイレクト（`>` `>>` `2>`）・`&&` `||` `;`・`$VAR`・グロブ、`ls cat grep awk sed sort uniq wc find du df tail head vi ssh sudo systemctl journalctl curl ping nslookup jq base64` ほか
+- **Linux（Ubuntu 22.04/24.04・RHEL 9）**: bash 互換シェル（変数展開・`$(...)`・ヒアドキュメント・関数・ループ・`[[ ]]`・リダイレクト・履歴・Tab 補完）、権限（所有者・umask・sudo・ACL・chattr）、ユーザー管理、systemd/journalctl、apt/dnf、ネットワーク（ip/ss/ufw/firewalld/nmcli/netplan）、ストレージ（parted・LVM・mkfs・fstab・スワップ・オンライン拡張）など約 300 コマンド。対応範囲と再現できないものは [docs/LINUX-COVERAGE.md](docs/LINUX-COVERAGE.md) を参照
 - **kubectl / oc**: get（-o wide/yaml/json/name/jsonpath, -l, -A, --show-labels）・describe・logs・apply/create/delete/edit/patch・scale・set image/env・rollout status/history/undo/restart・exec・run --rm・expose・top・cordon/drain・config。OpenShift は login・new-project・new-app・expose（Route）・SCC
 - **Kubernetes の挙動**: スケジューラ（requests・taint・DiskPressure）、イメージ pull（存在しないタグ・401・Harbor ポリシー）、ConfigMap/Secret 参照、RollingUpdate（失敗時に旧 Pod を残す）、Service/Endpoints（selector・targetPort）、readinessProbe
 - **docker**: run/ps/logs/exec/build（Dockerfile 解析・BuildKit 風出力）/tag/push/pull/login、`docker compose up/ps/logs/down`（サービス名 DNS）
@@ -51,13 +51,16 @@ js/sim/               シミュレーションモデル（DOM 非依存）
   world.js            1 ミッション分の世界（ホスト・クラスタ・HTTP 経路解決）
   k8s.js              Kubernetes/OpenShift クラスタ（reconcile・Pod 状態計算）
   docker.js harbor.js aws.js   各サービスのモデル + CLI
-js/cmd/shell.js       bash 風シェル・Linux コマンド・Tab 補完
+js/cmd/bash.js        bash の字句解析・構文木・展開・実行
+js/cmd/shell.js       シェル本体（コマンド実行・権限・ssh/sudo のスタック・Tab 補完）
+js/cmd/coreutils.js textproc.js sysutils.js storage.js netutils.js extras.js   Linux コマンド群
 js/cmd/kubectl.js     kubectl / oc
 js/game/engine.js     トラック・ランク・バッジ・セッション（目標判定/採点）・進捗保存
 js/game/missions/*.js ミッション定義（データ駆動）
 js/ui/datacenter.js   アイソメトリックのデータセンター描画（Canvas 2D）
 js/ui/app.js          画面制御（ホーム・ミッション・ターミナル・エディタ）
 tests/run-solutions.js 全ミッションの模範解答を自動プレイして解けることを検証
+tests/run-linux.js    Linux シミュレータの回帰テスト（実機の出力・エラー・終了コードと照合）
 ```
 
 ### テスト
@@ -65,6 +68,8 @@ tests/run-solutions.js 全ミッションの模範解答を自動プレイして
 ```bash
 node tests/run-solutions.js          # 全ミッション
 node tests/run-solutions.js k8s-03 -v # 1 本を出力付きで
+node tests/run-linux.js              # Linux の回帰テスト（約 400 件）
+node tests/run-linux.js lvm -v       # 名前に lvm を含むケースだけ
 ```
 
 各ミッションについて「開始時点で目標が未達成であること」と「模範解答で全目標を達成できること」を確認します。ミッションやシミュレータを変更したら必ず実行してください。
