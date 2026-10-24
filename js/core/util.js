@@ -381,20 +381,24 @@
     return pad + scalarOut(v) + '\n';
   }
 
-  /* ---------------------------------------------------------------- Virtual filesystem */
+  /* ---------------------------------------------------------------- Virtual filesystem
+   * Inode-like nodes with type, mode, owner, group, mtime; symlinks; special files.
+   * Paths are absolute and normalized. Permission checks live in the shell layer. */
   class VFS {
     constructor(spec = {}) {
-      this.files = new Map();
-      this.dirs = new Set(['/']);
+      this.nodes = new Map();
+      this.clock = spec.clock || (() => (IG.clock ? IG.clock.now() : Date.now()));
+      this.ownerFor = spec.ownerFor || (() => ['root', 'root']);
+      this.nodes.set('/', { type: 'd', mode: 0o755, owner: 'root', group: 'root', mtime: this.clock() - 400 * 86400e3 });
       for (const d of spec.dirs || []) this.mkdirp(d);
       for (const [p, c] of Object.entries(spec.files || {})) {
         if (typeof c === 'string') this.write(p, c, { mkdirs: true });
-        else this.write(p, c.content || '', { mkdirs: true, size: c.size });
+        else this.write(p, c.content || '', Object.assign({ mkdirs: true }, c));
       }
     }
     static norm(path, cwd = '/', home = '/home/operator') {
       if (!path) return cwd;
-      let raw = path.replace(/^~(?=\/|$)/, home);
+      let raw = String(path).replace(/^~(?=\/|$)/, home);
       if (!raw.startsWith('/')) raw = cwd.replace(/\/$/, '') + '/' + raw;
       const stack = [];
       for (const piece of raw.split('/')) {
@@ -405,46 +409,194 @@
     }
     static parent(p) { return p === '/' ? '/' : p.slice(0, p.lastIndexOf('/')) || '/'; }
     static base(p) { return p.split('/').filter(Boolean).pop() || '/'; }
-    isDir(p) { return this.dirs.has(p); }
-    isFile(p) { return this.files.has(p); }
-    exists(p) { return this.isDir(p) || this.isFile(p); }
-    read(p) { const e = this.files.get(p); return e ? e.content : undefined; }
+
+    // Resolve symlinks in every component. Returns the real path (may not exist) or null on loop.
+    real(p, followLast = true) {
+      let parts = p.split('/').filter(Boolean);
+      let cur = '/';
+      let hops = 0;
+      for (let i = 0; i < parts.length; i++) {
+        const next = cur === '/' ? '/' + parts[i] : cur + '/' + parts[i];
+        const n = this.nodes.get(next);
+        if (n && n.type === 'l' && (followLast || i < parts.length - 1)) {
+          if (++hops > 40) return null;
+          const target = VFS.norm(n.target, cur);
+          parts = target.split('/').filter(Boolean).concat(parts.slice(i + 1));
+          cur = '/'; i = -1;
+          continue;
+        }
+        cur = next;
+      }
+      return cur;
+    }
+    node(p, follow = true) { const r = this.real(p, follow); return r ? this.nodes.get(r) || null : null; }
+    lnode(p) { return this.node(p, false); }
+    isDir(p) { const n = this.node(p); return !!n && n.type === 'd'; }
+    isFile(p) { const n = this.node(p); return !!n && n.type === 'f'; }
+    isLink(p) { const n = this.lnode(p); return !!n && n.type === 'l'; }
+    exists(p) { return !!this.node(p); }
+    lexists(p) { return !!this.lnode(p); }
+    read(p) { const n = this.node(p); return n && n.type === 'f' ? n.content : undefined; }
+    fileSize(n) { return n.type === 'f' ? (n.size ?? n.content.length) : n.type === 'l' ? n.target.length : 4096; }
     size(p) {
-      if (this.isFile(p)) { const e = this.files.get(p); return e.size ?? e.content.length; }
-      let n = 0;
-      for (const [fp, e] of this.files) if (fp.startsWith(p === '/' ? '/' : p + '/')) n += e.size ?? e.content.length;
-      return n;
+      const r = this.real(p, false);
+      const n = r && this.nodes.get(r);
+      if (!n) return 0;
+      if (n.type !== 'd') return this.fileSize(n);
+      let total = 0;
+      const pre = r === '/' ? '/' : r + '/';
+      for (const [k, v] of this.nodes) if (k.startsWith(pre) && v.type !== 'd') total += this.fileSize(v);
+      return total;
     }
     write(p, content, opt = {}) {
-      const parent = VFS.parent(p);
-      if (!this.isDir(parent)) { if (opt.mkdirs) this.mkdirp(parent); else throw new Error('ENOENT'); }
-      if (this.isDir(p)) throw new Error('EISDIR');
-      this.files.set(p, { content: String(content), size: opt.size });
+      const r = this.real(p) || p;
+      const parent = VFS.parent(r);
+      if (!this.isDir(parent)) { if (opt.mkdirs) this.mkdirp(parent, opt); else throw new Error('ENOENT'); }
+      const prev = this.nodes.get(r);
+      if (prev && prev.type === 'd') throw new Error('EISDIR');
+      const [o, g] = this.ownerFor(r);
+      const text = String(content);
+      const node = prev ? prev : { type: 'f', mode: opt.mode ?? (/\.sh$/.test(r) ? 0o755 : 0o644), owner: opt.owner || o, group: opt.group || opt.owner || g };
+      node.type = 'f';
+      node.content = opt.append && prev ? prev.content + text : text;
+      node.size = opt.size !== undefined ? opt.size : opt.append && prev && prev.size !== undefined ? prev.size + text.length : undefined;
+      if (opt.mode !== undefined && prev) node.mode = opt.mode;
+      node.mtime = opt.mtime || this.clock();
+      this.nodes.set(r, node);
+      return node;
     }
-    mkdirp(p) {
+    mkdirp(p, opt = {}) {
       const parts = p.split('/').filter(Boolean);
       let cur = '';
-      for (const part of parts) { cur += '/' + part; if (this.files.has(cur)) throw new Error('ENOTDIR'); this.dirs.add(cur); }
+      for (const part of parts) {
+        cur += '/' + part;
+        const real = this.real(cur);
+        const n = this.nodes.get(real);
+        if (n && n.type !== 'd') throw new Error('ENOTDIR');
+        if (!n) {
+          const [o, g] = this.ownerFor(real);
+          this.nodes.set(real, { type: 'd', mode: opt.mode ?? (real === '/tmp' ? 0o1777 : real === '/root' ? 0o700 : 0o755), owner: opt.owner || o, group: opt.group || opt.owner || g, mtime: opt.mtime || this.clock() });
+        }
+        cur = real;
+      }
+    }
+    symlink(target, p, opt = {}) {
+      const parent = VFS.parent(p);
+      if (!this.isDir(parent)) throw new Error('ENOENT');
+      if (this.lexists(p)) throw new Error('EEXIST');
+      const [o, g] = this.ownerFor(p);
+      this.nodes.set(p, { type: 'l', target, mode: 0o777, owner: opt.owner || o, group: opt.group || opt.owner || g, mtime: this.clock() });
     }
     remove(p, recursive) {
-      if (this.isFile(p)) { this.files.delete(p); return; }
-      if (!this.isDir(p)) throw new Error('ENOENT');
-      const kids = this.children(p);
+      const r = this.real(VFS.parent(p)) + (p === '/' ? '' : '/' + VFS.base(p));
+      const key = r.replace(/^\/\//, '/');
+      const n = this.nodes.get(key);
+      if (!n) throw new Error('ENOENT');
+      if (n.type !== 'd') { this.nodes.delete(key); return; }
+      const kids = this.children(key);
       if (kids.length && !recursive) throw new Error('ENOTEMPTY');
-      const prefix = p + '/';
-      for (const f of [...this.files.keys()]) if (f.startsWith(prefix)) this.files.delete(f);
-      for (const d of [...this.dirs]) if (d === p || d.startsWith(prefix)) this.dirs.delete(d);
+      const pre = key + '/';
+      for (const k of [...this.nodes.keys()]) if (k === key || k.startsWith(pre)) this.nodes.delete(k);
     }
+    rename(from, to) {
+      const src = this.real(VFS.parent(from)) + '/' + VFS.base(from);
+      const s = src.replace(/^\/\//, '/');
+      if (!this.nodes.has(s)) throw new Error('ENOENT');
+      const pre = s + '/';
+      const moves = [...this.nodes.entries()].filter(([k]) => k === s || k.startsWith(pre));
+      for (const [k] of moves) this.nodes.delete(k);
+      for (const [k, v] of moves) this.nodes.set(to + k.slice(s.length), v);
+    }
+    chmod(p, mode) { const n = this.node(p); if (!n) throw new Error('ENOENT'); n.mode = (n.mode & ~0o7777) | (mode & 0o7777); n.ctime = this.clock(); }
+    chown(p, owner, group, follow = true) { const n = follow ? this.node(p) : this.lnode(p); if (!n) throw new Error('ENOENT'); if (owner) n.owner = owner; if (group) n.group = group; }
+    touch(p, t) { const n = this.node(p); if (n) n.mtime = t || this.clock(); }
+    stat(p, follow = true) { const r = this.real(p, follow); const n = r && this.nodes.get(r); return n ? Object.assign({ path: r, size: this.fileSize(n) }, n) : null; }
     children(dir) {
-      const out = new Map();
-      for (const d of this.dirs) if (d !== dir && VFS.parent(d) === dir) out.set(VFS.base(d), { name: VFS.base(d), path: d, dir: true });
-      for (const f of this.files.keys()) if (VFS.parent(f) === dir) out.set(VFS.base(f), { name: VFS.base(f), path: f, dir: false, size: this.size(f) });
-      return [...out.values()].sort((a, b) => a.name.localeCompare(b.name));
+      const d = this.real(dir) || dir;
+      const out = [];
+      for (const [k, n] of this.nodes) {
+        if (k === d || VFS.parent(k) !== d || k === '/') continue;
+        out.push({ name: VFS.base(k), path: k, dir: n.type === 'd', link: n.type === 'l', node: n, size: this.fileSize(n) });
+      }
+      return out.sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0));
     }
     walk(dir) {
-      const prefix = dir === '/' ? '/' : dir + '/';
-      return [...[...this.dirs].filter(d => d.startsWith(prefix)), ...[...this.files.keys()].filter(f => f.startsWith(prefix))].sort();
+      const d = this.real(dir) || dir;
+      const pre = d === '/' ? '/' : d + '/';
+      return [...this.nodes.keys()].filter(k => k !== d && k.startsWith(pre)).sort();
     }
   }
   IG.VFS = VFS;
+
+  /* ---------------------------------------------------------------- hashes (md5 / sha1 / sha256 over UTF-8) */
+  function utf8(s) { return typeof TextEncoder !== 'undefined' ? new TextEncoder().encode(s) : Uint8Array.from(Buffer.from(s, 'utf8')); }
+  function hexOf(words, le) { return words.map(w => { const h = (w >>> 0).toString(16).padStart(8, '0'); return le ? h.match(/../g).reverse().join('') : h; }).join(''); }
+  function pad(bytes, le) {
+    const len = bytes.length, bits = len * 8;
+    const total = (((len + 9) + 63) >> 6) << 6;
+    const b = new Uint8Array(total);
+    b.set(bytes); b[len] = 0x80;
+    const hi = Math.floor(bits / 2 ** 32), lo = bits >>> 0;
+    const dv = new DataView(b.buffer);
+    if (le) { dv.setUint32(total - 8, lo, true); dv.setUint32(total - 4, hi, true); } else { dv.setUint32(total - 8, hi); dv.setUint32(total - 4, lo); }
+    return dv;
+  }
+  const rotl = (x, n) => (x << n) | (x >>> (32 - n));
+  const rotr = (x, n) => (x >>> n) | (x << (32 - n));
+  IG.hash = {
+    sha256(str) {
+      const K = [0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5, 0x3956c25b, 0x59f111f1, 0x923f82a4, 0xab1c5ed5, 0xd807aa98, 0x12835b01, 0x243185be, 0x550c7dc3, 0x72be5d74, 0x80deb1fe, 0x9bdc06a7, 0xc19bf174, 0xe49b69c1, 0xefbe4786, 0x0fc19dc6, 0x240ca1cc, 0x2de92c6f, 0x4a7484aa, 0x5cb0a9dc, 0x76f988da, 0x983e5152, 0xa831c66d, 0xb00327c8, 0xbf597fc7, 0xc6e00bf3, 0xd5a79147, 0x06ca6351, 0x14292967, 0x27b70a85, 0x2e1b2138, 0x4d2c6dfc, 0x53380d13, 0x650a7354, 0x766a0abb, 0x81c2c92e, 0x92722c85, 0xa2bfe8a1, 0xa81a664b, 0xc24b8b70, 0xc76c51a3, 0xd192e819, 0xd6990624, 0xf40e3585, 0x106aa070, 0x19a4c116, 0x1e376c08, 0x2748774c, 0x34b0bcb5, 0x391c0cb3, 0x4ed8aa4a, 0x5b9cca4f, 0x682e6ff3, 0x748f82ee, 0x78a5636f, 0x84c87814, 0x8cc70208, 0x90befffa, 0xa4506ceb, 0xbef9a3f7, 0xc67178f2];
+      const H = [0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a, 0x510e527f, 0x9b05688c, 0x1f83d9ab, 0x5be0cd19];
+      const dv = pad(utf8(str), false);
+      const W = new Array(64);
+      for (let o = 0; o < dv.byteLength; o += 64) {
+        for (let i = 0; i < 16; i++) W[i] = dv.getUint32(o + i * 4);
+        for (let i = 16; i < 64; i++) { const s0 = rotr(W[i - 15], 7) ^ rotr(W[i - 15], 18) ^ (W[i - 15] >>> 3); const s1 = rotr(W[i - 2], 17) ^ rotr(W[i - 2], 19) ^ (W[i - 2] >>> 10); W[i] = (W[i - 16] + s0 + W[i - 7] + s1) | 0; }
+        let [a, b, c, d, e, f, g, h] = H;
+        for (let i = 0; i < 64; i++) {
+          const t1 = (h + (rotr(e, 6) ^ rotr(e, 11) ^ rotr(e, 25)) + ((e & f) ^ (~e & g)) + K[i] + W[i]) | 0;
+          const t2 = ((rotr(a, 2) ^ rotr(a, 13) ^ rotr(a, 22)) + ((a & b) ^ (a & c) ^ (b & c))) | 0;
+          h = g; g = f; f = e; e = (d + t1) | 0; d = c; c = b; b = a; a = (t1 + t2) | 0;
+        }
+        H[0] = (H[0] + a) | 0; H[1] = (H[1] + b) | 0; H[2] = (H[2] + c) | 0; H[3] = (H[3] + d) | 0; H[4] = (H[4] + e) | 0; H[5] = (H[5] + f) | 0; H[6] = (H[6] + g) | 0; H[7] = (H[7] + h) | 0;
+      }
+      return hexOf(H);
+    },
+    sha1(str) {
+      const H = [0x67452301, 0xefcdab89, 0x98badcfe, 0x10325476, 0xc3d2e1f0];
+      const dv = pad(utf8(str), false);
+      const W = new Array(80);
+      for (let o = 0; o < dv.byteLength; o += 64) {
+        for (let i = 0; i < 16; i++) W[i] = dv.getUint32(o + i * 4);
+        for (let i = 16; i < 80; i++) W[i] = rotl(W[i - 3] ^ W[i - 8] ^ W[i - 14] ^ W[i - 16], 1);
+        let [a, b, c, d, e] = H;
+        for (let i = 0; i < 80; i++) {
+          const [f, k] = i < 20 ? [(b & c) | (~b & d), 0x5a827999] : i < 40 ? [b ^ c ^ d, 0x6ed9eba1] : i < 60 ? [(b & c) | (b & d) | (c & d), 0x8f1bbcdc] : [b ^ c ^ d, 0xca62c1d6];
+          const t = (rotl(a, 5) + f + e + k + W[i]) | 0;
+          e = d; d = c; c = rotl(b, 30); b = a; a = t;
+        }
+        H[0] = (H[0] + a) | 0; H[1] = (H[1] + b) | 0; H[2] = (H[2] + c) | 0; H[3] = (H[3] + d) | 0; H[4] = (H[4] + e) | 0;
+      }
+      return hexOf(H);
+    },
+    md5(str) {
+      const S = [7, 12, 17, 22, 7, 12, 17, 22, 7, 12, 17, 22, 7, 12, 17, 22, 5, 9, 14, 20, 5, 9, 14, 20, 5, 9, 14, 20, 5, 9, 14, 20, 4, 11, 16, 23, 4, 11, 16, 23, 4, 11, 16, 23, 4, 11, 16, 23, 6, 10, 15, 21, 6, 10, 15, 21, 6, 10, 15, 21, 6, 10, 15, 21];
+      const K = Array.from({ length: 64 }, (_, i) => Math.floor(Math.abs(Math.sin(i + 1)) * 2 ** 32) | 0);
+      const H = [0x67452301, 0xefcdab89, 0x98badcfe, 0x10325476];
+      const dv = pad(utf8(str), true);
+      for (let o = 0; o < dv.byteLength; o += 64) {
+        const M = Array.from({ length: 16 }, (_, i) => dv.getUint32(o + i * 4, true));
+        let [a, b, c, d] = H;
+        for (let i = 0; i < 64; i++) {
+          let f, g;
+          if (i < 16) { f = (b & c) | (~b & d); g = i; } else if (i < 32) { f = (d & b) | (~d & c); g = (5 * i + 1) % 16; } else if (i < 48) { f = b ^ c ^ d; g = (3 * i + 5) % 16; } else { f = c ^ (b | ~d); g = (7 * i) % 16; }
+          const t = d; d = c; c = b;
+          b = (b + rotl((a + f + K[i] + M[g]) | 0, S[i])) | 0;
+          a = t;
+        }
+        H[0] = (H[0] + a) | 0; H[1] = (H[1] + b) | 0; H[2] = (H[2] + c) | 0; H[3] = (H[3] + d) | 0;
+      }
+      return hexOf(H, true);
+    },
+  };
 })(globalThis.IG = globalThis.IG || {});

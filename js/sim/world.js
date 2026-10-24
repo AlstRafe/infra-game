@@ -4,27 +4,6 @@
   'use strict';
   const U = IG.util;
 
-  class Host {
-    constructor(name, spec = {}) {
-      this.name = name;
-      this.user = spec.user || 'operator';
-      this.home = spec.home || (this.user === 'root' ? '/root' : '/home/' + this.user);
-      this.ip = spec.ip || '10.0.1.20';
-      this.publicIp = spec.publicIp || null;
-      this.vfs = new IG.VFS({ dirs: ['/tmp', '/etc', '/var/log', this.home].concat(spec.dirs || []), files: spec.files || {} });
-      this.services = Object.assign({}, spec.services || {});
-      this.diskGiB = spec.diskGiB || 50;
-      this.baseUsedGiB = spec.baseUsedGiB || 12;
-      this.motd = spec.motd || '';
-      this.journal = spec.journal || {};
-      this.sshable = spec.sshable !== false;
-      this.checks = spec.checks || {}; // service -> (host) => error lines | null (validated on start/restart)
-      this.web = spec.web || null;     // { port, service, server, body } simple HTTP server on this host
-    }
-    diskUsedBytes() { return this.baseUsedGiB * 1024 ** 3 + this.vfs.size('/'); }
-    diskPct() { return Math.round((this.diskUsedBytes() / (this.diskGiB * 1024 ** 3)) * 100); }
-  }
-
   class World {
     constructor() {
       this.catalog = IG.images.baseCatalog();
@@ -42,11 +21,11 @@
       this.docker = IG.Docker ? new IG.Docker(this) : null;
       this.harbor = null;
       this.aws = null;
-      this.addHost('bastion', { publicIp: '198.51.100.20' });
+      this.addHost('bastion', { publicIp: '198.51.100.20', userGroups: ['docker'], pkgs: ['tree', 'jq', 'docker-ce', 'containerd.io', 'kubectl', 'openshift-clients', 'awscli', 'harbor-cli', 'zip', 'unzip'] });
     }
     now() { return IG.clock.now(); }
     stamp() { return this.bootstrap ? this.now() - this.bootAge : this.now(); }
-    addHost(name, spec) { this.hosts[name] = new Host(name, spec); return this.hosts[name]; }
+    addHost(name, spec) { this.hosts[name] = new IG.Host(name, spec, this); return this.hosts[name]; }
     get bastion() { return this.hosts.bastion; }
 
     emit(msg, level = 'INFO') {
@@ -132,17 +111,84 @@
         const r = c.externalHttp(req);
         if (r) return r;
       }
-      if (from.kind === 'host' && from.host === 'bastion' && this.docker && /^(localhost|127\.0\.0\.1|0\.0\.0\.0)$/.test(host)) return this.docker.hostHttp(req);
+      const src = from.kind === 'host' ? this.hosts[from.host] : null;
+      const local = src && /^(localhost|127\.0\.0\.1|0\.0\.0\.0)$/.test(host);
+      if (local && src.name === 'bastion' && this.docker && this.features.has('docker') && this.docker.containers.some(c => c.status === 'running' && c.ports.some(p => p.host === req.port))) return this.docker.hostHttp(req);
       if (this.aws) { const r = this.aws.http(req, from); if (r) return r; }
       if (this.harbor) { const r = this.harbor.http(req); if (r) return r; }
-      const h = Object.values(this.hosts).find(x => x.web && (x.name === host || x.ip === host));
-      if (h) {
-        if (h.services[h.web.service] === 'active' && req.port === h.web.port) return Object.assign({ target: { kind: 'host', name: h.name } }, IG.runtime.respond({ kind: 'web', server: h.web.server, body: h.web.body }, req.path));
-        return { error: `curl: (7) Failed to connect to ${host} port ${req.port} after 1 ms: Couldn't connect to server`, target: { kind: 'host', name: h.name } };
+      const ip = src ? this.hostsFile(src, host) : null;
+      const h = local ? src : Object.values(this.hosts).find(x => x.name === host || x.ip === host || (ip && x.ip === ip));
+      if (h) return this.hostHttp(h, req, src, local);
+      if (ip) return { error: `curl: (28) Failed to connect to ${host} port ${req.port} after 10003 ms: Timeout was reached` };
+      return null;
+    }
+    // HTTP to a Linux host: firewall → listening socket → web server content.
+    hostHttp(h, req, src, local) {
+      const target = { kind: 'host', name: h.name };
+      const srcIp = src ? src.ip : '10.244.0.1';
+      if (!local && h !== src && !h.firewallAllows(req.port, 'tcp', srcIp)) return { error: `curl: (28) Failed to connect to ${req.host} port ${req.port} after 10002 ms: Timeout was reached`, target };
+      const sock = h.sockets().find(s => s.port === req.port && s.proto.startsWith('tcp') && (local || h === src || !s.addr.startsWith('127.')));
+      if (!sock) return { error: `curl: (7) Failed to connect to ${req.host} port ${req.port} after 0 ms: Couldn't connect to server`, target };
+      if (sock.svc === 'ssh' || sock.svc === 'sshd') return { error: 'curl: (1) Received HTTP/0.9 when not allowed', target };
+      const def = IG.linux.SVC[sock.svc] || {};
+      if (!def.web && !(h.web && h.web.service === sock.svc)) return { error: 'curl: (52) Empty reply from server', target };
+      if (req.scheme === 'https') return { error: `curl: (35) OpenSSL/3.0.13: error:0A00010B:SSL routines::wrong version number`, target };
+      let res;
+      if (h.web && h.web.service === sock.svc) res = IG.runtime.respond({ kind: 'web', server: h.web.server, body: h.web.body }, req.path);
+      else res = this.docroot(h, sock.svc, req.path);
+      const log = sock.svc === 'nginx' ? '/var/log/nginx/access.log' : h.os === 'rhel' ? '/var/log/httpd/access_log' : '/var/log/apache2/access.log';
+      const n = h.vfs.node(log);
+      if (n) n.content += `${srcIp} - - [${new Date(this.now()).toUTCString()}] "${req.method} ${req.path} HTTP/1.1" ${res.status} ${res.body.length} "-" "curl/8.5.0"
+`;
+      return Object.assign({ target }, res);
+    }
+    docroot(h, svc, path) {
+      let root = '/var/www/html', index = ['index.html', 'index.htm', 'index.nginx-debian.html'];
+      if (svc === 'nginx') {
+        const conf = [...h.vfs.walk('/etc/nginx/sites-enabled'), ...h.vfs.walk('/etc/nginx/conf.d')].map(p => h.vfs.read(p) || '').join('
+');
+        const r = conf.match(/^\s*root\s+([^;]+);/m); if (r) root = r[1].trim();
+        const i = conf.match(/^\s*index\s+([^;]+);/m); if (i) index = i[1].trim().split(/\s+/);
+      }
+      const server = svc === 'nginx' ? 'nginx/1.24.0 (Ubuntu)' : 'Apache/2.4.58 (Ubuntu)';
+      let file = IG.VFS.norm(path.split('?')[0], '/');
+      let p = root.replace(/\/$/, '') + file;
+      if (h.vfs.isDir(p)) { const hit = index.map(x => p.replace(/\/$/, '') + '/' + x).find(x => h.vfs.isFile(x)); if (!hit) return { status: 403, server, body: `<html>
+<head><title>403 Forbidden</title></head>
+<body>
+<center><h1>403 Forbidden</h1></center>
+<hr><center>${server}</center>
+</body>
+</html>` }; p = hit; }
+      if (!h.vfs.isFile(p)) return { status: 404, server, body: `<html>
+<head><title>404 Not Found</title></head>
+<body>
+<center><h1>404 Not Found</h1></center>
+<hr><center>${server}</center>
+</body>
+</html>` };
+      const user = svc === 'nginx' || svc === 'apache2' ? 'www-data' : 'apache';
+      if (!h.canRead(user, p)) return { status: 403, server, body: `<html>
+<head><title>403 Forbidden</title></head>
+<body>
+<center><h1>403 Forbidden</h1></center>
+<hr><center>${server}</center>
+</body>
+</html>` };
+      return { status: 200, server, body: h.vfs.read(p) };
+    }
+    // /etc/hosts lookup on a host
+    hostsFile(h, name) {
+      const txt = h.vfs.read('/etc/hosts') || '';
+      for (const line of txt.split('
+')) {
+        const parts = line.replace(/#.*/, '').trim().split(/\s+/);
+        if (parts.length > 1 && parts.slice(1).includes(name)) return parts[0];
       }
       return null;
     }
     resolveName(name, from) {
+      if (from && from.kind === 'host' && this.hosts[from.host]) { const ip = this.hostsFile(this.hosts[from.host], name); if (ip) return ip; }
       if (from && from.kind === 'pod') {
         const svc = this.clusters[from.cluster].dnsLookup(name, from.ns);
         if (svc) return svc.spec.clusterIP;
@@ -157,6 +203,5 @@
     }
   }
 
-  IG.Host = Host;
   IG.World = World;
 })(globalThis.IG = globalThis.IG || {});
