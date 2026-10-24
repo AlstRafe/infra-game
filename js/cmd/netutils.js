@@ -28,6 +28,7 @@
     const ip = resolve(ctx, name);
     return Object.values(w.hosts).find(h => h.name === name || (ip && (h.ip === ip || h.publicIp === ip))) || null;
   }
+  IG.tcpConnect = (...a) => tcpConnect(...a);
   function tcpConnect(ctx, name, port) {
     // returns {ok} | {refused} | {timeout} | {unresolved}
     const w = ctx.world;
@@ -377,7 +378,7 @@
       finally { sh.stack.pop(); }
     }
     sh.stack.push({ host: h.name, user: t.user, cwd: h.users[t.user].home, prev: h.users[t.user].home });
-    const motd = h.motd || `Welcome to ${h.osPretty} (GNU/Linux ${h.kernel} x86_64)\n\n * Documentation:  https://help.ubuntu.com\n * Management:     https://landscape.canonical.com\n * Support:        https://ubuntu.com/pro`;
+    const motd = h.motd || (h.os === 'rhel' ? 'Register this system with Red Hat Insights: insights-client --register\nCreate an account or view all your systems at https://red.ht/insights-dashboard' : `Welcome to ${h.osPretty} (GNU/Linux ${h.kernel} x86_64)\n\n * Documentation:  https://help.ubuntu.com\n * Management:     https://landscape.canonical.com\n * Support:        https://ubuntu.com/pro`);
     return { stdout: `${warn}${motd}\nLast login: ${IG.strftime('%a %b %e %T %Y', ctx.world.now() - 86400e3 * 2)} from ${ctx.host.ip}\n`, stderr: '', code: 0 };
   };
   function remoteFs(ctx, spec) {

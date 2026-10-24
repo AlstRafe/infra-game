@@ -331,7 +331,7 @@
     const n = argv.includes('-n') ? Number(argv[argv.indexOf('-n') + 1]) : 1;
     void n;
     const up = ctx.world.now() - h.bootAt;
-    const head = `top - ${IG.strftime('%T', ctx.world.now())} up ${Math.floor(up / 86400e3)} days, ${String(Math.floor((up % 86400e3) / 3600e3)).padStart(2)}:${String(Math.floor((up % 3600e3) / 60e3)).padStart(2, '0')},  1 user,  load average: ${load.map(x => x.toFixed(2)).join(', ')}\nTasks: ${procs.length + 96} total,   1 running, ${procs.length + 95} sleeping,   0 stopped,   0 zombie\n%Cpu(s):  ${cpuSum.toFixed(1)} us,  0.3 sy,  0.0 ni, ${(99.5 - cpuSum).toFixed(1)} id,  0.1 wa,  0.0 hi,  0.0 si,  0.1 st\nMiB Mem :   ${(m.total / 1024).toFixed(1)} total,   ${(m.free / 1024).toFixed(1)} free,   ${(m.used / 1024).toFixed(1)} used,   ${(m.buff / 1024).toFixed(1)} buff/cache\nMiB Swap:      0.0 total,      0.0 free,      0.0 used.   ${(m.avail / 1024).toFixed(1)} avail Mem\n\n    PID USER      PR  NI    VIRT    RES    SHR S  %CPU  %MEM     TIME+ COMMAND\n`;
+    const head = `top - ${IG.strftime('%T', ctx.world.now())} up ${Math.floor(up / 86400e3)} days, ${String(Math.floor((up % 86400e3) / 3600e3)).padStart(2)}:${String(Math.floor((up % 3600e3) / 60e3)).padStart(2, '0')},  1 user,  load average: ${load.map(x => x.toFixed(2)).join(', ')}\nTasks: ${procs.length + 96} total,   1 running, ${procs.length + 95} sleeping,   0 stopped,   0 zombie\n%Cpu(s):  ${cpuSum.toFixed(1)} us,  0.3 sy,  0.0 ni, ${(99.5 - cpuSum).toFixed(1)} id,  0.1 wa,  0.0 hi,  0.0 si,  0.1 st\nMiB Mem :   ${(m.total / 1024).toFixed(1)} total,   ${(m.free / 1024).toFixed(1)} free,   ${(m.used / 1024).toFixed(1)} used,   ${(m.buff / 1024).toFixed(1)} buff/cache\nMiB Swap: ${((IG.swapKiB ? IG.swapKiB(h) : 0) / 1024).toFixed(1).padStart(8)} total, ${((IG.swapKiB ? IG.swapKiB(h) : 0) / 1024).toFixed(1).padStart(8)} free,      0.0 used.   ${(m.avail / 1024).toFixed(1)} avail Mem\n\n    PID USER      PR  NI    VIRT    RES    SHR S  %CPU  %MEM     TIME+ COMMAND\n`;
     const rows = procs.slice(0, argv.includes('-b') ? procs.length : 20).map(p => `${String(p.pid).padStart(7)} ${p.user.slice(0, 8).padEnd(8)}  20   0 ${String(p.vsz).padStart(7)} ${String(p.rss).padStart(6)} ${String(Math.round(p.rss / 3)).padStart(6)} ${p.stat[0]} ${p.cpu.toFixed(1).padStart(5)} ${p.mem.toFixed(1).padStart(5)} ${('  ' + p.time + '.12').slice(-9)} ${p.cmd.replace(/^-/, '').split(/\s/)[0].split('/').pop().replace(/:$/, '')}`);
     const note = argv.includes('-b') ? '' : 'ℹ top は対話型のため、1 回分のスナップショットを表示しました（q で終了する操作は不要です）。\n';
     return { stdout: head + rows.join('\n') + '\n', stderr: note, code: 0 };
@@ -523,9 +523,10 @@
   /* ================================================================ memory / cpu / kernel */
   C.free = (argv, ctx) => {
     const m = memInfo(ctx.host);
+    const sw = IG.swapKiB ? IG.swapKiB(ctx.host) : 0;
     const k = argv.join(' ');
     const fmt = v => (/-h|--human/.test(k) ? human(v * 1024).replace(/([KMGT])$/, '$1i').replace(/^(\d+)$/, '$1B') : /-g/.test(k) ? String(Math.floor(v / 1048576)) : /-m|--mega/.test(k) ? String(Math.floor(v / 1024)) : /-b/.test(k) ? String(v * 1024) : String(v));
-    const rows = [['', 'total', 'used', 'free', 'shared', 'buff/cache', 'available'], ['Mem:', fmt(m.total), fmt(m.used), fmt(m.free), fmt(m.shared), fmt(m.buff), fmt(m.avail)], ['Swap:', fmt(0), fmt(0), fmt(0)]];
+    const rows = [['', 'total', 'used', 'free', 'shared', 'buff/cache', 'available'], ['Mem:', fmt(m.total), fmt(m.used), fmt(m.free), fmt(m.shared), fmt(m.buff), fmt(m.avail)], ['Swap:', fmt(sw), fmt(0), fmt(sw)]];
     if (/-t/.test(k)) rows.push(['Total:', fmt(m.total), fmt(m.used), fmt(m.free)]);
     const w = [6, 12, 12, 12, 12, 12, 12];
     return join(rows.map(r => r.map((c, i) => (i === 0 ? c.padEnd(w[0]) : c.padStart(w[i]))).join('').replace(/\s+$/, '')));
@@ -568,102 +569,7 @@
   C.lsmod = () => 'Module                  Size  Used by\ntls                   151552  0\nnf_conntrack          196608  2 nf_nat,xt_conntrack\nbr_netfilter           32768  0\noverlay               192512  0\nena                   147456  0\nnvme                   61440  2\nnvme_core             208896  3 nvme';
   C.modprobe = (argv, ctx) => need(ctx, 'modprobe: ERROR: could not insert \'' + (argv.filter(a => !a.startsWith('-'))[0] || '') + "': Operation not permitted") || '';
 
-  /* ================================================================ storage */
-  function mounts(h) {
-    const m = [{ src: h.os === 'rhel' ? '/dev/mapper/rhel-root' : '/dev/root', target: '/', type: h.os === 'rhel' ? 'xfs' : 'ext4', size: h.diskGiB * 1024 ** 3, used: h.diskUsedBytes(), opts: 'rw,relatime,discard,errors=remount-ro' }, { src: 'tmpfs', target: '/dev/shm', type: 'tmpfs', size: 3.9 * 1024 ** 3, used: 0, opts: 'rw,nosuid,nodev' }, { src: 'tmpfs', target: '/run', type: 'tmpfs', size: 1.6 * 1024 ** 3, used: 900 * 1024, opts: 'rw,nosuid,nodev,size=1603620k,mode=755' }, { src: '/dev/nvme0n1p15', target: '/boot/efi', type: 'vfat', size: 105 * 1024 ** 2, used: 6.1 * 1024 ** 2, opts: 'rw,relatime,fmask=0077,dmask=0077' }];
-    for (const d of h.disks || []) if (d.mount) m.push({ src: '/dev/' + d.name, target: d.mount, type: d.fs, size: d.sizeGiB * 1024 ** 3 * 0.95, used: 24 * 1024 ** 2 + [...h.vfs.nodes].filter(([p, n]) => p.startsWith(d.mount + '/') && n.type === 'f').reduce((s, [, n]) => s + h.vfs.fileSize(n), 0), opts: 'rw,relatime' });
-    return m;
-  }
-  IG.mounts = mounts;
-  C.df = (argv, ctx) => {
-    const h = ctx.host;
-    const { f, pos } = opts(argv, 't', ['type', 'output']);
-    const hum = f.h || f['human-readable'], si = f.H;
-    let ms = mounts(h);
-    if (pos.length) { ms = pos.map(p => { const abs = ctx.resolve(p); return ms.filter(m => abs === m.target || abs.startsWith(m.target === '/' ? '/' : m.target + '/')).sort((a, b) => b.target.length - a.target.length)[0]; }).filter(Boolean); }
-    if (f.t || f.type) ms = ms.filter(m => m.type === (f.t || f.type));
-    if (f.x) ms = ms.filter(m => m.type !== f.x);
-    const fmt = n => (hum ? (n === 0 ? '0' : human(n, si)) : f.m ? String(Math.ceil(n / 1048576)) : String(Math.ceil(n / 1024)));
-    if (f.i || f.inodes) return join([['Filesystem', 'Inodes', 'IUsed', 'IFree', 'IUse%', 'Mounted on']].concat(ms.map(m => { const total = Math.round(m.size / 16384); const used = m.target === '/' ? 112000 + h.vfs.nodes.size : 3; return [m.src, String(total), String(used), String(total - used), Math.ceil((used / total) * 100) + '%', m.target]; })).map((r, i, all) => r.map((c, k) => (k === 0 ? c.padEnd(Math.max(...all.map(x => x[0].length)) + 1) : k === r.length - 1 ? ' ' + c : c.padStart(Math.max(...all.map(x => x[k].length)) + (k === 1 ? 0 : 1)))).join('')));
-    const hdr = ['Filesystem'].concat(f.T ? ['Type'] : [], [hum ? 'Size' : f.m ? '1M-blocks' : '1K-blocks', 'Used', hum ? 'Avail' : 'Available', 'Use%', 'Mounted on']);
-    const rows = ms.map(m => [m.src].concat(f.T ? [m.type] : [], [fmt(m.size), fmt(m.used), fmt(Math.max(0, m.size - m.used)), (m.used ? Math.min(100, Math.ceil((m.used / m.size) * 100)) : 0) + '%', m.target]));
-    const all = [hdr].concat(rows);
-    const w = hdr.map((_, k) => Math.max(...all.map(r => r[k].length)));
-    return join(all.map(r => r.map((c, k) => (k === 0 || (f.T && k === 1) ? c.padEnd(w[k]) : k === r.length - 1 ? c : c.padStart(w[k]))).join(' ')));
-  };
-  C.lsblk = (argv, ctx) => {
-    const h = ctx.host;
-    const f = argv.join(' ');
-    const rows = [['loop0', '7:0', '0', '25.2M', '1', 'loop', '/snap/amazon-ssm-agent/7993', 'squashfs'], ['loop1', '7:1', '0', '55.7M', '1', 'loop', '/snap/core18/2846', 'squashfs'], ['nvme0n1', '259:0', '0', `${h.diskGiB}G`, '0', 'disk', '', ''], ['├─nvme0n1p1', '259:1', '0', `${(h.diskGiB - 0.1).toFixed(1)}G`, '0', 'part', '/', h.os === 'rhel' ? 'xfs' : 'ext4'], ['├─nvme0n1p14', '259:2', '0', '4M', '0', 'part', '', ''], ['└─nvme0n1p15', '259:3', '0', '106M', '0', 'part', '/boot/efi', 'vfat']];
-    if (h.os === 'rhel') rows.splice(0, 2);
-    (h.disks || []).forEach((d, i) => rows.push([d.name, `259:${4 + i}`, '0', `${d.sizeGiB}G`, '0', 'disk', d.mount || '', d.fs || '']));
-    if (/-f/.test(f)) return join([['NAME', 'FSTYPE', 'FSVER', 'LABEL', 'UUID', 'FSAVAIL', 'FSUSE%', 'MOUNTPOINTS']].concat(rows.map(r => [r[0], r[7], r[7] === 'ext4' ? '1.0' : '', r[6] === '/' ? 'cloudimg-rootfs' : '', r[7] ? U.hex(r[0], 8) + '-' + U.hex(r[0] + 1, 4) + '-' + U.hex(r[0] + 2, 4) + '-' + U.hex(r[0] + 3, 4) + '-' + U.hex(r[0] + 4, 12) : '', r[6] ? '37.1G' : '', r[6] ? '24%' : '', r[6]])).map(r => r.map((c, k) => c.padEnd([12, 9, 6, 16, 37, 8, 7, 0][k])).join('').trimEnd()));
-    return join([['NAME', 'MAJ:MIN', 'RM', 'SIZE', 'RO', 'TYPE', 'MOUNTPOINTS']].concat(rows.map(r => r.slice(0, 7))).map(r => r.map((c, k) => (k === 3 ? c.padStart(5) + ' ' : c.padEnd([12, 8, 3, 6, 3, 5, 0][k]))).join('').trimEnd()));
-  };
-  C.blkid = (argv, ctx) => {
-    if (!root(ctx)) return { stdout: '', stderr: '', code: 2 };
-    const h = ctx.host;
-    const rows = [`/dev/nvme0n1p1: LABEL="cloudimg-rootfs" UUID="${U.hex('root', 8)}-${U.hex('root1', 4)}-${U.hex('root2', 4)}-${U.hex('root3', 4)}-${U.hex('root4', 12)}" BLOCK_SIZE="4096" TYPE="${h.os === 'rhel' ? 'xfs' : 'ext4'}" PARTUUID="8d6b5a4e-01"`, `/dev/nvme0n1p15: LABEL_FATBOOT="UEFI" LABEL="UEFI" UUID="5C1D-9A2F" BLOCK_SIZE="512" TYPE="vfat" PARTUUID="8d6b5a4e-0f"`];
-    for (const d of h.disks || []) if (d.fs) rows.push(`/dev/${d.name}: UUID="${d.uuid}" BLOCK_SIZE="4096" TYPE="${d.fs}"`);
-    return join(rows);
-  };
-  C.fdisk = (argv, ctx) => {
-    if (!root(ctx)) return { stdout: '', stderr: 'fdisk: cannot open /dev/nvme0n1: Permission denied\n', code: 1 };
-    if (!argv.includes('-l')) return { stdout: '', stderr: 'ℹ fdisk の対話的なパーティション編集は再現していません（fdisk -l で一覧を確認できます）。\n', code: 1 };
-    const h = ctx.host;
-    const disk = (name, gib, parts) => `Disk /dev/${name}: ${gib} GiB, ${gib * 1073741824} bytes, ${gib * 2097152} sectors\nDisk model: Amazon Elastic Block Store\nUnits: sectors of 1 * 512 = 512 bytes\nSector size (logical/physical): 512 bytes / 512 bytes\nI/O size (minimum/optimal): 4096 bytes / 4096 bytes${parts ? `\nDisklabel type: gpt\nDisk identifier: 8D6B5A4E-1C2B-4E87-9C0E-6E2F7B3A1D44\n\nDevice           Start       End   Sectors  Size Type\n/dev/${name}p1  227328 ${gib * 2097152 - 34} ${gib * 2097152 - 227362} ${(gib - 0.1).toFixed(1)}G Linux filesystem\n/dev/${name}p14   2048     10239      8192    4M BIOS boot\n/dev/${name}p15  10240    227327    217088  106M EFI System` : ''}`;
-    return [disk('nvme0n1', h.diskGiB, true)].concat((h.disks || []).map(d => disk(d.name, d.sizeGiB, false))).join('\n\n\n');
-  };
-  function mkfs(type) {
-    return (argv, ctx) => {
-      if (!root(ctx)) return { stdout: '', stderr: `mke2fs 1.46.5 (30-Dec-2021)\nmkfs.${type}: Permission denied while trying to determine filesystem size\n`, code: 1 };
-      const dev = argv.filter(a => a.startsWith('/dev/'))[0];
-      const d = (ctx.host.disks || []).find(x => '/dev/' + x.name === dev);
-      if (!d) return { stdout: '', stderr: dev && dev.startsWith('/dev/nvme0n1') ? `ℹ ルートディスク（${dev}）のフォーマットは訓練環境では禁止しています。\n` : `mke2fs: No such file or directory while trying to determine filesystem size\n`, code: 1 };
-      if (d.mount) return { stdout: '', stderr: `${dev} contains a ${d.fs} file system\n\tmounted on ${d.mount}\nmkfs.${type}: ${dev} is apparently in use by the system; will not make a filesystem here!\n`, code: 1 };
-      d.fs = type; d.uuid = U.hex(dev + type + Math.random(), 8) + '-' + U.hex(dev, 4) + '-4' + U.hex(dev + 1, 3) + '-a' + U.hex(dev + 2, 3) + '-' + U.hex(dev + 3, 12);
-      return type === 'xfs' ? `meta-data=${dev}             isize=512    agcount=4, agsize=1310720 blks\ndata     =                       bsize=4096   blocks=5242880, imaxpct=25\nlog      =internal log           bsize=4096   blocks=16384, version=2\nrealtime =none                   extsz=4096   blocks=0, rtextents=0` : `mke2fs 1.46.5 (30-Dec-2021)\nCreating filesystem with ${d.sizeGiB * 262144} 4k blocks and ${d.sizeGiB * 65536} inodes\nFilesystem UUID: ${d.uuid}\nSuperblock backups stored on blocks: \n\t32768, 98304, 163840, 229376, 294912, 819200, 884736, 1605632, 2654208, 4096000\n\nAllocating group tables: done                            \nWriting inode tables: done                            \nCreating journal (32768 blocks): done\nWriting superblocks and filesystem accounting information: done   `;
-    };
-  }
-  C['mkfs.ext4'] = mkfs('ext4');
-  C['mkfs.xfs'] = mkfs('xfs');
-  C.mkfs = (argv, ctx) => { const t = argv[argv.indexOf('-t') + 1]; return argv.includes('-t') && C['mkfs.' + t] ? C['mkfs.' + t](argv.filter(a => a !== '-t' && a !== t), ctx) : { stdout: '', stderr: 'mkfs: -t <type> を指定してください（例: mkfs -t ext4 /dev/nvme1n1）\n', code: 1 }; };
-  C.mount = (argv, ctx) => {
-    const h = ctx.host;
-    const pos = argv.filter(a => !a.startsWith('-') && argv[argv.indexOf(a) - 1] !== '-t' && argv[argv.indexOf(a) - 1] !== '-o');
-    if (!pos.length && !argv.includes('-a')) return join(mounts(h).map(m => `${m.src} on ${m.target} type ${m.type} (${m.opts})`).concat(['proc on /proc type proc (rw,nosuid,nodev,noexec,relatime)', 'sysfs on /sys type sysfs (rw,nosuid,nodev,noexec,relatime)']));
-    if (!root(ctx)) return { stdout: '', stderr: 'mount: only root can do that\n', code: 1 };
-    const o = out();
-    const doMount = (dev, target) => {
-      const byUuid = dev.match(/^UUID=(.+)$/);
-      const d = (h.disks || []).find(x => '/dev/' + x.name === dev || (byUuid && x.uuid === byUuid[1]));
-      if (!d) { o.e(`mount: ${target}: special device ${dev} does not exist.`, 32); return; }
-      if (!d.fs) { o.e(`mount: ${target}: wrong fs type, bad option, bad superblock on ${dev}, missing codepage or helper program, or other error.\n       dmesg(1) may have more information after failed mount system call.`, 32); return; }
-      const t = ctx.resolve(target);
-      if (!ctx.vfs.isDir(t)) { o.e(`mount: ${target}: mount point does not exist.`, 32); return; }
-      if (d.mount) { o.e(`mount: ${target}: ${dev} already mounted on ${d.mount}.`, 32); return; }
-      d.mount = t;
-    };
-    if (argv.includes('-a')) { for (const l of lines(ctx.vfs.read('/etc/fstab') || '')) { const m = l.trim().split(/\s+/); if (!m[0] || m[0].startsWith('#') || m[1] === '/' || m[1] === '/boot/efi' || m[2] === 'swap') continue; const d = (h.disks || []).find(x => '/dev/' + x.name === m[0] || 'UUID=' + x.uuid === m[0]); if (d && d.mount) continue; doMount(m[0], m[1]); } return o.r(); }
-    if (pos.length === 1) { const ent = lines(ctx.vfs.read('/etc/fstab') || '').map(l => l.trim().split(/\s+/)).find(m => m[1] === ctx.resolve(pos[0]) || m[0] === pos[0]); if (!ent) { o.e(`mount: ${pos[0]}: can't find in /etc/fstab.`, 1); return o.r(); } doMount(ent[0], ent[1]); return o.r(); }
-    doMount(pos[0], pos[1]);
-    return o.r();
-  };
-  C.umount = (argv, ctx) => {
-    if (!root(ctx)) return { stdout: '', stderr: 'umount: only root can do that\n', code: 1 };
-    const t = argv.filter(a => !a.startsWith('-'))[0];
-    const d = (ctx.host.disks || []).find(x => x.mount === ctx.resolve(t) || '/dev/' + x.name === t);
-    if (!d) return { stdout: '', stderr: `umount: ${t}: not mounted.\n`, code: 32 };
-    if (ctx.shell.stack.some(s => s.host === ctx.host.name && (s.cwd === d.mount || s.cwd.startsWith(d.mount + '/')))) return { stdout: '', stderr: `umount: ${d.mount}: target is busy.\n`, code: 32 };
-    d.mount = null;
-    return '';
-  };
-  C.findmnt = (argv, ctx) => join(['TARGET                SOURCE           FSTYPE  OPTIONS'].concat(mounts(ctx.host).map(m => `${m.target.padEnd(21)} ${m.src.padEnd(16)} ${m.type.padEnd(7)} ${m.opts}`)));
-  C.swapon = (argv, ctx) => (ctx.host.os === 'rhel' ? 'NAME      TYPE      SIZE USED PRIO\n/dev/dm-1 partition 2G   0B   -2' : '');
-  C.swapoff = (argv, ctx) => need(ctx, 'swapoff: Not superuser.') || '';
-  C.pvs = (argv, ctx) => (!root(ctx) ? { stdout: '', stderr: '  WARNING: Running as a non-root user. Functionality may be unavailable.\n  /run/lock/lvm/P_global:aux: open failed: Permission denied\n', code: 5 } : ctx.host.os === 'rhel' ? '  PV             VG   Fmt  Attr PSize   PFree\n  /dev/nvme0n1p3 rhel lvm2 a--  <49.00g    0 ' : '');
-  C.vgs = (argv, ctx) => (!root(ctx) ? C.pvs(argv, ctx) : ctx.host.os === 'rhel' ? '  VG   #PV #LV #SN Attr   VSize   VFree\n  rhel   1   2   0 wz--n- <49.00g    0 ' : '');
-  C.lvs = (argv, ctx) => (!root(ctx) ? C.pvs(argv, ctx) : ctx.host.os === 'rhel' ? '  LV   VG   Attr       LSize   Pool Origin Data%  Meta%  Move Log Cpy%Sync Convert\n  root rhel -wi-ao---- <47.00g\n  swap rhel -wi-ao----   2.00g' : '');
+  /* storage (df lsblk mount mkfs lvm swap ...) lives in storage.js */
 
   /* ================================================================ systemd */
   function unitPath(h, s) {
@@ -780,7 +686,7 @@
       return o.r();
     }
     if (verb === 'list-unit-files') return join(['UNIT FILE                              STATE           VENDOR PRESET'].concat(Object.keys(h.services).sort().map(s => `${(s + '.service').padEnd(38)} ${h.masked.has(s) ? 'masked ' : h.enabled[s] === false ? 'disabled' : 'enabled '}         enabled`), ['', `${Object.keys(h.services).length} unit files listed.`]));
-    if (verb === 'daemon-reload') { if (!root(ctx)) { o.e('Failed to reload daemon: Access denied'); return o.r(); } h.unitLoaded = h.unitLoaded || {}; for (const s of Object.keys(h.services)) h.unitLoaded[s] = unitInfo(h, s).mtime; for (const p of ctx.vfs.walk('/etc/systemd/system').filter(x => x.endsWith('.service'))) { const s = VFS.base(p).replace(/\.service$/, ''); h.unitLoaded[s] = ctx.vfs.node(p).mtime; if (!(s in h.services)) { h.services[s] = 'inactive'; h.enabled[s] = false; } } return o.r(); }
+    if (verb === 'daemon-reload') { if (!root(ctx)) { o.e('Failed to reload daemon: Access denied'); return o.r(); } h.systemdFstab = ctx.world.now(); h.unitLoaded = h.unitLoaded || {}; for (const s of Object.keys(h.services)) h.unitLoaded[s] = unitInfo(h, s).mtime; for (const p of ctx.vfs.walk('/etc/systemd/system').filter(x => x.endsWith('.service'))) { const s = VFS.base(p).replace(/\.service$/, ''); h.unitLoaded[s] = ctx.vfs.node(p).mtime; if (!(s in h.services)) { h.services[s] = 'inactive'; h.enabled[s] = false; } } return o.r(); }
     if (verb === 'list-timers') return 'NEXT                        LEFT          LAST                        PASSED       UNIT                         ACTIVATES\nSun 2026-10-25 00:00:00 UTC 13h left      Sat 2026-10-24 00:00:00 UTC 10h ago      logrotate.timer              logrotate.service\nSun 2026-10-25 06:41:12 UTC 20h left      Sat 2026-10-24 06:41:12 UTC 3h 18min ago apt-daily-upgrade.timer      apt-daily-upgrade.service\n\n2 timers listed.\nPass --all to see loaded but inactive timers, too.';
     if (['reboot', 'poweroff', 'halt'].includes(verb)) return C.reboot([], ctx);
     if (['get-default'].includes(verb)) return 'multi-user.target';
@@ -923,12 +829,13 @@
     for (const s of Object.keys(h.services)) h.setSvc(s, h.enabled[s] === false || h.masked.has(s) ? 'inactive' : 'active');
     for (const s of Object.keys(h.services)) if (h.services[s] === 'active') { const err = h.checks[s] ? h.checks[s](h) : s === 'nginx' && !h.web ? nginxCheck(h) : null; if (err) h.setSvc(s, 'failed'); }
     h.extraProcs = h.extraProcs.filter(p => p.persistent);
-    for (const d of h.disks || []) { const inFstab = lines(h.vfs.read('/etc/fstab') || '').some(l => l.includes(d.name) || (d.uuid && l.includes(d.uuid))); if (!inFstab) d.mount = null; }
+    const bad = IG.storageBoot ? IG.storageBoot(h) : [];
     const sh = ctx.shell;
     while (sh.stack.length > 1 && sh.frame.host === h.name) sh.stack.pop();
     ctx.world.reconcile();
     ctx.world.emit(`${h.hostname} rebooted`, 'WARN');
-    return { stdout: `Connection to ${h.name} closed by remote host.\nConnection to ${h.name} closed.\n`, stderr: '', code: 0 };
+    const warn = bad.length ? `ℹ /etc/fstab の次の行をマウントできませんでした: ${bad.join(', ')}\n  実機では nofail の無い行が失敗すると emergency mode で起動が止まり、SSH できなくなります（EC2 ならボリュームを別インスタンスに付け替えて修復）。\n  sudo findmnt --verify で事前に確認し、追加ディスクには nofail を付けましょう。\n` : '';
+    return { stdout: `Connection to ${h.name} closed by remote host.\nConnection to ${h.name} closed.\n`, stderr: warn, code: 0 };
   };
   C.shutdown = (argv, ctx) => (argv.includes('-r') ? C.reboot(argv, ctx) : { stdout: '', stderr: root(ctx) ? 'ℹ 停止（shutdown -h / poweroff）は訓練環境では実行しません。再起動は shutdown -r now / reboot です。\n' : 'Failed to set wall message, ignoring: Interactive authentication required.\nFailed to call ScheduleShutdown in logind, proceeding with immediate shutdown: Interactive authentication required.\n', code: 1 });
   C.poweroff = C.shutdown; C.halt = C.shutdown;
@@ -1126,7 +1033,10 @@
   };
 
   /* ================================================================ archives */
-  const TAR = 'SIMTAR\n', GZ = '\x1f\x8bSIMGZ\n', ZIP = 'PK\x03\x04SIM\n';
+  const TAR = 'SIMTAR\n', GZ = '\x1f\x8bSIMGZ\n', ZIP = 'PK\x03\x04SIM\n', XZ = '\xfd7zXZSIM\n', BZ = 'BZhSIM\n', ZS = '\x28\xb5\x2f\xfdSIM\n';
+  // compressors share one implementation; the marker tells the formats apart (file, tar auto-detect)
+  const ZK = { gzip: { ext: '.gz', mark: GZ, ratio: 0.28 }, xz: { ext: '.xz', mark: XZ, ratio: 0.22 }, bzip2: { ext: '.bz2', mark: BZ, ratio: 0.25 }, zstd: { ext: '.zst', mark: ZS, ratio: 0.24 } };
+  IG.compressMarks = { gzip: GZ, xz: XZ, bzip2: BZ };
   function pack(ctx, paths, opt = {}) {
     const fs = ctx.vfs;
     const entries = [];
@@ -1173,11 +1083,16 @@
       if (x === '-C' || x === '--directory') { dir = a[++i]; continue; }
       if (/^--directory=/.test(x)) { dir = x.split('=')[1]; continue; }
       if (x === '--gzip' || x === '-z') { gz = true; continue; }
+      if (x === '--xz') { gz = XZ; continue; }
+      if (x === '--bzip2') { gz = BZ; continue; }
+      if (x === '--zstd') { gz = ZS; continue; }
       if (/^-[a-zA-Z]+$/.test(x)) {
         for (let k = 1; k < x.length; k++) {
           const ch = x[k];
           if ('cxtru'.includes(ch)) mode = ch;
-          else if (ch === 'z' || ch === 'j' || ch === 'J') gz = true;
+          else if (ch === 'z') gz = true;
+          else if (ch === 'j') gz = BZ;
+          else if (ch === 'J') gz = XZ;
           else if (ch === 'v') verbose = true;
           else if (ch === 'p') keepOwner = true;
           else if (ch === 'f') { file = x.slice(k + 1) || a[++i]; break; }
@@ -1198,7 +1113,7 @@
       for (const e of r.errs) o.e(e.includes(':') ? `tar: ${e}` : `tar: ${e}: Cannot stat: No such file or directory`, 2);
       if (verbose) for (const e of r.entries) o.o(e.path + '\n');
       let data = TAR + JSON.stringify(r.entries);
-      if (gz) data = GZ + data;
+      if (gz) data = (gz === true ? GZ : gz) + data;
       const size = Math.round(sizeOfEntries(r.entries) * (gz ? 0.3 : 1.02)) + 10240;
       if (!file || file === '-') { o.o(data); }
       else {
@@ -1217,7 +1132,8 @@
       if (!ctx.shell.canRead(p)) { o.e(`tar: ${file}: Cannot open: Permission denied\ntar: Error is not recoverable: exiting now`, 2); return o.r(); }
       raw = fs.read(p);
     }
-    if (raw.startsWith(GZ)) raw = raw.slice(GZ.length);
+    const zm = [GZ, XZ, BZ, ZS].find(m => raw.startsWith(m));
+    if (zm) raw = raw.slice(zm.length);
     else if (gz) { o.e('gzip: stdin: not in gzip format\ntar: Child returned status 1\ntar: Error is not recoverable: exiting now', 2); return o.r(); }
     if (!raw.startsWith(TAR)) { o.e('tar: This does not look like a tar archive\ntar: Exiting with failure status due to previous errors', 2); return o.r(); }
     let entries = JSON.parse(raw.slice(TAR.length));
@@ -1235,32 +1151,33 @@
     }
     return o.r();
   };
-  function gzipCmd(decompress) {
+  function gzipCmd(decompress, tool = 'gzip') {
+    const K = ZK[tool], GZm = K.mark;
     return (argv, ctx) => {
       const { f, pos } = opts(argv);
       const o = out();
       const dec = decompress || f.d || f.decompress;
       const fs = ctx.vfs;
-      if (!pos.length) { const t = ctx.stdin; if (dec) { if (!t.startsWith(GZ)) { o.e('gzip: stdin: not in gzip format', 1); return o.r(); } o.o(t.slice(GZ.length)); } else o.o(GZ + t); return o.r(); }
+      if (!pos.length) { const t = ctx.stdin; if (dec) { if (!t.startsWith(GZm)) { o.e(`${tool}: stdin: ${tool === 'gzip' ? 'not in gzip format' : 'File format not recognized'}`, 1); return o.r(); } o.o(t.slice(GZm.length)); } else o.o(GZm + t); return o.r(); }
       for (const name of pos) {
         const p = ctx.resolve(name);
-        if (!fs.exists(p)) { o.e(`gzip: ${name}: No such file or directory`); continue; }
-        if (fs.isDir(p)) { o.e(`gzip: ${name} is a directory -- ignored`, 2); continue; }
+        if (!fs.exists(p)) { o.e(`${tool}: ${name}: No such file or directory`); continue; }
+        if (fs.isDir(p)) { o.e(`${tool}: ${name} is a directory -- ignored`, 2); continue; }
         const n = fs.node(p);
-        if (f.l) { const orig = n.content.startsWith(GZ) ? n.content.length - GZ.length : 0; o.o(`         compressed        uncompressed  ratio uncompressed_name\n${String(fs.fileSize(n)).padStart(19)} ${String(orig).padStart(19)}  70.0% ${name.replace(/\.gz$/, '')}\n`); continue; }
+        if (f.l) { const orig = n.content.startsWith(GZm) ? n.content.length - GZm.length : 0; o.o(`         compressed        uncompressed  ratio uncompressed_name\n${String(fs.fileSize(n)).padStart(19)} ${String(orig).padStart(19)}  70.0% ${name.replace(/\.gz$/, '')}\n`); continue; }
         if (dec) {
-          if (!name.endsWith('.gz') && !name.endsWith('.tgz')) { o.e(`gzip: ${name}: unknown suffix -- ignored`, 2); continue; }
-          if (!n.content.startsWith(GZ)) { o.e(`gzip: ${name}: not in gzip format`); continue; }
-          const target = name.endsWith('.tgz') ? p.replace(/\.tgz$/, '.tar') : p.replace(/\.gz$/, '');
-          if (f.c || f.stdout) { o.o(n.content.slice(GZ.length)); continue; }
-          if (!ctx.shell.canWrite(target)) { o.e(`gzip: ${target}: Permission denied`); continue; }
-          fs.write(target, n.content.slice(GZ.length), { owner: n.owner, group: n.group, mode: n.mode, size: n.origSize });
+          if (!name.endsWith(K.ext) && !(tool === 'gzip' && name.endsWith('.tgz'))) { o.e(`${tool}: ${name}: unknown suffix -- ignored`, 2); continue; }
+          if (!n.content.startsWith(GZm)) { o.e(`${tool}: ${name}: ${tool === 'gzip' ? 'not in gzip format' : 'File format not recognized'}`); continue; }
+          const target = name.endsWith('.tgz') ? p.replace(/\.tgz$/, '.tar') : p.slice(0, -K.ext.length);
+          if (f.c || f.stdout) { o.o(n.content.slice(GZm.length)); continue; }
+          if (!ctx.shell.canWrite(target)) { o.e(`${tool}: ${target}: Permission denied`); continue; }
+          fs.write(target, n.content.slice(GZm.length), { owner: n.owner, group: n.group, mode: n.mode, size: n.origSize });
           if (!f.k && !f.keep) fs.remove(p);
         } else {
-          if (name.endsWith('.gz')) { o.e(`gzip: ${name} already has .gz suffix -- unchanged`, 2); continue; }
-          if (f.c || f.stdout) { o.o(GZ + n.content); continue; }
-          if (!ctx.shell.canWrite(p + '.gz')) { o.e(`gzip: ${name}.gz: Permission denied`); continue; }
-          const node = fs.write(p + '.gz', GZ + n.content, { owner: n.owner, group: n.group, mode: n.mode, size: Math.max(32, Math.round(fs.fileSize(n) * 0.28)) });
+          if (name.endsWith(K.ext)) { o.e(`${tool}: ${name} already has ${K.ext} suffix -- unchanged`, 2); continue; }
+          if (f.c || f.stdout) { o.o(GZm + n.content); continue; }
+          if (!ctx.shell.canWrite(p + K.ext)) { o.e(`${tool}: ${name}${K.ext}: Permission denied`); continue; }
+          const node = fs.write(p + K.ext, GZm + n.content, { owner: n.owner, group: n.group, mode: n.mode, size: Math.max(32, Math.round(fs.fileSize(n) * K.ratio)) });
           node.origSize = n.size;
           if (!f.k && !f.keep) fs.remove(p);
         }
@@ -1272,6 +1189,15 @@
   C.gzip = gzipCmd(false);
   C.gunzip = gzipCmd(true);
   C.zcat = (argv, ctx) => gzipCmd(true)(['-c', '-k'].concat(argv), ctx);
+  C.xz = gzipCmd(false, 'xz');
+  C.unxz = gzipCmd(true, 'xz');
+  C.xzcat = (argv, ctx) => gzipCmd(true, 'xz')(['-c', '-k'].concat(argv), ctx);
+  C.bzip2 = gzipCmd(false, 'bzip2');
+  C.bunzip2 = gzipCmd(true, 'bzip2');
+  C.bzcat = (argv, ctx) => gzipCmd(true, 'bzip2')(['-c', '-k'].concat(argv), ctx);
+  C.zstd = (argv, ctx) => gzipCmd(argv.includes('-d'), 'zstd')(['-k'].concat(argv.filter(a => a !== '-d')), ctx); // zstd keeps the source by default
+  C.unzstd = (argv, ctx) => gzipCmd(true, 'zstd')(['-k'].concat(argv), ctx);
+  C.zstdcat = (argv, ctx) => gzipCmd(true, 'zstd')(['-c', '-k'].concat(argv), ctx);
   C.zip = (argv, ctx) => {
     const { pos } = opts(argv);
     const [zipName, ...files] = pos;
@@ -1302,6 +1228,9 @@
     return { stdout: '', stderr: 'ℹ Python の実行はこのシミュレータでは未対応です（bash スクリプトは実行できます）。\n', code: 1 };
   };
   C.python = (argv, ctx) => ({ stdout: '', stderr: ctx.host.os === 'ubuntu' ? "Command 'python' not found, did you mean:\n  command 'python3' from deb python3\n  command 'python' from deb python-is-python3\n" : 'bash: python: command not found\n', code: 127 });
+  C.perl = argv => (argv[0] === '-v' || argv[0] === '--version' ? '\nThis is perl 5, version 34, subversion 0 (v5.34.0) built for x86_64-linux-gnu-thread-multi\n' : { stdout: '', stderr: 'ℹ Perl の実行はこのシミュレータでは未対応です（bash スクリプトや sed / awk は実行できます）。\n', code: 1 });
+  C.node = argv => (argv[0] === '-v' || argv[0] === '--version' ? 'v18.19.1\n' : { stdout: '', stderr: 'ℹ Node.js の実行はこのシミュレータでは未対応です。\n', code: 1 });
+  C.nodejs = C.node;
   C.git = argv => (argv[0] === '--version' ? 'git version 2.34.1' : { stdout: '', stderr: 'ℹ git の操作はこのシミュレータでは未対応です。\n', code: 1 });
   C.tmux = () => ({ stdout: '', stderr: 'ℹ tmux / screen のような端末多重化はブラウザのシミュレータでは再現できません。\n', code: 1 });
   C.screen = C.tmux;

@@ -463,7 +463,17 @@
       if (opt.mode !== undefined && prev) node.mode = opt.mode;
       node.mtime = opt.mtime || this.clock();
       this.nodes.set(r, node);
+      if (!prev) this.inherit(node, parent);
       return node;
+    }
+    // a parent directory's default ACL applies to new entries (the umask is then ignored)
+    inherit(node, parentPath) {
+      const d = this.nodes.get(this.real(parentPath) || parentPath);
+      if (!d || !d.dacl) return;
+      const a = d.dacl, dir = node.type === 'd', req = dir ? 7 : 6;
+      node.acl = { u: Object.assign({}, a.u), g: Object.assign({}, a.g), g0: a.g0 };
+      node.mode = (node.mode & ~0o777) | ((a.u0 & req) << 6) | ((a.mask & req) << 3) | (a.o & req);
+      if (dir) node.dacl = JSON.parse(JSON.stringify(a));
     }
     mkdirp(p, opt = {}) {
       const parts = p.split('/').filter(Boolean);
@@ -478,7 +488,9 @@
           const last = cur.length + 0 === p.replace(/\/+$/, '').length || real === this.real(p);
           // like `mkdir -p -m`: requested mode applies to the final directory only
           const mode = last && opt.mode !== undefined ? opt.mode : real === '/tmp' ? 0o1777 : real === '/root' ? 0o700 : opt.parentMode ?? 0o755;
-          this.nodes.set(real, { type: 'd', mode, owner: (last || opt.ownParents) && opt.owner ? opt.owner : o, group: (last || opt.ownParents) && (opt.group || opt.owner) ? opt.group || opt.owner : g, mtime: opt.mtime || this.clock() });
+          const dn = { type: 'd', mode, owner: (last || opt.ownParents) && opt.owner ? opt.owner : o, group: (last || opt.ownParents) && (opt.group || opt.owner) ? opt.group || opt.owner : g, mtime: opt.mtime || this.clock() };
+          this.nodes.set(real, dn);
+          this.inherit(dn, VFS.parent(real));
         }
         cur = real;
       }

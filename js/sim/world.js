@@ -21,7 +21,11 @@
       this.docker = IG.Docker ? new IG.Docker(this) : null;
       this.harbor = null;
       this.aws = null;
-      this.addHost('bastion', { publicIp: '198.51.100.20', userGroups: ['docker'], pkgs: ['tree', 'jq', 'docker-ce', 'containerd.io', 'kubectl', 'openshift-clients', 'awscli', 'harbor-cli', 'zip', 'unzip'] });
+      const b = this.addHost('bastion', { publicIp: '198.51.100.20', userGroups: ['docker'], pkgs: ['tree', 'jq', 'docker-ce', 'containerd.io', 'kubectl', 'openshift-clients', 'awscli', 'harbor-cli', 'zip', 'unzip'] });
+      // the key pair that ~/.ssh/config's IdentityFile points at (servers trust it for the login user)
+      const own = { owner: b.user, group: b.primaryGroup(b.user) };
+      b.vfs.write(b.home + '/.ssh/id_ed25519', `-----BEGIN OPENSSH PRIVATE KEY-----\n${(U.b64('openssh-key-v1' + U.hex('bastion-key', 300)).match(/.{1,70}/g) || []).join('\n')}\n-----END OPENSSH PRIVATE KEY-----\n`, Object.assign({ mode: 0o600 }, own));
+      b.vfs.write(b.home + '/.ssh/id_ed25519.pub', `ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAI${U.hex('bastion-key', 40)} ${b.user}@corelab-bastion\n`, Object.assign({ mode: 0o644 }, own));
     }
     now() { return IG.clock.now(); }
     stamp() { return this.bootstrap ? this.now() - this.bootAge : this.now(); }

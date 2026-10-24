@@ -33,28 +33,28 @@
   /* ------------------------------------------------------------ packages (command → package) */
   const UBUNTU_BASE = ['bash', 'coreutils', 'grep', 'sed', 'gawk', 'findutils', 'tar', 'gzip', 'procps', 'psmisc', 'util-linux', 'iproute2', 'iputils-ping', 'iputils-tracepath',
     'bind9-dnsutils', 'curl', 'wget', 'openssh-client', 'openssh-server', 'rsync', 'netcat-openbsd', 'telnet', 'systemd', 'cron', 'sudo', 'passwd', 'login', 'less', 'vim', 'nano',
-    'file', 'lsof', 'ufw', 'iptables', 'apt', 'dpkg', 'diffutils', 'bc', 'rsyslog', 'logrotate', 'tcpdump', 'lvm2', 'e2fsprogs', 'python3', 'ca-certificates', 'tzdata', 'hostname', 'xz-utils', 'cloud-init', 'git'];
+    'file', 'lsof', 'ufw', 'iptables', 'apt', 'dpkg', 'diffutils', 'bc', 'rsyslog', 'logrotate', 'tcpdump', 'lvm2', 'e2fsprogs', 'parted', 'cloud-guest-utils', 'python3', 'perl-base', 'tmux', 'xxd', 'bsdextrautils', 'pciutils', 'usbutils', 'dmidecode', 'ethtool', 'mtr-tiny', 'openssl', 'netplan.io', 'systemd-resolved', 'systemd-networkd', 'zstd', 'locales', 'ca-certificates', 'tzdata', 'hostname', 'xz-utils', 'cloud-init', 'git'];
   const RHEL_BASE = ['bash', 'coreutils', 'grep', 'sed', 'gawk', 'findutils', 'tar', 'gzip', 'procps-ng', 'psmisc', 'util-linux', 'iproute', 'iputils', 'bind-utils', 'curl', 'wget', 'openssh-clients',
     'openssh-server', 'rsync', 'systemd', 'cronie', 'sudo', 'passwd', 'shadow-utils', 'less', 'vim-minimal', 'nano', 'file', 'lsof', 'firewalld', 'iptables-nft', 'dnf', 'rpm', 'diffutils', 'bc',
-    'rsyslog', 'logrotate', 'lvm2', 'xfsprogs', 'python3', 'chrony', 'NetworkManager', 'hostname', 'tcpdump', 'git'];
+    'rsyslog', 'logrotate', 'lvm2', 'xfsprogs', 'e2fsprogs', 'parted', 'cloud-utils-growpart', 'acl', 'pciutils', 'dmidecode', 'ethtool', 'openssl', 'systemd-coredump', 'python3', 'chrony', 'NetworkManager', 'hostname', 'tcpdump', 'git'];
   const PKG = {
-    coreutils: 'ls cp mv rm mkdir rmdir touch cat tac head tail wc sort uniq cut paste tr rev nl fold seq yes tee basename dirname realpath readlink stat chmod chown chgrp ln du df date sleep env printenv echo printf whoami id groups uname nproc mktemp truncate dd md5sum sha1sum sha256sum base64 comm join split shuf expr test [ true false users who timeout nice nohup pwd install sync',
-    bash: 'bash sh', grep: 'grep egrep fgrep', sed: 'sed', gawk: 'awk gawk', findutils: 'find xargs', tar: 'tar', gzip: 'gzip gunzip zcat', procps: 'ps top free kill pgrep pkill uptime vmstat watch sysctl w pidof', 'procps-ng': 'ps top free kill pgrep pkill uptime vmstat watch sysctl w pidof',
-    psmisc: 'killall pstree fuser', 'util-linux': 'lsblk mount umount findmnt fdisk blkid dmesg su more column logger swapon lscpu hwclock last whereis', iproute2: 'ip ss', iproute: 'ip ss', 'iputils-ping': 'ping', iputils: 'ping tracepath', 'iputils-tracepath': 'tracepath',
-    'bind9-dnsutils': 'dig nslookup host', 'bind-utils': 'dig nslookup host', curl: 'curl', wget: 'wget', 'openssh-client': 'ssh scp ssh-keygen ssh-copy-id', 'openssh-clients': 'ssh scp ssh-keygen ssh-copy-id', rsync: 'rsync',
-    'netcat-openbsd': 'nc netcat', 'nmap-ncat': 'nc ncat', telnet: 'telnet', systemd: 'systemctl journalctl hostnamectl timedatectl loginctl systemd-analyze', cron: 'crontab', cronie: 'crontab', sudo: 'sudo sudoedit visudo',
-    passwd: 'passwd useradd usermod userdel groupadd groupdel chpasswd chage', 'shadow-utils': 'useradd usermod userdel groupadd groupdel chpasswd chage', login: 'login', less: 'less', vim: 'vi vim view', 'vim-minimal': 'vi', nano: 'nano', file: 'file', lsof: 'lsof',
+    coreutils: 'ls cp mv rm mkdir rmdir touch cat tac head tail wc sort uniq cut paste tr rev nl fold seq yes tee basename dirname realpath readlink stat chmod chown chgrp ln du df date sleep env printenv echo printf whoami id groups uname nproc mktemp truncate dd md5sum sha1sum sha256sum sha384sum sha512sum cksum base64 comm join split shuf expr test [ true false users who timeout nice nohup pwd install sync od fmt numfmt factor unexpand tty logname hostid link unlink mkfifo shred stty',
+    bash: 'bash sh', grep: 'grep egrep fgrep', sed: 'sed', gawk: 'awk gawk', findutils: 'find xargs', tar: 'tar', gzip: 'gzip gunzip zcat', procps: 'ps top free kill pgrep pkill uptime vmstat watch sysctl w pidof pmap', 'procps-ng': 'ps top free kill pgrep pkill uptime vmstat watch sysctl w pidof pmap',
+    psmisc: 'killall pstree fuser', 'util-linux': 'lsblk mount umount findmnt fdisk blkid dmesg su more column logger swapon swapoff mkswap wipefs partx fsck mkfs lscpu hwclock last lastb whereis ionice taskset chrt nsenter unshare wall mesg script hexdump', iproute2: 'ip ss', iproute: 'ip ss', 'iputils-ping': 'ping', iputils: 'ping tracepath', 'iputils-tracepath': 'tracepath',
+    'bind9-dnsutils': 'dig nslookup host', 'bind-utils': 'dig nslookup host', curl: 'curl', wget: 'wget', 'openssh-client': 'ssh scp sftp ssh-keygen ssh-copy-id ssh-keyscan ssh-agent ssh-add', 'openssh-clients': 'ssh scp sftp ssh-keygen ssh-copy-id ssh-keyscan ssh-agent ssh-add', rsync: 'rsync',
+    'netcat-openbsd': 'nc netcat', 'nmap-ncat': 'nc ncat', telnet: 'telnet', systemd: 'systemctl journalctl hostnamectl timedatectl localectl loginctl systemd-analyze systemd-run systemd-tmpfiles systemd-cgls', cron: 'crontab', cronie: 'crontab', sudo: 'sudo sudoedit visudo',
+    passwd: 'passwd useradd usermod userdel groupadd groupdel chpasswd chage chsh chfn', 'shadow-utils': 'useradd usermod userdel groupadd groupdel chpasswd chage', login: 'login', less: 'less', vim: 'vi vim view', 'vim-minimal': 'vi', nano: 'nano', file: 'file', lsof: 'lsof',
     ufw: 'ufw', iptables: 'iptables', 'iptables-nft': 'iptables', firewalld: 'firewall-cmd', apt: 'apt apt-get apt-cache', dpkg: 'dpkg', dnf: 'dnf yum', rpm: 'rpm', diffutils: 'diff cmp', bc: 'bc', logrotate: 'logrotate', tcpdump: 'tcpdump',
-    lvm2: 'pvs vgs lvs pvdisplay vgdisplay lvdisplay', e2fsprogs: 'mkfs.ext4 e2fsck', xfsprogs: 'mkfs.xfs xfs_info', python3: 'python3', hostname: 'hostname', 'xz-utils': 'xz unxz', git: 'git',
+    lvm2: 'pvs vgs lvs pvdisplay vgdisplay lvdisplay pvcreate pvremove vgcreate vgextend vgreduce vgremove lvcreate lvextend lvreduce lvresize lvremove lvrename', e2fsprogs: 'mkfs.ext4 mkfs.ext3 mkfs.ext2 mke2fs e2fsck fsck.ext4 resize2fs e2label', xfsprogs: 'mkfs.xfs xfs_info xfs_growfs xfs_repair fsck.xfs', parted: 'parted partprobe', 'cloud-guest-utils': 'growpart', 'cloud-utils-growpart': 'growpart', acl: 'setfacl getfacl', 'perl-base': 'perl', nodejs: 'node nodejs', xxd: 'xxd', 'vim-common': 'xxd', bsdextrautils: 'hexdump hd', pciutils: 'lspci', usbutils: 'lsusb', dmidecode: 'dmidecode', binutils: 'strings', ethtool: 'ethtool', 'mtr-tiny': 'mtr', mtr: 'mtr', 'iputils-arping': 'arping', whois: 'whois', at: 'at atq atrm batch', openssl: 'openssl', 'network-manager': 'nmcli', NetworkManager: 'nmcli', 'netplan.io': 'netplan', 'systemd-resolved': 'resolvectl', 'systemd-networkd': 'networkctl', 'systemd-coredump': 'coredumpctl', 'util-linux-user': 'chsh chfn', zstd: 'zstd unzstd zstdcat', locales: 'locale-gen update-locale', 'glibc-langpack-ja': '', 'build-essential': 'gcc cc g++ make', gcc: 'gcc cc', make: 'make', socat: 'socat', iperf3: 'iperf3', cpio: 'cpio', python3: 'python3', hostname: 'hostname', 'xz-utils': 'xz unxz', git: 'git',
     'net-tools': 'netstat ifconfig route arp', traceroute: 'traceroute', htop: 'htop', sysstat: 'iostat sar mpstat pidstat', nmap: 'nmap', zip: 'zip', unzip: 'unzip', jq: 'jq', tree: 'tree', tmux: 'tmux', screen: 'screen',
-    nginx: 'nginx', apache2: 'apache2ctl apachectl a2ensite a2dissite', httpd: 'httpd apachectl', 'redis-server': 'redis-cli redis-server', postgresql: 'psql', 'docker-ce': 'docker', 'containerd.io': 'ctr', kubelet: 'kubelet', 'cri-tools': 'crictl', 'cri-o': 'crio',
+    nginx: 'nginx', apache2: 'apache2ctl apachectl a2ensite a2dissite a2enmod a2dismod a2enconf a2disconf', httpd: 'httpd apachectl', 'redis-server': 'redis-cli redis-server', postgresql: 'psql', 'docker-ce': 'docker', 'containerd.io': 'ctr', kubelet: 'kubelet', 'cri-tools': 'crictl', 'cri-o': 'crio',
     kubectl: 'kubectl', 'openshift-clients': 'oc', awscli: 'aws', 'harbor-cli': 'harbor', chrony: 'chronyc', 'mysql-client': 'mysql', dnsmasq: 'dnsmasq', strace: 'strace',
   };
   const CMD_PKG = {};   // command -> first (Debian-style) package that provides it (for suggestions)
   const CMD_PKGS = {};  // command -> every package that provides it (for "is it installed?")
   for (const [p, cmds] of Object.entries(PKG)) for (const c of cmds.split(' ')) { if (!(c in CMD_PKG)) CMD_PKG[c] = p; (CMD_PKGS[c] = CMD_PKGS[c] || []).push(p); }
   CMD_PKG.tracepath = 'iputils-tracepath';
-  const PKG_VER = { nginx: '1.24.0-2ubuntu7.1', 'net-tools': '2.10-0.1ubuntu4', traceroute: '1:2.1.5-1', htop: '3.3.0-4build1', sysstat: '12.6.1-2', nmap: '7.94+git20230807.3be01efb1+dfsg-3build2', zip: '3.0-13build1', unzip: '6.0-28ubuntu4', jq: '1.7.1-3build1', tree: '2.1.1-2ubuntu3', apache2: '2.4.58-1ubuntu8.4', 'redis-server': '5:7.0.15-1build2', postgresql: '16+257build1', tmux: '3.4-1build1', strace: '6.8-0ubuntu2', 'mysql-client': '8.0.39-0ubuntu0.24.04.2' };
+  const PKG_VER = { nginx: '1.24.0-2ubuntu7.1', 'net-tools': '2.10-0.1ubuntu4', traceroute: '1:2.1.5-1', htop: '3.3.0-4build1', sysstat: '12.6.1-2', nmap: '7.94+git20230807.3be01efb1+dfsg-3build2', acl: '2.3.1-1', at: '3.2.5-1ubuntu1', binutils: '2.38-4ubuntu2.6', whois: '5.5.13', 'iputils-arping': '3:20211215-1', 'network-manager': '1.36.6-0ubuntu2', 'build-essential': '12.9ubuntu3', socat: '1.7.4.1-3ubuntu4', iperf3: '3.9-1', xfsprogs: '5.13.0-1ubuntu2.1', 'glibc-langpack-ja': '2.34-100.el9', zip: '3.0-13build1', unzip: '6.0-28ubuntu4', jq: '1.7.1-3build1', tree: '2.1.1-2ubuntu3', apache2: '2.4.58-1ubuntu8.4', 'redis-server': '5:7.0.15-1build2', postgresql: '16+257build1', tmux: '3.4-1build1', strace: '6.8-0ubuntu2', 'mysql-client': '8.0.39-0ubuntu0.24.04.2' };
   const SERVICE_OF_PKG = { nginx: 'nginx', apache2: 'apache2', httpd: 'httpd', 'redis-server': 'redis-server', postgresql: 'postgresql', 'openssh-server': 'ssh' };
 
   /* ------------------------------------------------------------ host */
@@ -108,6 +108,7 @@
       this.vfs = new VFS({ ownerFor: p => this.ownerFor(p), clock: () => (world ? world.now() : Date.now()) - 30 * 86400e3 });
       this.initAccounts(spec);
       this.seedFs(spec);
+      this.systemdFstab = world ? world.now() : Date.now(); // fstab as last loaded by systemd (mount's daemon-reload hint)
       this.vfs.clock = () => (world ? world.now() : Date.now());
       for (const [p, c] of Object.entries(spec.files || {})) {
         const opt = typeof c === 'string' ? {} : c;
@@ -229,6 +230,8 @@
       v.write('/etc/sudoers.d/90-cloud-init-users', `# Created by cloud-init v. 24.1.3 on Mon, 12 Oct 2026 00:11:42 +0000\n\n# User rules for ${this.user}\n${this.user} ALL=(ALL) NOPASSWD:ALL\n`, { mode: 0o440 });
       if (ubuntu) v.write('/etc/apt/sources.list', `# See http://help.ubuntu.com/community/UpgradeNotes for how to upgrade to\n# newer versions of the distribution.\ndeb http://ap-northeast-1.ec2.archive.ubuntu.com/ubuntu/ jammy main restricted universe multiverse\ndeb http://ap-northeast-1.ec2.archive.ubuntu.com/ubuntu/ jammy-updates main restricted universe multiverse\ndeb http://security.ubuntu.com/ubuntu jammy-security main restricted universe multiverse\n`, { mkdirs: true });
       else v.write('/etc/yum.repos.d/redhat.repo', '[rhel-9-for-x86_64-baseos-rpms]\nname = Red Hat Enterprise Linux 9 for x86_64 - BaseOS (RPMs)\nenabled = 1\n', { mkdirs: true });
+      if (ubuntu) v.write('/etc/netplan/50-cloud-init.yaml', `# This file is generated from information provided by the datasource.  Changes\n# to it will not persist across an instance reboot.  To disable cloud-init's\n# network configuration capabilities, write a file\n# /etc/cloud/cloud.cfg.d/99-disable-network-config.cfg with the following:\n# network: {config: disabled}\nnetwork:\n    ethernets:\n        eth0:\n            dhcp4: true\n            dhcp6: false\n            match:\n                macaddress: ${this.mac}\n            set-name: eth0\n    version: 2\n`, { mkdirs: true, mode: 0o600 });
+      else v.write('/etc/NetworkManager/system-connections/cloud-init-eth0.nmconnection', `[connection]\nid=System eth0\nuuid=${U.hex(this.name + 'nm', 8)}-${U.hex(this.name + 'nm1', 4)}-${U.hex(this.name + 'nm2', 4)}-${U.hex(this.name + 'nm3', 4)}-${U.hex(this.name + 'nm4', 12)}\ntype=ethernet\ninterface-name=eth0\n\n[ethernet]\nmac-address=${this.mac.toUpperCase()}\n\n[ipv4]\nmethod=auto\n\n[ipv6]\naddr-gen-mode=eui64\nmethod=auto\n`, { mkdirs: true, mode: 0o600 });
       for (const s of Object.keys(this.services)) this.writeUnit(s);
       this.syncAccounts();
       this.syncBins();
@@ -287,7 +290,7 @@
     syncBins() {
       for (const p of this.pkgs) for (const c of (PKG[p] || '').split(' ').filter(Boolean)) {
         if (c === '[' ) continue;
-        const sbin = /^(useradd|usermod|userdel|groupadd|groupdel|chpasswd|sysctl|fdisk|blkid|mkfs\.\w+|e2fsck|ufw|iptables|logrotate|visudo|pvs|vgs|lvs|pvdisplay|vgdisplay|lvdisplay|nginx|apache2ctl|httpd|tcpdump|xfs_info|crio|kubelet|swapon|hwclock|chronyc)$/.test(c);
+        const sbin = /^(useradd|usermod|userdel|groupadd|groupdel|chpasswd|sysctl|fdisk|blkid|mkfs\.\w+|e2fsck|ufw|iptables|logrotate|visudo|pvs|vgs|lvs|pvdisplay|vgdisplay|lvdisplay|nginx|apache2ctl|httpd|tcpdump|xfs_info|crio|kubelet|swapon|swapoff|mkswap|hwclock|chronyc|parted|partprobe|wipefs|resize2fs|e2label|mke2fs|fsck(\.\w+)?|xfs_growfs|xfs_repair|pv\w+|vg\w+|lv\w+|dmidecode|ethtool|arping|locale-gen|update-locale|a2\w+|chroot|nologin)$/.test(c);
         const path = (sbin ? '/usr/sbin/' : '/usr/bin/') + c;
         if (!this.vfs.lexists(path)) this.vfs.write(path, '\x7fELF', { mode: 0o755, size: 30000 + (U.hash(c) % 900000) });
       }
@@ -310,11 +313,20 @@
     // perm: 'r' | 'w' | 'x'. Returns true if `user` may access node per mode bits.
     allowed(user, node, perm) {
       if (!node) return false;
+      if (perm === 'w' && /i/.test(node.attrs || '')) return false; // chattr +i: not even root
       if (user === 'root') return perm !== 'x' || node.type === 'd' || (node.mode & 0o111) !== 0;
       const bit = { r: 4, w: 2, x: 1 }[perm];
-      let shift = 0;
-      if (node.owner === user) shift = 6;
-      else if (this.inGroup(user, node.group)) shift = 3;
+      if (node.owner === user) return ((node.mode >> 6) & bit) !== 0;
+      const acl = node.acl;
+      if (acl) {
+        // POSIX ACL: named user, then owning/named groups (any match), each limited by the mask (= group bits)
+        const mask = (node.mode >> 3) & 7;
+        if (user in acl.u) return (acl.u[user] & mask & bit) !== 0;
+        const gs = [[node.group, acl.g0]].concat(Object.entries(acl.g)).filter(([g]) => this.inGroup(user, g));
+        if (gs.length) return gs.some(([, b]) => (b & mask & bit) !== 0);
+        return (node.mode & bit) !== 0;
+      }
+      const shift = this.inGroup(user, node.group) ? 3 : 0;
       return ((node.mode >> shift) & bit) !== 0;
     }
     // Can `user` traverse every parent directory of path?
@@ -338,6 +350,8 @@
       return !!d && this.allowed(user, d, 'w') && this.allowed(user, d, 'x');
     }
     canDelete(user, path) {
+      const self = this.vfs.lnode(path);
+      if (self && /[ia]/.test(self.attrs || '')) return false; // chattr +i / +a: not even root
       if (user === 'root') return true;
       const parent = this.vfs.node(VFS.parent(path));
       if (!parent || !this.traversable(user, path) || !this.allowed(user, parent, 'w') || !this.allowed(user, parent, 'x')) return false;

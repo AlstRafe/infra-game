@@ -149,6 +149,8 @@
       if (fs.isDir(p)) return { error: `bash: ${target}: Is a directory\n` };
       const real = fs.real(p) || p;
       if (!fs.isDir(VFS.parent(real))) return { error: `bash: ${target}: No such file or directory\n` };
+      const attrs = (fs.lnode(real) || {}).attrs || '';
+      if (/i/.test(attrs) || (/a/.test(attrs) && !append)) return { error: `bash: ${target}: Operation not permitted\n` }; // chattr +i / +a
       if (!this.canWrite(real)) return { error: `bash: ${target}: Permission denied\n` };
       if (!fs.exists(real) || !append) fs.write(real, '', fs.exists(real) ? {} : { owner: this.user, group: this.over ? 'root' : this.host.primaryGroup(this.user), mode: 0o664 & ~0o002 });
       return { file: real, fs };
@@ -342,6 +344,8 @@
         r = { stdout: '', stderr: `${name}: internal simulator error: ${e.message}\n`, code: 1 };
       }
       const n = norm(r);
+      // files with chattr +i / +a fail with EPERM ("Operation not permitted"), not EACCES
+      if (n.stderr && n.stderr.includes('Permission denied') && !this.over) n.stderr = n.stderr.replace(/'?([^\s':]+)'?: Permission denied/g, (m, p) => (/[ia]/.test((this.vfs().lnode(this.resolve(p)) || {}).attrs || '') ? m.replace('Permission denied', 'Operation not permitted') : m));
       if (n.stdout) this.writeTo(io, 1, n.stdout);
       if (n.stderr) this.writeTo(io, 2, n.stderr);
       if (n.editor) this.pendingEditor = n.editor;

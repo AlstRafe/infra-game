@@ -52,7 +52,7 @@
   const tty = ctx => !!(ctx.io && ctx.io.fd && ctx.io.fd[1] && ctx.io.fd[1].term);
   const color = (ctx, f) => f.color === 'always' || ((f.color === 'auto' || f.color === true) && tty(ctx));
   function modeStr(n) {
-    const t = n.type === 'd' ? 'd' : n.type === 'l' ? 'l' : n.dev ? 'c' : '-';
+    const t = n.type === 'd' ? 'd' : n.type === 'l' ? 'l' : n.dev ? 'c' : n.fifo ? 'p' : '-';
     const m = n.mode;
     const r = (b, ch) => (m & b ? ch : '-');
     let s = t + r(0o400, 'r') + r(0o200, 'w') + r(0o100, 'x') + r(0o40, 'r') + r(0o20, 'w') + r(0o10, 'x') + r(0o4, 'r') + r(0o2, 'w') + r(0o1, 'x');
@@ -183,13 +183,14 @@
       const parts = [];
       if (f.i) parts.push(String(inode(e.path)).padStart(cols.ino));
       if (f.s) parts.push(String(Math.ceil(size / 4096) * 4).padStart(cols.blk));
-      parts.push(modeStr(n), String(links).padStart(cols.links));
+      parts.push(modeStr(n) + (n.acl || n.dacl ? '+' : cols.acl ? ' ' : ''), String(links).padStart(cols.links));
       if (!f.g) parts.push(user.padEnd(cols.user));
       if (!f.o) parts.push(grp.padEnd(cols.group));
       parts.push(sz.padStart(cols.size), lsTime(n.mtime, now), name);
       return parts.join(' ');
     };
     const colsFor = list => ({
+      acl: list.some(e => e.node.acl || e.node.dacl),
       links: Math.max(1, ...list.map(e => String(e.node.type === 'd' ? 2 + fs.children(e.path).filter(c => c.dir).length : 1).length)),
       user: Math.max(...list.map(e => (f.n ? String((ctx.host.users[e.node.owner] || { uid: 0 }).uid) : e.node.owner).length)),
       group: Math.max(...list.map(e => (f.n ? String((ctx.host.groups[e.node.group] || { gid: 0 }).gid) : e.node.group).length)),
@@ -524,6 +525,9 @@
       const c = ln.content;
       let kind;
       if (c === '\x7fELF') kind = 'ELF 64-bit LSB pie executable, x86-64, version 1 (SYSV), dynamically linked, interpreter /lib64/ld-linux-x86-64.so.2, stripped';
+      else if (c.startsWith('\xfd7zXZSIM')) kind = 'XZ compressed data, checksum CRC64';
+      else if (c.startsWith('BZhSIM')) kind = 'bzip2 compressed data, block size = 900k';
+      else if (c.startsWith('\x28\xb5\x2f\xfdSIM')) kind = 'Zstandard compressed data (v0.8+), Dictionary ID: None';
       else if (c.startsWith('\x1f\x8bSIMGZ')) kind = 'gzip compressed data, from Unix, original size modulo 2^32 ' + (c.length * 3);
       else if (c.startsWith('SIMTAR\n')) kind = 'POSIX tar archive (GNU)';
       else if (c.startsWith('PK\x03\x04SIM')) kind = 'Zip archive data, at least v2.0 to extract, compression method=deflate';
@@ -777,6 +781,7 @@
       return o.r();
     };
   }
+  IG.sumCmd = sumCmd;
   C.md5sum = sumCmd('md5');
   C.sha1sum = sumCmd('sha1');
   C.sha256sum = sumCmd('sha256');
@@ -962,4 +967,130 @@
   C.vim = C.vi; C.nano = C.vi; C.vimdiff = C.vi;
   C.clear = (a, ctx) => { ctx.clear(); return ''; };
   C.reset = C.clear;
+  /* ================================================================ POSIX ACL (setfacl / getfacl) */
+  // node.acl = { u: {user: bits}, g: {group: bits}, g0: owning-group bits }; the mask lives in the
+  // mode's group bits (as on Linux). node.dacl = full default ACL of a directory (inherited by the VFS).
+  const permBits = s => (/^[0-7]$/.test(s) ? Number(s) : /^[rwxX-]*$/.test(s) ? (s.includes('r') ? 4 : 0) | (s.includes('w') ? 2 : 0) | (/[xX]/.test(s) ? 1 : 0) : null);
+  const permStr = b => (b & 4 ? 'r' : '-') + (b & 2 ? 'w' : '-') + (b & 1 ? 'x' : '-');
+  const aclView = n => ({ u0: (n.mode >> 6) & 7, u: Object.assign({}, n.acl ? n.acl.u : {}), g0: n.acl ? n.acl.g0 : (n.mode >> 3) & 7, g: Object.assign({}, n.acl ? n.acl.g : {}), mask: n.acl ? (n.mode >> 3) & 7 : null, o: n.mode & 7 });
+  const unionMask = a => [a.g0, ...Object.values(a.u), ...Object.values(a.g)].reduce((x, y) => x | y, 0);
+  function aclParse(spec, ctx, withPerms) {
+    const res = [];
+    let pos = 0;
+    for (const raw of String(spec || '').split(',')) {
+      const e = { def: false };
+      let parts = raw.split(':');
+      if (/^d(efault)?$/.test(parts[0])) { e.def = true; parts = parts.slice(1); }
+      const t = { user: 'u', group: 'g', mask: 'm', other: 'o' }[parts[0]] || parts[0];
+      if (!/^[ugmo]$/.test(t || '')) return { err: pos + 1 };
+      e.type = t;
+      if ((t === 'm' || t === 'o') && parts.length === 2) parts = [t, '', parts[1]];
+      e.q = parts[1] || '';
+      if (e.q && ((t === 'u' && !ctx.host.users[e.q]) || (t === 'g' && !ctx.host.groups[e.q]) || t === 'm' || t === 'o')) return { err: pos + raw.indexOf(e.q) + 1 };
+      if (withPerms) { e.permRaw = parts[2] === undefined ? '' : parts[2]; e.perms = permBits(e.permRaw); if (e.perms === null || parts.length < 3) return { err: pos + raw.length + 1 }; }
+      res.push(e);
+      pos += raw.length + 1;
+    }
+    return { list: res };
+  }
+  C.setfacl = (argv, ctx) => {
+    const fs = ctx.vfs;
+    const o = out();
+    const ops = [], files = [];
+    let rec = false, noMask = false, defOnly = false;
+    for (let i = 0; i < argv.length; i++) {
+      const a = argv[i];
+      if (a === '-m' || a === '--modify' || a === '-x' || a === '--remove') { ops.push({ op: a === '-m' || a === '--modify' ? 'm' : 'x', spec: argv[++i], flag: a }); continue; }
+      if (/^--(modify|remove)=/.test(a)) { ops.push({ op: a.startsWith('--modify') ? 'm' : 'x', spec: a.slice(a.indexOf('=') + 1), flag: a.split('=')[0] }); continue; }
+      if (a === '--remove-all') { ops.push({ op: 'b' }); continue; }
+      if (a === '--remove-default') { ops.push({ op: 'k' }); continue; }
+      if (a === '--recursive') { rec = true; continue; }
+      if (a === '--no-mask') { noMask = true; continue; }
+      if (a === '--default') { defOnly = true; continue; }
+      if (/^-[bkRnd]+$/.test(a)) { for (const c of a.slice(1)) { if (c === 'b') ops.push({ op: 'b' }); if (c === 'k') ops.push({ op: 'k' }); if (c === 'R') rec = true; if (c === 'n') noMask = true; if (c === 'd') defOnly = true; } continue; }
+      files.push(a);
+    }
+    if (!ops.length || !files.length) { o.e("Usage: setfacl [-bkndRLP] { -m|-M|-x|-X ... } file ...\nTry `setfacl --help' for more information.", 2); return o.r(); }
+    const parsed = [];
+    for (const op of ops) {
+      if (op.op === 'b' || op.op === 'k') { parsed.push(op); continue; }
+      const r = aclParse(op.spec, ctx, op.op === 'm');
+      if (r.err) { o.e(`setfacl: Option ${op.flag}: Invalid argument near character ${r.err}`, 2); return o.r(); }
+      parsed.push({ op: op.op, list: r.list.map(e => Object.assign(e, { def: e.def || defOnly })) });
+    }
+    for (const t of files) {
+      const p = ctx.resolve(t);
+      if (!fs.exists(p)) { o.e(`setfacl: ${t}: No such file or directory`); continue; }
+      for (const q of [p].concat(rec && fs.isDir(p) ? fs.walk(p) : [])) {
+        const n = fs.node(q);
+        const shown = q === p ? t : q;
+        if (ctx.user !== 'root' && n.owner !== ctx.user) { o.e(`setfacl: ${shown}: Operation not permitted`); continue; }
+        const a = aclView(n);
+        let d = n.dacl ? JSON.parse(JSON.stringify(n.dacl)) : null;
+        let explicit = null, dExplicit = null, bad = false;
+        for (const op of parsed) {
+          if (op.op === 'b') { a.u = {}; a.g = {}; a.mask = null; d = null; continue; }
+          if (op.op === 'k') { d = null; continue; }
+          for (const e of op.list) {
+            if (e.def && n.type !== 'd') { if (q === p) o.e(`setfacl: ${shown}: Only directories can have default ACLs`); bad = true; break; }
+            const tgt = e.def ? (d = d || { u0: a.u0, u: {}, g0: a.g0, g: {}, mask: null, o: a.o }) : a;
+            const bits = e.permRaw && e.permRaw.includes('X') && !(n.type === 'd' || n.mode & 0o111) ? e.perms & 6 : e.perms;
+            if (op.op === 'm') {
+              if (e.type === 'u') { if (e.q) tgt.u[e.q] = bits; else tgt.u0 = bits; }
+              else if (e.type === 'g') { if (e.q) tgt.g[e.q] = bits; else tgt.g0 = bits; }
+              else if (e.type === 'o') tgt.o = bits;
+              else if (e.def) dExplicit = bits;
+              else explicit = bits;
+            } else if (e.q) delete (e.type === 'u' ? tgt.u : tgt.g)[e.q];
+          }
+          if (bad) break;
+        }
+        if (bad) continue;
+        const ext = Object.keys(a.u).length || Object.keys(a.g).length || explicit !== null;
+        const mask = explicit !== null ? explicit : noMask && a.mask !== null ? a.mask : unionMask(a);
+        if (ext) { n.acl = { u: a.u, g: a.g, g0: a.g0 }; n.mode = (n.mode & ~0o777) | (a.u0 << 6) | (mask << 3) | a.o; }
+        else { delete n.acl; n.mode = (n.mode & ~0o777) | (a.u0 << 6) | (a.g0 << 3) | a.o; }
+        if (d) { d.mask = dExplicit !== null ? dExplicit : unionMask(d); n.dacl = d; } else delete n.dacl;
+      }
+    }
+    return o.r();
+  };
+  C.getfacl = (argv, ctx) => {
+    const fs = ctx.vfs;
+    const { f, pos } = opts(argv, '');
+    const o = out();
+    if (!pos.length) { o.e("Usage: getfacl [-aceEsRLPtpndvh] file ...\nTry `getfacl --help' for more information.", 1); return o.r(); }
+    let warned = false;
+    const tabs = s => s + '\t'.repeat(Math.max(1, Math.ceil((32 - s.length) / 8)));
+    const entries = (a, pre) => {
+      const r = [];
+      const eff = (s, b) => (a.mask !== null && (b & a.mask) !== b ? tabs(s) + '#effective:' + permStr(b & a.mask) : s);
+      r.push(`${pre}user::${permStr(a.u0)}`);
+      for (const [u, b] of Object.entries(a.u)) r.push(eff(`${pre}user:${f.n ? (ctx.host.users[u] || { uid: u }).uid : u}:${permStr(b)}`, b));
+      r.push(eff(`${pre}group::${permStr(a.g0)}`, a.g0));
+      for (const [g, b] of Object.entries(a.g)) r.push(eff(`${pre}group:${f.n ? (ctx.host.groups[g] || { gid: g }).gid : g}:${permStr(b)}`, b));
+      if (a.mask !== null) r.push(`${pre}mask::${permStr(a.mask)}`);
+      r.push(`${pre}other::${permStr(a.o)}`);
+      return r;
+    };
+    for (const t of pos) {
+      const p = ctx.resolve(t);
+      if (!fs.exists(p)) { o.e(`getfacl: ${t}: No such file or directory`); continue; }
+      for (const q of [p].concat(f.R && fs.isDir(p) ? fs.walk(p) : [])) {
+        const n = fs.node(q);
+        let name = q === p ? t : q;
+        if (name.startsWith('/') && !f.p && !f['absolute-names']) { if (!warned) o.e("getfacl: Removing leading '/' from absolute path names", 0); warned = true; name = name.replace(/^\/+/, '') || '/'; }
+        const res = [];
+        if (!(f.c || f['omit-header'])) {
+          res.push(`# file: ${name}`, `# owner: ${n.owner}`, `# group: ${n.group}`);
+          const fl = (n.mode & 0o4000 ? 's' : '-') + (n.mode & 0o2000 ? 's' : '-') + (n.mode & 0o1000 ? 't' : '-');
+          if (fl !== '---') res.push(`# flags: ${fl}`);
+        }
+        if (!f.d) res.push(...entries(aclView(n), ''));
+        if (n.dacl && !f.a) res.push(...entries(n.dacl, f.d ? '' : 'default:'));
+        o.o(res.join('\n') + '\n\n');
+      }
+    }
+    return o.r();
+  };
 })(globalThis.IG = globalThis.IG || {});
