@@ -710,19 +710,30 @@
   function nginxCheck(h) {
     const files = ['/etc/nginx/nginx.conf', ...h.vfs.walk('/etc/nginx/sites-enabled'), ...h.vfs.walk('/etc/nginx/conf.d')].filter(p => h.vfs.isFile(p));
     for (const p of files) {
-      const txt = h.vfs.read(p);
-      let depth = 0;
-      const ls = txt.split('\n');
-      for (let i = 0; i < ls.length; i++) {
-        const t = ls[i].replace(/#.*/, '').trim();
-        if (!t) continue;
-        depth += (t.match(/\{/g) || []).length - (t.match(/\}/g) || []).length;
-        if (depth < 0) return [`nginx: [emerg] unexpected "}" in ${p}:${i + 1}`];
-        if (!/[;{}]$/.test(t)) return [`nginx: [emerg] directive "${t.split(/\s+/)[0]}" is not terminated by ";" in ${p}:${i + 2}`];
-        const w = t.split(/\s+/)[0].replace(/[;{]$/, '');
-        if (w && w !== '}' && !NGINX_DIRECTIVES.has(w)) return [`nginx: [emerg] unknown directive "${w}" in ${p}:${i + 1}`];
+      // statement tokenizer: words up to ';' '{' or '}', tracking line numbers and block nesting
+      const txt = h.vfs.read(p).replace(/#[^\n]*/g, '');
+      const stack = [];
+      let buf = '', line = 1, startLine = 1;
+      for (let i = 0; i < txt.length; i++) {
+        const c = txt[i];
+        if (c === '\n') line++;
+        if (c !== ';' && c !== '{' && c !== '}') { if (!buf.trim()) startLine = line; buf += c; continue; }
+        const words = buf.trim().split(/\s+/).filter(Boolean);
+        buf = '';
+        if (c === '}') {
+          if (words.length) return [`nginx: [emerg] directive "${words[0]}" is not terminated by ";" in ${p}:${line}`];
+          if (!stack.length) return [`nginx: [emerg] unexpected "}" in ${p}:${line}`];
+          stack.pop();
+          continue;
+        }
+        if (!words.length) { if (c === '{') return [`nginx: [emerg] unexpected "{" in ${p}:${line}`]; continue; }
+        const inTypes = stack[stack.length - 1] === 'types';
+        if (!inTypes && !NGINX_DIRECTIVES.has(words[0])) return [`nginx: [emerg] unknown directive "${words[0]}" in ${p}:${startLine}`];
+        if (!inTypes && words[0] === 'listen' && !/^(\[?[\d.:\]*]*:)?\d+$/.test(words[1] || '')) return [`nginx: [emerg] invalid port in "${words[1] || ''}" of the "listen" directive in ${p}:${startLine}`];
+        if (c === '{') stack.push(words[0]);
       }
-      if (depth > 0) return [`nginx: [emerg] unexpected end of file, expecting "}" in ${p}:${ls.length}`];
+      if (buf.trim()) return [`nginx: [emerg] unexpected end of file, expecting ";" or "}" in ${p}:${line}`];
+      if (stack.length) return [`nginx: [emerg] unexpected end of file, expecting "}" in ${p}:${line}`];
     }
     const ports = new Set();
     for (const p of files) for (const m of (h.vfs.read(p) || '').matchAll(/^\s*listen\s+(\d+)/gm)) { if (Number(m[1]) < 1024 || true) ports.add(Number(m[1])); }

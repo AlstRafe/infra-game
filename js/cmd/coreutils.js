@@ -880,7 +880,8 @@
     const gs = h.groupsOf(u);
     if (f.u) return f.n ? u : String(x.uid);
     if (f.g) return f.n ? pg : String(x.gid);
-    if (f.G) return f.n ? gs.join(' ') : gs.map(g => h.groups[g].gid).join(' ');
+    const ordered = [pg].concat(gs.filter(g => g !== pg));
+    if (f.G) return f.n ? ordered.join(' ') : ordered.map(g => h.groups[g].gid).join(' ');
     return `uid=${x.uid}(${u}) gid=${x.gid}(${pg}) groups=${[pg].concat(gs.filter(g => g !== pg)).map(g => `${h.groups[g].gid}(${g})`).join(',')}`;
   };
   C.groups = (argv, ctx) => { const h = ctx.host; const us = argv.length ? argv : [ctx.user]; return us.map(u => (h.users[u] ? (argv.length ? `${u} : ` : '') + [h.primaryGroup(u)].concat(h.groupsOf(u).filter(g => g !== h.primaryGroup(u))).join(' ') : `groups: ‘${u}’: no such user`)).join('\n'); };

@@ -18,7 +18,7 @@ const IG = ctx.IG;
 function fresh() {
   IG.clock.offset = 0;
   const w = new IG.World();
-  w.addHost('srv1', { user: 'ubuntu', ip: '10.0.1.40', services: { nginx: 'active' } });
+  w.addHost('srv1', { user: 'ubuntu', ip: '10.0.1.40', services: { nginx: 'active' }, disks: [{ name: 'nvme1n1', sizeGiB: 20 }] });
   w.addHost('rhel1', { os: 'rhel', user: 'ec2-user', ip: '10.0.1.50' });
   const sh = new IG.Shell(w);
   return { w, sh };
@@ -275,8 +275,61 @@ const T = [
   ['rhel prompt & dnf', ['ssh rhel1', 'sudo dnf install -y httpd > /dev/null', 'rpm -q httpd'], /^httpd-/],
   ['rhel no apt', ['ssh rhel1', 'apt install x'], { err: 'bash: apt: command not found', code: 127 }],
   ['ssh exit', ['ssh srv1', 'exit'], 'logout\nConnection to srv1 closed.'],
+  // ---------------- storage (srv1 has an extra 20G disk nvme1n1)
+  ['lsblk extra disk', ['ssh srv1', 'lsblk | grep nvme1n1'], /^nvme1n1\s+259:4\s+0\s+20G\s+0\s+disk$/],
+  ['mount unformatted fails', ['ssh srv1', 'sudo mkdir /data', 'sudo mount /dev/nvme1n1 /data'], { err: /wrong fs type/ }],
+  ['mkfs + mount + df', ['ssh srv1', 'sudo mkfs.ext4 /dev/nvme1n1 > /dev/null', 'sudo mkdir /data', 'sudo mount /dev/nvme1n1 /data', 'df -h /data | tail -1'], /^\/dev\/nvme1n1\s+19G\s+\S+\s+\S+\s+\d+% \/data$/],
+  ['blkid uuid', ['ssh srv1', 'sudo mkfs.ext4 /dev/nvme1n1 > /dev/null', 'sudo blkid | grep -c nvme1n1'], '1'],
+  ['mkfs.xfs needs xfsprogs on ubuntu', ['ssh srv1', 'sudo mkfs.xfs /dev/nvme1n1'], { err: /sudo apt install xfsprogs/, code: 127 }],
+  ['fstab mount -a', ['ssh srv1', 'sudo mkfs.ext4 /dev/nvme1n1 >/dev/null', 'sudo mkdir /data', 'echo "/dev/nvme1n1 /data ext4 defaults 0 2" | sudo tee -a /etc/fstab >/dev/null', 'sudo mount -a', 'findmnt | grep -c /data'], '1'],
+  ['umount busy', ['ssh srv1', 'sudo mkfs.ext4 /dev/nvme1n1 >/dev/null', 'sudo mkdir /data', 'sudo mount /dev/nvme1n1 /data', 'cd /data', 'sudo umount /data'], { err: /target is busy/ }],
+  ['reboot keeps fstab mounts only', ['ssh srv1', 'sudo mkfs.ext4 /dev/nvme1n1 >/dev/null', 'sudo mkdir /data', 'sudo mount /dev/nvme1n1 /data', 'sudo reboot', 'ssh srv1 "findmnt | grep -c /data"'], { out: '0' }],
+  ['mkfs root disk refused', ['ssh srv1', 'sudo mkfs.ext4 /dev/nvme0n1p1'], { err: /禁止/ }],
+  // ---------------- services & processes (more)
+  ['reboot: disabled service stays down', ['ssh srv1', 'sudo systemctl disable nginx', 'sudo reboot', 'ssh srv1 systemctl is-active nginx'], { out: 'inactive' }],
+  ['reboot: enabled service comes back', ['ssh srv1', 'sudo systemctl stop nginx', 'sudo reboot', 'ssh srv1 systemctl is-active nginx'], { out: 'active' }],
+  ['kill nginx master stops service', ['ssh srv1', 'sudo kill $(pgrep -f "nginx: master")', 'systemctl is-active nginx'], { out: 'inactive', code: 3 }],
+  ['nginx config error blocks reload', ['ssh srv1', 'echo "server { listn 81; }" | sudo tee /etc/nginx/conf.d/bad.conf >/dev/null', 'sudo nginx -t'], { err: /unknown directive "listn"/, code: 1 }],
+  ['nginx restart fails on bad config', ['ssh srv1', 'echo "server { listn 81; }" | sudo tee /etc/nginx/conf.d/bad.conf >/dev/null', 'sudo systemctl restart nginx', 'systemctl is-active nginx'], { out: 'failed', code: 3 }],
+  ['nginx new site port', ['ssh srv1', 'sudo sed -i "s/listen 80 default_server;/listen 8080 default_server;/" /etc/nginx/sites-available/default', 'sudo systemctl reload nginx', 'exit', 'curl -s -o /dev/null -w "%{http_code}" http://srv1:8080/'], /200$/],
+  ['docroot custom page', ['ssh srv1', 'echo "<h1>hi ops</h1>" | sudo tee /var/www/html/index.html >/dev/null', 'exit', 'curl -s http://srv1/'], /<h1>hi ops<\/h1>/],
+  ['ss shows nginx', ['ssh srv1', 'sudo ss -tlnp | grep ":80 "'], /users:\(\("nginx",pid=\d+,fd=6\)/],
+  ['lsof -i :80', ['ssh srv1', 'sudo lsof -i :80 | sed -n 2p'], /^nginx\s+\d+\s+root\s+6u\s+IPv4/],
+  ['ps -o', 'ps -o pid,cmd -p 1', /PID CMD\n\s+1 \/sbin\/init/],
+  ['logger to syslog', ['logger -t backup "nightly ok"', 'grep "backup: nightly ok" /var/log/syslog | wc -l'], '1'],
+  ['logrotate -f', ['echo line | sudo tee /var/log/app.log >/dev/null', 'printf "/var/log/app.log {\\n  rotate 3\\n  compress\\n}\\n" | sudo tee /etc/logrotate.d/app >/dev/null', 'sudo logrotate -f /etc/logrotate.d/app', 'ls /var/log/app.log*'], /\/var\/log\/app\.log\s+\/var\/log\/app\.log\.1\.gz/],
+  ['journalctl -p err', ['ssh srv1', 'echo "server { listn 81; }" | sudo tee /etc/nginx/conf.d/bad.conf >/dev/null', 'sudo systemctl restart nginx', 'journalctl -u nginx -p err | grep -c emerg'], { out: '1' }],
+  ['daemon-reload warning', ['printf "[Service]\\nExecStart=/bin/true\\n" | sudo tee /etc/systemd/system/x.service >/dev/null', 'sudo systemctl daemon-reload', 'sudo systemctl start x', 'printf "[Service]\\nExecStart=/bin/true\\n# edit\\n" | sudo tee /etc/systemd/system/x.service >/dev/null', 'systemctl status x'], /changed on disk. Run 'systemctl daemon-reload'/],
+  // ---------------- files (more)
+  ['find -perm', ['touch pp && chmod 777 pp', 'find . -maxdepth 1 -perm 777'], './pp'],
+  ['find -user', ['sudo touch /tmp/rootfile', 'find /tmp -maxdepth 1 -user root -type f'], '/tmp/rootfile'],
+  ['ls -lh human', ['fallocate -l 3M m3', 'ls -lh m3'], /-rw-rw-r-- 1 operator operator 3\.0M .* m3$/],
+  ['ls -t order', ['touch -d "2 days ago" older', 'touch newer', 'ls -t | head -2'], /^newer\nolder$|^newer  older$/],
+  ['tar -C', ['mkdir -p src/x && echo 1 > src/x/a', 'tar czf b.tgz -C src x', 'mkdir dst && tar xzf b.tgz -C dst', 'cat dst/x/a'], '1'],
+  ['tar leading slash', 'tar czf /tmp/etc.tgz /etc/hostname', { err: /Removing leading `\/' from member names/, code: 0 }],
+  ['rsync -av', ['mkdir -p r1/s && echo z > r1/s/f', 'rsync -av r1/ r2/ | head -1', 'cat r2/s/f'], 'z'],
+  ['cp permission denied', 'cp /etc/hostname /etc/hostname.bak', { err: /cp: cannot create regular file '\/etc\/hostname\.bak': Permission denied/ }],
+  ['mv into /usr/local/bin needs sudo', ['echo "echo hi" > tool', 'mv tool /usr/local/bin/'], { err: /Permission denied/ }],
+  ['install script to PATH', ['printf "#!/bin/bash\\necho tooled\\n" > tool', 'chmod +x tool', 'sudo mv tool /usr/local/bin/', 'tool'], 'tooled'],
+  ['rm -rf / refused', 'sudo rm -rf /', { err: /dangerous to operate recursively on '\/'/ }],
+  ['wc -l multiple', ['seq 3 > w1', 'seq 5 > w2', 'wc -l w1 w2'], '3 w1\n5 w2\n8 total'],
+  ['head -c', 'echo abcdef | head -c 3', 'abc'],
+  ['umask affects new files', ['umask 077', 'touch secret', 'stat -c %a secret'], '600'],
+  // ---------------- network/firewall (more)
+  ['ufw delete numbered', ['ssh srv1', 'sudo ufw allow 22/tcp >/dev/null', 'sudo ufw allow 80/tcp >/dev/null', 'sudo ufw --force delete 2', 'sudo ufw status numbered | grep -c 80'], { out: '0' }],
+  ['iptables drop blocks', ['ssh srv1', 'sudo iptables -A INPUT -p tcp --dport 80 -j DROP', 'exit', 'curl -s -m 1 http://srv1/; echo code=$?'], /code=28/],
+  ['iptables -L', ['ssh srv1', 'sudo iptables -A INPUT -p tcp --dport 443 -j ACCEPT', 'sudo iptables -L INPUT -n'], /ACCEPT\s+tcp\s+--\s+0\.0\.0\.0\/0\s+0\.0\.0\.0\/0\s*tcp dpt:443/],
+  ['firewalld permanent without reload', ['ssh rhel1', 'sudo firewall-cmd --permanent --add-port=8080/tcp', 'sudo firewall-cmd --list-ports'], { out: '' }],
+  ['rhel wheel sudo', ['ssh rhel1', 'id -nG'], { out: 'ec2-user adm wheel' }],
+  ['rhel prompt', ['ssh rhel1'], /Red Hat|Welcome/],
+  ['wget', ['wget -q http://srv1/ -O page.html', 'grep -c nginx page.html'], /^[1-9]/],
+  ['telnet refused', 'telnet srv1 25', { err: /Connection refused/, code: 1 }],
+  ['tracepath', 'tracepath srv1', /reached/],
+  ['ip addr', 'ip a show eth0', /inet 10\.0\.1\.20\/24/],
+  ['hostname -I', 'hostname -I', /^10\.0\.1\.20/],
+  ['hosts file edit used by curl', ['echo "10.0.1.40 portal.corp" | sudo tee -a /etc/hosts > /dev/null', 'curl -s -o /dev/null -w "%{http_code}" http://portal.corp/'], '200'],
   // ---------------- misc
-  ['man', 'man ls | head -1', /^LS\(1\)\s+User Commands\s+LS\(1\)$/],
+  ['man','man ls | head -1', /^LS\(1\)\s+User Commands\s+LS\(1\)$/],
   ['--help generic', 'grep --help | head -1', 'Usage: grep [OPTION...] PATTERNS [FILE...]'],
   ['type builtin', 'type cd', 'cd is a shell builtin'],
   ['which', 'which ls', '/usr/bin/ls'],

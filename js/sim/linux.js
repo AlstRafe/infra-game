@@ -50,8 +50,10 @@
     nginx: 'nginx', apache2: 'apache2ctl apachectl a2ensite a2dissite', httpd: 'httpd apachectl', 'redis-server': 'redis-cli redis-server', postgresql: 'psql', 'docker-ce': 'docker', 'containerd.io': 'ctr', kubelet: 'kubelet', 'cri-tools': 'crictl', 'cri-o': 'crio',
     kubectl: 'kubectl', 'openshift-clients': 'oc', awscli: 'aws', 'harbor-cli': 'harbor', chrony: 'chronyc', 'mysql-client': 'mysql', dnsmasq: 'dnsmasq', strace: 'strace',
   };
-  const CMD_PKG = {};
-  for (const [p, cmds] of Object.entries(PKG)) for (const c of cmds.split(' ')) if (!(c in CMD_PKG)) CMD_PKG[c] = p;
+  const CMD_PKG = {};   // command -> first (Debian-style) package that provides it (for suggestions)
+  const CMD_PKGS = {};  // command -> every package that provides it (for "is it installed?")
+  for (const [p, cmds] of Object.entries(PKG)) for (const c of cmds.split(' ')) { if (!(c in CMD_PKG)) CMD_PKG[c] = p; (CMD_PKGS[c] = CMD_PKGS[c] || []).push(p); }
+  CMD_PKG.tracepath = 'iputils-tracepath';
   const PKG_VER = { nginx: '1.24.0-2ubuntu7.1', 'net-tools': '2.10-0.1ubuntu4', traceroute: '1:2.1.5-1', htop: '3.3.0-4build1', sysstat: '12.6.1-2', nmap: '7.94+git20230807.3be01efb1+dfsg-3build2', zip: '3.0-13build1', unzip: '6.0-28ubuntu4', jq: '1.7.1-3build1', tree: '2.1.1-2ubuntu3', apache2: '2.4.58-1ubuntu8.4', 'redis-server': '5:7.0.15-1build2', postgresql: '16+257build1', tmux: '3.4-1build1', strace: '6.8-0ubuntu2', 'mysql-client': '8.0.39-0ubuntu0.24.04.2' };
   const SERVICE_OF_PKG = { nginx: 'nginx', apache2: 'apache2', httpd: 'httpd', 'redis-server': 'redis-server', postgresql: 'postgresql', 'openssh-server': 'ssh' };
 
@@ -87,6 +89,8 @@
       this.extraProcs = (spec.procs || []).map(p => Object.assign({ pid: ++pidSeed + 3000, user: 'root', cpu: 0.1, mem: 0.2, stat: 'S' }, p));
       this.pids = {};
       this.listen = spec.listen || [];
+      // extra block devices (e.g. an unformatted EBS volume) for mkfs / mount / fstab practice
+      this.disks = (spec.disks || []).map(d => Object.assign({ fs: null, mount: null, uuid: null }, d));
       this.lastLogins = [];
       this.enabled = {};
       this.masked = new Set();
@@ -289,9 +293,9 @@
       }
     }
     hasCommand(c) {
-      const p = CMD_PKG[c];
-      if (!p) return true; // shell builtins / unknown mapping
-      return this.pkgs.has(p) || (p === 'gawk' && this.pkgs.has('mawk'));
+      const ps = CMD_PKGS[c];
+      if (!ps) return true; // shell builtins / unknown mapping
+      return ps.some(p => this.pkgs.has(p)) || (ps.includes('gawk') && this.pkgs.has('mawk'));
     }
 
     /* ---------------- disk */
