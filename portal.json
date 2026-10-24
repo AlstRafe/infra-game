@@ -1,0 +1,8 @@
+{
+  "title": "すぐ遊べるミッション",
+  "items": [
+    ["初日の当番（Linux 基礎）", "/#/play/basics-01"],
+    ["はじめてのコンテナ（Docker）", "/#/play/docker-01"],
+    ["キャパシティを復旧せよ（Kubernetes）", "/#/play/k8s-01"]
+  ]
+}

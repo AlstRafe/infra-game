@@ -63,7 +63,11 @@
     loop(now) {
       if (!this.alive) return;
       if (!this.c.isConnected) { this.destroy(); return; }
-      if (!document.hidden) this.draw((now - this.t0) / 1000);
+      // a hidden view (the mission's while the map shows) has no size: drawing it would scale by a
+      // negative number, and one throw used to end the loop, leaving the view blank when shown again
+      if (!document.hidden && this.w > 40 && this.h > 40) {
+        try { this.draw((now - this.t0) / 1000); } catch (e) { console.error(e); }
+      }
       requestAnimationFrame(this.loop);
     }
     layout() {
@@ -73,7 +77,7 @@
       for (const z of this.scene.zones) {
         add(iso(z.x, z.y)); add(iso(z.x + z.w, z.y)); add(iso(z.x, z.y + z.d)); add(iso(z.x + z.w, z.y + z.d, 0));
         add(iso(z.x, z.y, RACK_H + 24)); add(iso(z.x + z.w, z.y, RACK_H + 24));
-        add({ x: iso(z.x, z.y + z.d).x, y: iso(z.x, z.y + z.d).y + 18 });
+        add({ x: iso(z.x, z.y + z.d).x, y: iso(z.x, z.y + z.d).y + 46 }); // the zone's name and sub under its corner
       }
       if (!isFinite(x0)) { x0 = -100; y0 = -50; x1 = 100; y1 = 50; }
       const pad = this.compact ? 14 : 24;
@@ -95,7 +99,10 @@
       const racks = [];
       for (const z of zones) z.racks.forEach((r, i) => racks.push({ z, r, gx: z.x + 0.6 + (i % z.cols) * 1.25, gy: z.y + 0.6 + Math.floor(i / z.cols) * 1.5 }));
       racks.sort((a, b) => (a.gx + a.gy) - (b.gx + b.gy));
+      this.labelBoxes = [];
       for (const it of racks) this.rack(g, P, it, t, L.s);
+      // zone names last, on a dark halo: drawn with the floor, the racks in front covered them
+      for (const z of zones) this.zoneLabel(g, P, z, L.s);
     }
     floor(g, P, z, s) {
       const ghost = z.ghost;
@@ -107,12 +114,33 @@
       g.strokeStyle = hexA(c, ghost ? 0.04 : 0.1);
       for (let i = 1; i < z.w; i++) { const a = P(z.x + i, z.y), b = P(z.x + i, z.y + z.d); g.beginPath(); g.moveTo(a.x, a.y); g.lineTo(b.x, b.y); g.stroke(); }
       for (let j = 1; j < z.d; j++) { const a = P(z.x, z.y + j), b = P(z.x + z.w, z.y + j); g.beginPath(); g.moveTo(a.x, a.y); g.lineTo(b.x, b.y); g.stroke(); }
+    }
+    zoneLabel(g, P, z, s) {
       const lp = P(z.x, z.y + z.d);
-      g.font = `600 ${Math.max(9, 10.5 * s)}px "Segoe UI","Hiragino Sans","Noto Sans JP",system-ui,sans-serif`;
-      g.fillStyle = hexA(c, ghost ? 0.35 : 0.95);
+      const big = `600 ${Math.max(10, 10.5 * s)}px "Segoe UI","Hiragino Sans","Noto Sans JP",system-ui,sans-serif`;
+      const small = `${Math.max(9, 9 * s)}px "Segoe UI","Hiragino Sans",system-ui,sans-serif`;
+      const name = (z.icon ? z.icon + ' ' : '') + z.label, line = Math.max(11, 12 * s);
+      g.font = big; let w = g.measureText(name).width;
+      if (z.sub) { g.font = small; w = Math.max(w, g.measureText(z.sub).width); }
+      // under the floor's left corner; where that covers a rack's name, lower, or else beside the floor
+      const h = z.sub ? line * 2 : line, below = lp.y + 14 * s;
+      const box = (bx, by) => ({ x0: bx, x1: bx + w, y0: by - line, y1: by + h - line + 3 });
+      const free = ({ x0, x1, y0, y1 }) => x0 >= 2 && x1 <= this.w - 2 && y1 <= this.h - 2 &&
+        !this.labelBoxes.some(b => b.x0 < x1 && b.x1 > x0 && b.y0 < y1 && b.y1 > y0);
+      const rp = P(z.x + z.w, z.y);
+      const spots = [[lp.x + 4 * s, below], [lp.x + 4 * s, below + line], [lp.x + 4 * s, below + 2 * line],
+        [lp.x - 6 * s - w, lp.y + line / 2], [lp.x - 6 * s - w, lp.y - h + line], [rp.x + 6 * s, rp.y + line / 2]];
+      const [x, y] = spots.find(([bx, by]) => free(box(bx, by))) || spots[0];
+      this.labelBoxes.push(box(x, y));
+      const text = (font, color, str, ty) => {
+        g.font = font;
+        g.lineJoin = 'round'; g.lineWidth = 3; g.strokeStyle = 'rgba(8, 13, 19, .85)';
+        g.strokeText(str, x, ty);
+        g.fillStyle = color; g.fillText(str, x, ty);
+      };
       g.textAlign = 'left';
-      g.fillText((z.icon ? z.icon + ' ' : '') + z.label, lp.x + 4 * s, lp.y + 14 * s);
-      if (z.sub) { g.font = `${Math.max(8, 9 * s)}px "Segoe UI","Hiragino Sans",system-ui,sans-serif`; g.fillStyle = hexA('#9fb0c3', ghost ? 0.3 : 0.75); g.fillText(z.sub, lp.x + 4 * s, lp.y + 26 * s); }
+      text(big, hexA(z.color, z.ghost ? 0.5 : 0.95), name, y);
+      if (z.sub) text(small, hexA('#9fb0c3', z.ghost ? 0.45 : 0.8), z.sub, y + line);
     }
     links(g, P, t, s) {
       const zmap = Object.fromEntries(this.scene.zones.map(z => [z.id, z]));
@@ -188,7 +216,11 @@
       g.font = `600 ${Math.max(8, 9 * s)}px "Segoe UI","Hiragino Sans",system-ui,sans-serif`;
       g.fillStyle = ghost ? 'rgba(160,175,190,.35)' : '#d7e2ee';
       const label = r.label.length > 18 ? r.label.slice(0, 17) + '…' : r.label;
-      if (this.rackLabels || hov) g.fillText(label, lp.x - 4 * s, lp.y + 13 * s);
+      if (this.rackLabels || hov) {
+        g.fillText(label, lp.x - 4 * s, lp.y + 13 * s);
+        const half = g.measureText(label).width / 2, fs = Math.max(8, 9 * s);
+        this.labelBoxes.push({ x0: lp.x - 4 * s - half, x1: lp.x - 4 * s + half, y0: lp.y + 13 * s - fs, y1: lp.y + 13 * s + 3 });
+      }
       const xs = [c[0].x, c[1].x, c[2].x, c[3].x, top[0].x], ys = [top[0].y, top[1].y, c[2].y + 16 * s];
       this.hit.push({ x0: Math.min(...xs) - 4, x1: Math.max(...xs) + 4, y0: Math.min(...ys) - 8, y1: Math.max(...ys), rack: r, zone: z });
     }

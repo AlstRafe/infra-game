@@ -59,7 +59,8 @@ js/game/engine.js     トラック・ランク・バッジ・セッション（�
 js/game/missions/*.js ミッション定義（データ駆動）
 js/ui/datacenter.js   アイソメトリックのデータセンター描画（Canvas 2D）
 js/ui/app.js          画面制御（ホーム・ミッション・ターミナル・エディタ）
-tests/run-solutions.js 全ミッションの模範解答を自動プレイして解けることを検証
+portal.json           サイト一覧（Home Page）の CoreLab カードに出す「すぐ遊べるミッション」
+tests/run-solutions.js 全ミッションの模範解答を自動プレイして解けることを検証（portal.json のミッションも確認）
 tests/run-linux.js    Linux シミュレータの回帰テスト（実機の出力・エラー・終了コードと照合）
 ```
 

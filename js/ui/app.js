@@ -452,6 +452,22 @@
   // Served under a sub-path of a site list (e.g. /infra/ on this PC's front page)? Then offer the way back to it.
   if (/^https?:$/.test(location.protocol) && !/^\/(index\.html)?$/.test(location.pathname)) $('portalLink').hidden = false;
   $('dismissFirstRun').onclick = () => { progress.data.seenIntro = true; progress.save(); $('firstRun').hidden = true; };
+  $('firstRunHowto').onclick = () => { $('howtoModal').hidden = false; };
+  // On-screen keys for touch screens: they act as the key would in the input (Tab completes, ↑ recalls…),
+  // and keep the keyboard open (mousedown would move the focus off the input).
+  $('termKeys').addEventListener('mousedown', e => e.preventDefault());
+  $('termKeys').addEventListener('click', e => {
+    const b = e.target.closest('button');
+    if (!b) return;
+    const input = $('termInput');
+    input.focus({ preventScroll: true });
+    if (b.dataset.text) {
+      input.setRangeText(b.dataset.text, input.selectionStart, input.selectionEnd, 'end');
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+    } else {
+      input.dispatchEvent(new KeyboardEvent('keydown', { key: b.dataset.key, ctrlKey: 'ctrl' in b.dataset, bubbles: true, cancelable: true }));
+    }
+  });
   $('resetProgress').onclick = () => { if (confirm('すべての進捗（XP・★・バッジ）をリセットします。よろしいですか？')) { progress.reset(); showHome(); toast('進捗をリセットしました'); } };
   $('resetMission').onclick = () => { if (session) { openMission(session.m.id); toast('環境を初期状態に戻しました'); } };
   $('showSolution').onclick = showSolution;

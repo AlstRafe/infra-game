@@ -40,5 +40,16 @@ for (const m of IG.missions) {
   console.log(`${mark}  ${m.id.padEnd(10)} ${m.title}${early.length ? `  (already done at start: ${early})` : ''}${!m.sandbox && !s.completed ? `  (incomplete: ${s.done.map((d, i) => (d ? '' : i + 1)).filter(Boolean)})` : ''}`);
   if (!ok || verbose) console.log(log.map(l => '    ' + l.replace(/\n/g, '\n    ')).join('\n'));
 }
+// portal.json: the missions the site list (Home Page) offers on CoreLab's card. They must exist,
+// be open from the start (first of their track) and keep the title the card shows.
+if (!only) {
+  const card = JSON.parse(fs.readFileSync(path.join(root, 'portal.json'), 'utf8'));
+  for (const [text, href] of card.items) {
+    const m = IG.mission((href.match(/^\/#\/play\/([\w-]+)$/) || [])[1]);
+    const ok = !!m && m.order === 1 && text.startsWith(m.title);
+    if (!ok) failed++;
+    console.log(`${ok ? 'PASS' : 'FAIL'}  portal.json ${text} -> ${href}`);
+  }
+}
 console.log(failed ? `\n${failed} mission(s) failed` : '\nAll missions solvable.');
 process.exit(failed ? 1 : 0);

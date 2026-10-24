@@ -6,6 +6,11 @@
   <meta name="theme-color" content="#0a0f15">
   <meta name="description" content="Kubernetes / Docker / AWS / OpenShift / Harbor の障害対応を、ブラウザの中のシミュレーションで遊びながら学ぶインフラ運用トレーニングゲーム。">
   <title>CoreLab — インフラ運用トレーニング</title>
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="CoreLab — インフラ運用トレーニング">
+  <meta property="og:description" content="Kubernetes・Docker・Harbor・OpenShift・AWS のよくある障害を、ブラウザの中のターミナルで解決しながら学ぶトレーニングゲーム。インストール不要・登録不要。">
+  <meta property="og:locale" content="ja_JP">
+  <meta name="twitter:card" content="summary">
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%230a0f15'/%3E%3Cpath d='M8 21l8-4 8 4-8 4z' fill='%2338d6c4'/%3E%3Cpath d='M8 15l8-4 8 4-8 4z' fill='%234f7cf0'/%3E%3Cpath d='M8 9l8-4 8 4-8 4z' fill='%23f5a524'/%3E%3C/svg%3E">
   <link rel="stylesheet" href="./css/app.css">
 </head>
@@ -55,13 +60,13 @@
           <strong>はじめての方へ</strong>
           <p>画面下のターミナルにコマンドを打ってミッションを解決します。<b>何を壊しても大丈夫</b>（すべてブラウザ内のシミュレーション）。詰まったら各目標の「ヒント」を押せば、使うコマンドまで教えてくれます。まずは Linux 基礎の「初日の当番」から。</p>
         </div>
-        <button class="btn primary" data-play="basics-01">初日の当番をはじめる</button>
+        <button class="btn ghost" id="firstRunHowto">遊び方を見る</button>
         <button class="icon-btn" id="dismissFirstRun" aria-label="閉じる">×</button>
       </div>
 
       <div class="home-grid">
         <section class="tracks" id="trackList" aria-label="トラック一覧"></section>
-        <aside class="side-panel">
+        <div class="side-panel">
           <section class="card">
             <h2 class="card-title">キャリア</h2>
             <ol class="rank-ladder" id="rankLadder"></ol>
@@ -74,7 +79,7 @@
             <p>表示されるホスト名・IP・ログ・脆弱性・顧客データはすべて訓練用の架空データです。実在の環境・手順書を表すものではありません。</p>
             <button class="link-btn" id="resetProgress">進捗をリセット</button>
           </section>
-        </aside>
+        </div>
       </div>
     </section>
 
@@ -94,7 +99,7 @@
       </div>
 
       <div class="mission-layout">
-        <aside class="brief" aria-label="ブリーフィングと目標">
+        <section class="brief" aria-label="ブリーフィングと目標">
           <details class="story" id="storyBox" open>
             <summary>ブリーフィング</summary>
             <div id="mStory"></div>
@@ -104,7 +109,7 @@
           <div class="sandbox-note" id="sandboxNote" hidden>
             <p>フリーラボには目標がありません。好きなコマンドを試してみましょう。</p>
           </div>
-        </aside>
+        </section>
 
         <div class="stage">
           <section class="panel dc-panel">
@@ -125,18 +130,29 @@
               <label class="prompt" for="termInput" id="termPrompt">operator@bastion:~$</label>
               <input id="termInput" spellcheck="false" autocapitalize="off" autocomplete="off" aria-label="コマンド入力" placeholder="コマンドを入力（help で一覧）">
             </form>
+            <div class="term-keys" id="termKeys" role="toolbar" aria-label="ターミナルのキー">
+              <button type="button" data-key="Tab">Tab</button>
+              <button type="button" data-key="ArrowUp" aria-label="前のコマンド">↑</button>
+              <button type="button" data-key="ArrowDown" aria-label="次のコマンド">↓</button>
+              <button type="button" data-key="c" data-ctrl>Ctrl+C</button>
+              <button type="button" data-text="|">|</button>
+              <button type="button" data-text="-">-</button>
+              <button type="button" data-text="/">/</button>
+              <button type="button" data-text="~">~</button>
+              <button type="button" data-text="&gt;">&gt;</button>
+            </div>
             <div class="term-help">Tab 補完 · ↑↓ 履歴 · Ctrl+R 履歴検索 · Ctrl+L クリア · Ctrl+C 中断 · 複数行は続けて入力（> 表示）</div>
           </section>
         </div>
 
-        <aside class="side" aria-label="イベントと早見表">
+        <section class="side" aria-label="イベントと早見表">
           <div class="tabs" role="tablist">
             <button role="tab" aria-selected="true" data-tab="events">イベント</button>
             <button role="tab" aria-selected="false" data-tab="cheat">早見表</button>
           </div>
           <div class="tab-body" id="tabEvents"><ol class="events" id="eventList"></ol></div>
           <div class="tab-body" id="tabCheat" hidden></div>
-        </aside>
+        </section>
       </div>
     </section>
   </main>
