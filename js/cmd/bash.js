@@ -22,7 +22,8 @@
     const heredocs = [];
     let i = 0;
     const n = src.length;
-    const prevIsWordish = () => { const t = toks[toks.length - 1]; return t && t.t === 'w' && !RESERVED.has(t.v); };
+    let inCond = false;
+    const prevIsWordish =() => { const t = toks[toks.length - 1]; return t && t.t === 'w' && !RESERVED.has(t.v); };
     // scan a balanced construct starting after `open`, returning index after the close
     function balanced(j, open, close) {
       let depth = 1;
@@ -95,7 +96,12 @@
       const s = i;
       while (i < n) {
         const d = src[i];
-        if (d === ' ' || d === '\t' || d === '\n' || '|&;()<>'.includes(d)) break;
+        if (d === ' ' || d === '\t' || d === '\n') break;
+        if ('|&;()<>'.includes(d)) {
+          // inside [[ ]], ( ) | < > that are part of a word (e.g. a regex) stay in the word
+          if (inCond && i > s && d !== ';' && src.slice(i, i + 2) !== '&&' && src.slice(i, i + 2) !== '||') { i++; continue; }
+          break;
+        }
         if (d === '\\') { if (i + 1 >= n) throw new Incomplete(); i += 2; continue; }
         if (d === "'") { const k = src.indexOf("'", i + 1); if (k < 0) throw new Incomplete(); i = k + 1; continue; }
         if (d === '"') { i = dquote(i + 1); continue; }
@@ -104,7 +110,9 @@
         if (d === '$' && src[i + 1] === '{') { i = balanced(i + 2, '{', '}'); continue; }
         i++;
       }
-      toks.push({ t: 'w', v: src.slice(s, i) });
+      const word = src.slice(s, i);
+      toks.push({ t: 'w', v: word });
+      if (word === '[[') inCond = true; else if (word === ']]') inCond = false;
     }
     if (heredocs.length) throw new Incomplete();
     return toks;

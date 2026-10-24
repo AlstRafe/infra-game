@@ -32,6 +32,7 @@
         else f[k] = true;
         continue;
       }
+      if (/^-\d$/.test(a) && !valueFlags.includes('#')) { f[a[1]] = true; continue; } // e.g. ls -1
       if (/^-[^-\d]/.test(a) || (/^-\d/.test(a) && valueFlags.includes('#'))) {
         for (let j = 1; j < a.length; j++) {
           const ch = a[j];

@@ -128,13 +128,12 @@
         : [['root', 0, 0, '/root', '/bin/bash'], ['daemon', 1, 1, '/usr/sbin', '/usr/sbin/nologin'], ['bin', 2, 2, '/bin', '/usr/sbin/nologin'], ['sys', 3, 3, '/dev', '/usr/sbin/nologin'], ['sync', 4, 65534, '/bin', '/bin/sync'], ['www-data', 33, 33, '/var/www', '/usr/sbin/nologin'], ['nobody', 65534, 65534, '/nonexistent', '/usr/sbin/nologin'], ['systemd-network', 100, 102, '/run/systemd', '/usr/sbin/nologin'], ['systemd-resolve', 101, 103, '/run/systemd', '/usr/sbin/nologin'], ['messagebus', 102, 105, '/nonexistent', '/usr/sbin/nologin'], ['systemd-timesync', 103, 106, '/run/systemd', '/usr/sbin/nologin'], ['syslog', 104, 111, '/home/syslog', '/usr/sbin/nologin'], ['_apt', 105, 65534, '/nonexistent', '/usr/sbin/nologin'], ['sshd', 106, 65534, '/run/sshd', '/usr/sbin/nologin']];
       const grp = this.os === 'rhel'
         ? [['root', 0], ['bin', 1], ['daemon', 2], ['sys', 3], ['adm', 4], ['wheel', 10], ['nobody', 65534], ['sshd', 74], ['apache', 48], ['chrony', 987]]
-        : [['root', 0], ['daemon', 1], ['bin', 2], ['sys', 3], ['adm', 4], ['tty', 5], ['disk', 6], ['www-data', 33], ['sudo', 27], ['shadow', 42], ['utmp', 43], ['users', 100], ['nogroup', 65534], ['systemd-journal', 101], ['systemd-network', 102], ['systemd-resolve', 103], ['crontab', 104], ['messagebus', 105], ['systemd-timesync', 106], ['syslog', 111], ['docker', 999]];
+        : [['root', 0], ['daemon', 1], ['bin', 2], ['sys', 3], ['adm', 4], ['tty', 5], ['disk', 6], ['cdrom', 24], ['sudo', 27], ['dip', 30], ['www-data', 33], ['plugdev', 46], ['lxd', 110], ['shadow', 42], ['utmp', 43], ['users', 100], ['nogroup', 65534], ['systemd-journal', 101], ['systemd-network', 102], ['systemd-resolve', 103], ['crontab', 104], ['messagebus', 105], ['systemd-timesync', 106], ['syslog', 111], ['docker', 999]];
       for (const [g, gid] of grp) this.groups[g] = { gid, members: new Set() };
       for (const [u, uid, gid, home, shell] of sys) this.users[u] = { uid, gid, home, shell, gecos: u === 'root' ? 'root' : u, password: u === 'root' ? '*' : '*' };
       const admin = this.os === 'rhel' ? 'wheel' : 'sudo';
-      this.addUser(this.user, { home: this.home, groups: this.user === 'root' ? [] : [admin, 'adm'].concat(this.os === 'ubuntu' ? ['systemd-journal'] : []).concat(spec.userGroups || []), uid: this.user === 'root' ? 0 : 1000, password: '$6$training$' });
-      this.groups.syslog.members.add('syslog');
-      this.groups.adm.members.add('syslog');
+      this.addUser(this.user, { home: this.home, groups: this.user === 'root' ? [] : [admin, 'adm'].concat(this.os === 'ubuntu' ? ['cdrom', 'dip', 'plugdev', 'lxd'] : []).concat(spec.userGroups || []), uid: this.user === 'root' ? 0 : 1000, password: '$6$training$' });
+      if (this.groups.syslog) { this.groups.syslog.members.add('syslog'); this.groups.adm.members.add('syslog'); }
       for (const u of spec.users || []) this.addUser(u.name, u);
     }
     addUser(name, o = {}) {
@@ -179,7 +178,7 @@
     seedFs(spec) {
       const v = this.vfs;
       const dirs = ['/usr/bin', '/usr/sbin', '/usr/lib', '/usr/local/bin', '/usr/local/sbin', '/usr/share/doc', '/etc/systemd/system', '/etc/ssh', '/etc/cron.d', '/etc/cron.daily', '/etc/logrotate.d', '/etc/sudoers.d',
-        '/etc/default', '/etc/security', '/var/log', '/var/lib', '/var/cache', '/var/tmp', '/var/spool/cron', '/opt', '/srv', '/mnt', '/media', '/boot', '/run', '/dev', '/proc/sys/net/ipv4', '/proc/sys/vm', '/sys/class/net', '/lib/systemd/system'];
+        '/etc/default', '/etc/security', '/etc/sysctl.d', '/etc/profile.d', '/etc/skel', '/etc/apt/sources.list.d', '/var/www', '/var/mail', '/var/log', '/var/lib', '/var/cache', '/var/tmp', '/var/spool/cron', '/opt', '/srv', '/mnt', '/media', '/boot', '/run', '/dev', '/proc/sys/net/ipv4', '/proc/sys/vm', '/sys/class/net', '/lib/systemd/system'];
       dirs.forEach(d => v.mkdirp(d));
       v.mkdirp('/tmp', { mode: 0o1777 });
       v.mkdirp('/var/tmp', { mode: 0o1777 });

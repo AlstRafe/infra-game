@@ -947,8 +947,8 @@
     if (uIdx >= 0 && !root(ctx) && user !== ctx.user) return { stdout: '', stderr: 'must be privileged to use -u\n', code: 1 };
     const path = (h.os === 'ubuntu' ? '/var/spool/cron/crontabs/' : '/var/spool/cron/') + user;
     const fs = ctx.vfs;
-    const flags = argv.filter((a, i) => a.startsWith('-') && i !== uIdx + 1);
-    const file = argv.filter((a, i) => !a.startsWith('-') && argv[i - 1] !== '-u')[0];
+    const flags = argv.filter((a, i) => a.startsWith('-') && a !== '-' && (uIdx < 0 || i !== uIdx + 1));
+    const file = argv.filter((a, i) => (a === '-' || !a.startsWith('-')) && (uIdx < 0 || i !== uIdx + 1))[0];
     const install = text => { const err = cronValidate(text); if (err) return { stdout: '', stderr: `${err}\nerrors in crontab file, can't install.\n`, code: 1 }; fs.write(path, text, { owner: user, group: h.os === 'ubuntu' ? 'crontab' : user, mode: 0o600, mkdirs: true }); return { stdout: '', stderr: '', code: 0 }; };
     if (flags.includes('-l')) { const t = fs.read(path); return t ? t : { stdout: '', stderr: `no crontab for ${user}\n`, code: 1 }; }
     if (flags.includes('-r')) { if (!fs.exists(path)) return { stdout: '', stderr: `no crontab for ${user}\n`, code: 1 }; fs.remove(path); return ''; }

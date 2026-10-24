@@ -244,16 +244,18 @@
         this.chunks.push({ text: f.host !== back.host ? `logout\nConnection to ${f.host} closed.\n` : 'logout\n', stream: 'out' });
       } else this.chunks.push({ text: 'ℹ 踏み台（bastion）からはログアウトできません。\n', stream: 'err' });
     }
-    subshell() {
+    // child=true models a new process (bash script / bash -c): only exported variables survive,
+    // functions and aliases are not inherited. child=false is a ( ) / $( ) subshell.
+    subshell(child = false) {
       const s = Object.create(Shell.prototype);
       Object.assign(s, this);
       s.stack = this.stack.map(f => Object.assign({}, f));
-      s.vars = Object.assign({}, this.vars);
+      s.vars = child ? Object.fromEntries([...this.exported].filter(k => k in this.vars).map(k => [k, this.vars[k]])) : Object.assign({}, this.vars);
       s.exported = new Set(this.exported);
-      s.arrays = Object.assign({}, this.arrays);
-      s.funcs = Object.assign({}, this.funcs);
-      s.aliases = Object.assign({}, this.aliases);
-      s.opts = Object.assign({}, this.opts);
+      s.arrays = child ? {} : Object.assign({}, this.arrays);
+      s.funcs = child ? {} : Object.assign({}, this.funcs);
+      s.aliases = child ? {} : Object.assign({}, this.aliases);
+      s.opts = child ? {} : Object.assign({}, this.opts);
       s.posStack = [this.positional().slice()];
       s.localStack = [];
       s.parentShell = this;
@@ -407,7 +409,7 @@
         return 2;
       }
       if (opt.noexec) return 0;
-      const sub = opt.source ? this : this.subshell();
+      const sub = opt.source ? this : this.subshell(true);
       const prevName = sub.scriptName;
       sub.scriptName = argv[0];
       sub.posStack.push(argv.slice(1));
