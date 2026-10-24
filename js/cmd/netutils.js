@@ -306,9 +306,24 @@
   };
 
   /* ================================================================ ssh family */
+  // ~/.ssh/config: Host <alias> / HostName / User
+  function sshConfig(ctx, alias) {
+    const txt = ctx.vfs.read(ctx.shell.home() + '/.ssh/config') || '';
+    let cur = null;
+    const res = {};
+    for (const raw of txt.split('\n')) {
+      const m = raw.trim().match(/^(\w+)\s+(.+)$/);
+      if (!m) continue;
+      const k = m[1].toLowerCase();
+      if (k === 'host') { cur = m[2].split(/\s+/).some(p => IG.bash.globRe(p).test(alias)); continue; }
+      if (cur && !(k in res)) res[k] = m[2].trim();
+    }
+    return res;
+  }
   function parseTarget(s, ctx) {
     const m = String(s).match(/^(?:([^@]+)@)?([^:]+)(?::(.*))?$/);
-    return { user: m[1] || ctx.user, host: m[2], path: m[3] };
+    const cfg = sshConfig(ctx, m[2]);
+    return { user: m[1] || cfg.user || ctx.user, host: cfg.hostname && !Object.values(ctx.world.hosts).some(h => h.name === m[2]) ? cfg.hostname : m[2], path: m[3] };
   }
   function sshAuth(ctx, t) {
     const w = ctx.world;
@@ -363,7 +378,7 @@
     }
     sh.stack.push({ host: h.name, user: t.user, cwd: h.users[t.user].home, prev: h.users[t.user].home });
     const motd = h.motd || `Welcome to ${h.osPretty} (GNU/Linux ${h.kernel} x86_64)\n\n * Documentation:  https://help.ubuntu.com\n * Management:     https://landscape.canonical.com\n * Support:        https://ubuntu.com/pro`;
-    return { stdout: `${motd}\nLast login: ${IG.strftime('%a %b %e %T %Y', ctx.world.now() - 86400e3 * 2)} from ${ctx.host.ip}\n`, stderr: warn, code: 0 };
+    return { stdout: `${warn}${motd}\nLast login: ${IG.strftime('%a %b %e %T %Y', ctx.world.now() - 86400e3 * 2)} from ${ctx.host.ip}\n`, stderr: '', code: 0 };
   };
   function remoteFs(ctx, spec) {
     const t = parseTarget(spec, ctx);
