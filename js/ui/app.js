@@ -402,6 +402,8 @@
     if (e.target.classList.contains('modal-backdrop') && e.target.id !== 'editorModal' && e.target.id !== 'resultModal') e.target.hidden = true;
   });
   $('howtoBtn').onclick = () => { $('howtoModal').hidden = false; };
+  // Served under a sub-path of a site list (e.g. /infra/ on this PC's front page)? Then offer the way back to it.
+  if (/^https?:$/.test(location.protocol) && !/^\/(index\.html)?$/.test(location.pathname)) $('portalLink').hidden = false;
   $('dismissFirstRun').onclick = () => { progress.data.seenIntro = true; progress.save(); $('firstRun').hidden = true; };
   $('resetProgress').onclick = () => { if (confirm('すべての進捗（XP・★・バッジ）をリセットします。よろしいですか？')) { progress.reset(); showHome(); toast('進捗をリセットしました'); } };
   $('resetMission').onclick = () => { if (session) { openMission(session.m.id); toast('環境を初期状態に戻しました'); } };

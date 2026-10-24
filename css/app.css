@@ -57,6 +57,8 @@ kbd { border: 1px solid var(--line2); border-bottom-width: 2px; border-radius: 4
 .brand-text { font-weight: 800; letter-spacing: .08em; font-size: 16px; display: flex; flex-direction: column; line-height: 1.05; }
 .brand-text b { color: var(--accent); }
 .brand-text small { font-size: 9px; letter-spacing: .22em; color: var(--dim); font-weight: 600; }
+.portal-link { display: flex; align-items: center; gap: 6px; min-height: 32px; padding: 0 14px 0 4px; margin-right: -6px; border-right: 1px solid var(--line); color: var(--muted); font-size: 12.5px; font-weight: 600; white-space: nowrap; }
+.portal-link:hover { color: var(--text); }
 .topnav { display: flex; gap: 4px; margin-left: 8px; }
 .topnav a, .topnav button { border: 0; background: none; color: var(--muted); padding: 7px 12px; border-radius: 7px; cursor: pointer; font-weight: 600; font-size: 13.5px; }
 .topnav a:hover, .topnav button:hover { color: var(--text); background: var(--panel2); }
@@ -295,6 +297,9 @@ kbd { border: 1px solid var(--line2); border-bottom-width: 2px; border-radius: 4
   .tracks { grid-template-columns: 1fr; }
   .first-run { flex-direction: column; align-items: flex-start; }
   .brand-text { display: none; }
+  .portal-text { display: none; }
+  .topbar { gap: 8px; }
+  .portal-link { min-width: 24px; padding: 0 8px 0 0; font-size: 16px; }
   .result-stats { gap: 18px; }
 }
 @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
