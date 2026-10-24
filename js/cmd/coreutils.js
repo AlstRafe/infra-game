@@ -237,7 +237,8 @@
       // find first missing ancestor to check permission
       let anc = parent; while (!fs.exists(anc)) anc = VFS.parent(anc);
       if (!ctx.shell.canWrite(anc + '/.probe')) { o.e(`mkdir: cannot create directory ‘${d}’: Permission denied`); continue; }
-      const own = owner(ctx, true);
+      const own = Object.assign(owner(ctx, true), { ownParents: true });
+      own.parentMode = own.mode;
       if (mode !== null) own.mode = mode;
       fs.mkdirp(p, own);
       if (f.v || f.verbose) o.o(`mkdir: created directory '${d}'\n`);

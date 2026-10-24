@@ -259,7 +259,7 @@
   }
   function updatePrompt() {
     const p = term.pending !== null ? '>' : session.shell.prompt();
-    $('termPrompt').textContent = term.search ? `(reverse-i-search)\`${term.search.q}':` : p;
+    $('termPrompt').textContent = term.search ? `(reverse-i-search)\`${term.search.q}': ${term.search.match || (term.search.q ? '（一致なし）' : '')}` : p;
     if (term.pending === null) $('termTitle').textContent = p.replace(/^\[/, '').replace(/[$#]$/, '').replace(/[:\s].*$/, '');
   }
   function submit(line) {
@@ -286,8 +286,7 @@
     const hist = session ? session.shell.history : [];
     s.match = '';
     for (let i = hist.length - 1; i >= 0; i--) if (s.q && hist[i].includes(s.q)) { s.match = hist[i]; break; }
-    $('termInput').value = s.match;
-    $('termInput').placeholder = s.q && !s.match ? '（一致なし）' : '';
+    $('termInput').placeholder = '検索語を入力（Enter で実行 / Esc で編集）';
     updatePrompt();
   }
   function searchEnd(run) {
@@ -465,6 +464,7 @@
   }));
   $('termOut').addEventListener('mouseup', () => { if (!String(window.getSelection())) $('termInput').focus(); });
   $('termForm').addEventListener('submit', e => { e.preventDefault(); const v = $('termInput').value; $('termInput').value = ''; submit(v); });
+  $('termInput').addEventListener('input', e => { if (term.search) { term.search.q = e.target.value; searchUpdate(); } });
   $('termInput').addEventListener('keydown', e => {
     const input = e.target;
     if (term.search) {
@@ -475,14 +475,13 @@
         e.preventDefault();
         const hist = session.shell.history;
         const from = s.match ? hist.lastIndexOf(s.match) - 1 : hist.length - 1;
-        for (let i = from; i >= 0; i--) if (hist[i].includes(s.q) && hist[i] !== s.match) { s.match = hist[i]; input.value = s.match; break; }
+        for (let i = from; i >= 0; i--) if (hist[i].includes(s.q) && hist[i] !== s.match) { s.match = hist[i]; break; }
+        updatePrompt();
         return;
       }
-      if (e.key === 'Backspace') { e.preventDefault(); s.q = s.q.slice(0, -1); searchUpdate(); return; }
-      if (e.key.length === 1 && !e.ctrlKey && !e.metaKey) { e.preventDefault(); s.q += e.key; searchUpdate(); return; }
       return;
     }
-    if (e.ctrlKey && /^r$/i.test(e.key)) { e.preventDefault(); if (session) { term.search = { q: '', match: '' }; searchUpdate(); } return; }
+    if (e.ctrlKey && /^r$/i.test(e.key)) { e.preventDefault(); if (session) { term.search = { q: '', match: '' }; input.value = ''; searchUpdate(); } return; }
     if (e.key === 'Tab') {
       e.preventDefault();
       if (!session) return;

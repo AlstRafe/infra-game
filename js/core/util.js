@@ -475,7 +475,10 @@
         if (n && n.type !== 'd') throw new Error('ENOTDIR');
         if (!n) {
           const [o, g] = this.ownerFor(real);
-          this.nodes.set(real, { type: 'd', mode: opt.mode ?? (real === '/tmp' ? 0o1777 : real === '/root' ? 0o700 : 0o755), owner: opt.owner || o, group: opt.group || opt.owner || g, mtime: opt.mtime || this.clock() });
+          const last = cur.length + 0 === p.replace(/\/+$/, '').length || real === this.real(p);
+          // like `mkdir -p -m`: requested mode applies to the final directory only
+          const mode = last && opt.mode !== undefined ? opt.mode : real === '/tmp' ? 0o1777 : real === '/root' ? 0o700 : opt.parentMode ?? 0o755;
+          this.nodes.set(real, { type: 'd', mode, owner: (last || opt.ownParents) && opt.owner ? opt.owner : o, group: (last || opt.ownParents) && (opt.group || opt.owner) ? opt.group || opt.owner : g, mtime: opt.mtime || this.clock() });
         }
         cur = real;
       }
