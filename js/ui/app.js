@@ -28,7 +28,12 @@
   const trackOf = id => IG.tracks.find(t => t.id === id);
   const fmtTime = s => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
   const starText = (n, total = 3) => '<span>★</span>'.repeat(n) + '<span class="empty">★</span>'.repeat(total - n);
-  function inlineCode(text) { return esc(text).replace(/`([^`]+)`/g, (_, c) => `<code data-cmd="${c.replace(/"/g, '&quot;')}" title="クリックでターミナルに入力">${c}</code>`); }
+  // `cmd` in a text → clickable code: in a mission it types into the terminal, elsewhere (ref) it opens the command dictionary
+  function inlineCode(text, ref) {
+    return esc(text).replace(/`([^`]+)`/g, (_, c) => (ref ? `<code data-ref-cmd="${c.replace(/"/g, '&quot;')}" title="クリックでコマンド辞典を開く">${c}</code>` : `<code data-cmd="${c.replace(/"/g, '&quot;')}" title="クリックでターミナルに入力">${c}</code>`));
+  }
+  const VIEWS = ['viewHome', 'viewLearn', 'viewDrill', 'viewMission', 'viewRef'];
+  function showView(id) { for (const v of VIEWS) $(v).hidden = v !== id; }
   function nextMission() {
     for (const t of IG.tracks) for (const m of IG.missionsOf(t.id)) if (!progress.cleared(m.id) && progress.unlocked(m, unlockAll)) return m;
     return null;
@@ -49,8 +54,8 @@
   /* ------------------------------------------------------------ home */
   function showHome() {
     stopMission();
-    $('viewMission').hidden = true;
-    $('viewHome').hidden = false;
+    run = null;
+    showView('viewHome');
     document.title = 'CoreLab — インフラ運用トレーニング';
     setNav('home');
     renderProfile();
@@ -131,10 +136,7 @@
     stashMission();
     stopMission();
     run = null;
-    $('viewHome').hidden = true;
-    $('viewMission').hidden = true;
-    $('viewDrill').hidden = true;
-    $('viewLearn').hidden = false;
+    showView('viewLearn');
     setNav('learn');
     renderProfile();
     window.scrollTo(0, 0);
@@ -189,7 +191,8 @@
           <div><h3>${esc(unit.title)}</h3><small>${esc(unit.goal)}</small></div>
           <span class="unit-stat">${esc(s.label)}</span>
         </header>
-        <ul class="points">${unit.points.map(p => `<li>${inlineCode(p)}</li>`).join('')}</ul>
+        <ul class="points">${unit.points.map(p => `<li>${inlineCode(p, true)}</li>`).join('')}</ul>
+        ${cmdChips(`${topic}:${ref}`)}
         ${refLinks(topic, unit.refs)}
         ${certs.length ? `<p class="unit-certs">試験範囲: ${certs.slice(0, 6).map(c => `<a href="#/learn/${topic}#cert-${c.id}">${esc(c.code)}</a>`).join('、')}${certs.length > 6 ? ` ほか ${certs.length - 6}` : ''}</p>` : ''}
         <footer><a class="btn ${extra ? 'ghost' : 'primary'} small" href="#/drill/${topic}/${refToUrl(ref)}">${s.cls ? 'もう一度解く' : '問題を解く'}（${unit.qs.length} 問）</a>
@@ -245,7 +248,7 @@
     if (!u.unit) { location.hash = '#/learn'; return; }
     try { run = IG.drillRun(topic, ref); } catch (e) { location.hash = '#/learn'; return; }
     openRunView(trackOf(topic), `#/learn/${topic}`);
-    $('drillNotes').innerHTML = `<h2>要点</h2><ul class="points">${u.unit.points.map(p => `<li>${inlineCode(p)}</li>`).join('')}</ul>
+    $('drillNotes').innerHTML = `<h2>要点</h2><ul class="points">${u.unit.points.map(p => `<li>${inlineCode(p, true)}</li>`).join('')}</ul>
       <h2>出典（公式ドキュメント）</h2>${refLinks(topic, u.unit.refs)}
       <p class="muted flat">${esc(u.unit.goal)}</p>`;
     renderQuestion();
@@ -271,10 +274,7 @@
   function openRunView(tr, backHref) {
     stashMission();
     stopMission();
-    $('viewHome').hidden = true;
-    $('viewMission').hidden = true;
-    $('viewLearn').hidden = true;
-    $('viewDrill').hidden = false;
+    showView('viewDrill');
     setNav('learn');
     renderProfile();
     const chip = $('drillChip');
@@ -304,7 +304,7 @@
     $('drillMain').innerHTML = `
       <article class="qcard">
         <p class="qnum">第 ${run.pos + 1} 問${it.domain ? ` <span class="qdomain">${esc(it.domain)}</span>` : ''}${q.c ? '' : ' <span class="qdomain">記述</span>'}</p>
-        <h2 class="qtext">${inlineCode(q.q)}</h2>
+        <h2 class="qtext">${inlineCode(q.q, true)}</h2>
         ${q.code ? `<pre class="qcode">${esc(q.code)}</pre>` : ''}
         ${choices}
         <div class="feedback" id="feedback"></div>
@@ -316,7 +316,7 @@
     const last = run.answers.length >= run.items.length;
     $('feedback').innerHTML = `
       <p class="verdict ${a.correct ? 'ok' : 'ng'}">${a.correct ? '✔ 正解' : '✘ 不正解'}${a.correct ? '' : `　正解: <code>${esc(a.expected)}</code>`}</p>
-      <p class="why">${inlineCode(a.item.q.x)}</p>
+      <p class="why">${inlineCode(a.item.q.x, true)}</p>
       ${a.ref ? `<p class="src">出典: <a href="${esc(a.ref.url)}" target="_blank" rel="noopener noreferrer">${esc(a.ref.title)}</a></p>` : ''}
       <button class="btn primary small" id="nextQ">${last ? '結果を見る' : '次の問題 →'}</button>`;
     $('nextQ').focus({ preventScroll: true });
@@ -350,7 +350,7 @@
         ${rec.rankUp ? `<p class="levelup">🎉 ランクアップ！「${esc(rec.rankUp.name)}」になりました</p>` : ''}
         ${rec.newBadges.map(b => `<p class="levelup">${IG.badges[b].icon} バッジ獲得: ${esc(IG.badges[b].name)}</p>`).join('')}
         ${res.missed.length ? `<h3>間違えた問題（${res.missed.length}）</h3>
-          <ol class="missed">${res.missed.map(m => `<li><b>${inlineCode(m.item.q.q)}</b><span class="ans">正解: <code>${esc(m.expected)}</code></span><span class="why">${inlineCode(m.item.q.x)}</span>${m.ref ? `<a href="${esc(m.ref.url)}" target="_blank" rel="noopener noreferrer">${esc(m.ref.title)}</a>` : ''}</li>`).join('')}</ol>`
+          <ol class="missed">${res.missed.map(m => `<li><b>${inlineCode(m.item.q.q, true)}</b><span class="ans">正解: <code>${esc(m.expected)}</code></span><span class="why">${inlineCode(m.item.q.x)}</span>${m.ref ? `<a href="${esc(m.ref.url)}" target="_blank" rel="noopener noreferrer">${esc(m.ref.title)}</a>` : ''}</li>`).join('')}</ol>`
           : '<p class="flat">全問正解です。</p>'}
         <footer class="result-actions">
           <button class="btn primary small" id="retryRun">もう一度</button>
@@ -387,10 +387,7 @@
       IG.clock.offset = 0;
       session = new IG.Session(m);
     }
-    $('viewHome').hidden = true;
-    $('viewLearn').hidden = true;
-    $('viewDrill').hidden = true;
-    $('viewMission').hidden = false;
+    showView('viewMission');
     setNav(m.sandbox ? 'sandbox' : 'home');
     document.title = `${m.title} — CoreLab`;
     renderProfile();
@@ -418,7 +415,7 @@
       addEvent(m.sandbox ? 'フリーラボを起動しました' : `ミッション開始: ${m.title}`, 'INFO');
       $('termOut').innerHTML = '';
       printLine('sys', 'CoreLab 訓練シェルに接続しました（すべてブラウザ内のシミュレーションです）');
-      printLine('sys', m.sandbox ? 'help でコマンド一覧。README.md に例があります。' : 'help でコマンド一覧 · Tab で補完 · 左の「目標」を達成するとクリアです');
+      printLine('sys', m.sandbox ? 'help でコマンド一覧 · Ctrl+K でコマンド辞典。README.md に例があります。' : 'help でコマンド一覧 · Tab で補完 · Ctrl+K でコマンド辞典 · 左の「目標」を達成するとクリア');
       term.history = []; term.idx = 0; term.pending = null; term.search = null;
     }
     updatePrompt();
@@ -472,15 +469,12 @@
         <span><strong>${esc(level.title)}</strong><small>${esc(tr.short || topic)} · ${level.qs.length} 問 · ${esc(s.label)}</small></span></a>`;
     }).join('') + `<a class="need-link more" href="#/learn/${m.track || links[0].topic}"><span class="need-lv">＋</span><span><strong>この分野の学習問題すべて</strong><small>資格の試験範囲・模擬試験もここから</small></span></a>`;
   }
+  // 早見表: each toolset present in this mission's world, from the command dictionary
   function renderCheat() {
-    const f = session.world.features;
-    const groups = [['Linux', [['ls -l', '詳細付き一覧'], ['cat <file>', '中身を表示'], ['grep -n <pat> <file>', '一致行を行番号付きで'], ['tail -n 20 <file>', '末尾 20 行'], ['vi <file>', 'ファイルを編集（:wq で保存）'], ['df -h / du -sh *', 'ディスク使用量'], ['sudo <cmd>', '管理者権限で実行']]]];
-    if (f.has('docker')) groups.push(['Docker', [['docker ps -a', '全コンテナ'], ['docker logs <name>', 'ログ'], ['docker run -d --name n -p 8080:80 <img>', '起動'], ['docker build -t name:tag .', 'ビルド'], ['docker compose ps -a', 'Compose の状態'], ['docker compose up -d', 'Compose 起動・更新']]]);
-    if (f.has('harbor')) groups.push(['Harbor', [['docker login harbor.lab.local -u <user> -p <pw>', 'レジストリ認証'], ['harbor project list', 'プロジェクト一覧'], ['harbor artifact list <p>/<r>', 'タグとスキャン結果'], ['harbor artifact vulnerabilities <p>/<r>:<t>', '脆弱性一覧'], ['harbor robot create <n> --project <p>', 'robot 作成']]]);
-    if (f.has('k8s') || f.has('ocp') || f.has('aws')) groups.push(['Kubernetes', [['kubectl get pods -o wide', 'Pod とノード'], ['kubectl describe pod <pod>', '詳細と Events'], ['kubectl logs <pod>', 'ログ'], ['kubectl get events', '最近の出来事'], ['kubectl apply -f <file>', 'マニフェスト反映'], ['kubectl rollout status deploy/<n>', 'ロールアウト確認'], ['kubectl exec deploy/<n> -- curl -s <url>', 'Pod 内から通信確認']]]);
-    if (f.has('ocp')) groups.push(['OpenShift', [['oc login <api> -u <user> -p <pw>', 'ログイン'], ['oc new-project <name>', 'プロジェクト作成'], ['oc new-app <image> --name=<n>', 'アプリ作成'], ['oc expose service/<n>', 'Route 作成'], ['oc get route', '公開 URL']]]);
-    if (f.has('aws')) groups.push(['AWS', [['aws sts get-caller-identity', '自分は誰？'], ['aws ec2 describe-instances', 'EC2 一覧'], ['aws ec2 describe-security-groups', 'SG ルール'], ['aws s3 ls', 'バケット一覧'], ['aws eks update-kubeconfig --name <n>', 'EKS 接続']]]);
-    $('tabCheat').innerHTML = `<div class="cheat">${groups.map(([h, rows]) => `<h3>${h}</h3><dl>${rows.map(([c, d]) => `<dt data-cmd="${esc(c)}" title="クリックで入力">${esc(c)}</dt><dd>${esc(d)}</dd>`).join('')}</dl>`).join('')}</div>`;
+    const R = IG.cmdref, f = session.world.features;
+    const groups = R.topics.filter(t => R.cheats[t] && R.topicOn(t, f));
+    $('tabCheat').innerHTML = `<button type="button" class="btn ghost small cheat-search" data-open-ref>⌕ コマンド辞典で探す <kbd>Ctrl K</kbd></button>
+      <div class="cheat">${groups.map(t => `<h3>${esc(trackOf(t).label)}</h3><dl>${R.cheats[t].map(([c, d]) => `<dt data-cmd="${esc(c)}" title="クリックで入力">${esc(c)}</dt><dd>${esc(d)}</dd>`).join('')}</dl>`).join('')}</div>`;
   }
   function addEvent(msg, level) {
     const li = document.createElement('li');
@@ -610,7 +604,7 @@
     $('termInput').focus();
   }
   function insertCommand(cmd) {
-    if ($('viewMission').hidden) return;
+    if ($('viewMission').hidden || !session) { openRefFor(cmd); return; }
     const input = $('termInput');
     input.value = cmd;
     input.focus();
@@ -681,6 +675,62 @@
   }
 
   /* ------------------------------------------------------------ result / solution */
+  /* ------------------------------------------------------------ command dictionary: page and quick search */
+  let refPage = null, refQuick = null;
+  const refHash = s => (s.sel ? `#/ref/${s.sel.kind}/${encodeURIComponent(s.sel.id)}` : s.q.trim() ? `#/ref?q=${encodeURIComponent(s.q.trim())}` : '#/ref');
+  function refOpts(modal) {
+    return {
+      modal, toast, progress, unlockAll,
+      canInsert: () => !!session && !$('viewMission').hidden,
+      insert: cmd => { if (modal) $('refModal').hidden = true; insertCommand(cmd); },
+      onState: modal ? null : (st, push) => {
+        const h = refHash(st);
+        if (location.hash !== h) history[push ? 'pushState' : 'replaceState']({ ref: push || (history.state && history.state.ref) }, '', h);
+        refTitle(st);
+      },
+    };
+  }
+  function refTitle(st) {
+    const it = st.sel && (st.sel.kind === 't' ? IG.cmdref.task(st.sel.id) : IG.cmdref.get(st.sel.id));
+    document.title = `${it ? (it.q || it.name) + ' — ' : ''}コマンド辞典 — CoreLab`;
+  }
+  function showRef(sel, q) {
+    const entering = $('viewRef').hidden;
+    stashMission();
+    stopMission();
+    run = null;
+    showView('viewRef');
+    setNav('ref');
+    renderProfile();
+    if (!refPage) refPage = new IG.RefView($('refPage'), refOpts(false));
+    const st = { sel };
+    if (q !== undefined) Object.assign(st, { q, cat: '' });
+    refPage.set(st);
+    refTitle(refPage.s);
+    if (entering) { window.scrollTo(0, 0); if (!sel && window.innerWidth > 820) refPage.focus(); }
+  }
+  // Ctrl+K, /, ⌕: the page's own box on the dictionary page, the quick search everywhere else
+  function openSearch() {
+    if (!$('viewRef').hidden && refPage) { refPage.focus(); return; }
+    openRefQuick();
+  }
+  function openRefQuick(st) {
+    if (!refQuick) refQuick = new IG.RefView($('refModalBody'), refOpts(true));
+    $('refModal').hidden = false;
+    refQuick.stack = [];
+    if (st) refQuick.set(Object.assign({ q: '', cat: '', sel: null }, st)); else refQuick.render();
+    if (refQuick.s.sel) refQuick.detail.focus({ preventScroll: true }); else refQuick.focus();
+  }
+  // a command line → its dictionary entry (or a search for it)
+  function openRefFor(line) {
+    const name = IG.cmdref.resolve(line)[0];
+    if (name) openRefQuick({ sel: { kind: 'c', id: name } }); else openRefQuick({ q: line });
+  }
+  function cmdChips(ref) {
+    const names = IG.cmdref.cmdsForDrill(ref).slice(0, 14);
+    return names.length ? `<p class="unit-cmds"><span>出てくるコマンド</span>${names.map(n => `<code data-ref-cmd="${esc(n)}" title="コマンド辞典で見る">${esc(n)}</code>`).join('')}</p>` : '';
+  }
+
   function showResult() {
     const m = session.m, r = session.result;
     if (!r) return;
@@ -696,11 +746,11 @@
     if (rec.rankUp) extra.push(`🎉 ランクアップ！「${esc(rec.rankUp.name)}」になりました`);
     for (const b of rec.newBadges) extra.push(`<span class="badge-earned">${IG.badges[b].icon} バッジ獲得: ${esc(IG.badges[b].name)}</span>`);
     $('rExtra').innerHTML = extra.join('<br>');
-    $('rPoints').innerHTML = m.debrief.points.map(p => `<li>${inlineCode(p)}</li>`).join('');
-    $('rCommands').innerHTML = m.debrief.commands.map(([c, d]) => `<tr><td>${esc(c)}</td><td>${esc(d)}</td></tr>`).join('');
+    $('rPoints').innerHTML = m.debrief.points.map(p => `<li>${inlineCode(p, true)}</li>`).join('');
+    $('rCommands').innerHTML = m.debrief.commands.map(([c, d]) => `<tr><td><code data-ref-cmd="${esc(c)}" title="コマンド辞典で詳しく見る">${esc(c)}</code></td><td>${esc(d)}</td></tr>`).join('');
     const list = IG.missionsOf(m.track);
     const nx = list[list.indexOf(m) + 1] || nextMission();
-    $('rNext').textContent = nx ? `次へ: ${nx.title} →` : 'マップへ →';
+    $('rNext').textContent = nx ? `次へ: ${nx.title} →` : 'ミッション一覧へ →';
     $('rNext').onclick = () => { $('resultModal').hidden = true; location.hash = nx ? `#/play/${nx.id}` : '#/'; if (nx && location.hash === `#/play/${nx.id}`) openMission(nx.id); };
     $('rRetry').onclick = () => { $('resultModal').hidden = true; stash = null; openMission(m.id, true); };
     $('rStay').onclick = () => { $('resultModal').hidden = true; $('termInput').focus(); };
@@ -720,6 +770,8 @@
   function route() {
     const h = location.hash;
     let m;
+    $('refModal').hidden = true;
+    if ((m = h.match(/^#\/ref(?:\/([ct])\/([^?]*))?(?:\?q=(.*))?$/))) return showRef(m[1] ? { kind: m[1], id: decodeURIComponent(m[2]) } : null, m[3] !== undefined ? decodeURIComponent(m[3]) : m[1] ? undefined : '');
     if ((m = h.match(/^#\/play\/([\w-]+)/))) return openMission(m[1]);
     if ((m = h.match(/^#\/drill\/([\w-]+)\/([\w.-]+)/))) return startDrill(m[1], urlToRef(m[2]));
     if ((m = h.match(/^#\/exam\/([\w.-]+)/))) return startExam(m[1]);
@@ -735,6 +787,9 @@
     if (hint && session) { const i = Number(hint.dataset.hint); const h = session.hint(i); if (h) { addEvent(`ヒント使用: ${session.m.objectives[i].title}`, 'WARN'); renderObjectives(); onTick(); } return; }
     const cmd = e.target.closest('[data-cmd]');
     if (cmd) { insertCommand(cmd.dataset.cmd); return; }
+    const rc = e.target.closest('[data-ref-cmd]');
+    if (rc) { openRefFor(rc.dataset.refCmd); return; }
+    if (e.target.closest('[data-open-ref]')) { openRefQuick(); return; }
     const ins = e.target.closest('[data-insert]');
     if (ins) { $('solutionModal').hidden = true; insertCommand(ins.dataset.insert); return; }
     const close = e.target.closest('[data-close]');
@@ -766,6 +821,14 @@
     }
   });
   $('howtoBtn').onclick = () => { $('howtoModal').hidden = false; };
+  $('searchBtn').onclick = openSearch;
+  $('mRef').onclick = () => openRefQuick();
+  document.addEventListener('keydown', e => {
+    if (!$('editorModal').hidden) return;
+    if ((e.ctrlKey || e.metaKey) && !e.altKey && (e.key === 'k' || e.key === 'K')) { e.preventDefault(); openSearch(); return; }
+    const typing = /^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName) || e.target.isContentEditable;
+    if (e.key === '/' && !typing && !e.ctrlKey && !e.metaKey && !e.altKey && ![...document.querySelectorAll('.modal-backdrop')].some(x => !x.hidden)) { e.preventDefault(); openSearch(); }
+  });
   // Served under a sub-path of a site list (e.g. /infra/ on this PC's front page)? Then offer the way back to it.
   if (/^https?:$/.test(location.protocol) && !/^\/(index\.html)?$/.test(location.pathname)) $('portalLink').hidden = false;
   $('dismissFirstRun').onclick = () => { progress.data.seenIntro = true; progress.save(); $('firstRun').hidden = true; };
@@ -851,7 +914,7 @@
   $('editorClose').onclick = () => closeEditor(false);
   document.addEventListener('keydown', e => {
     if (e.key !== 'Escape') return;
-    const open = [...document.querySelectorAll('.modal-backdrop')].find(m => !m.hidden && m.id !== 'editorModal');
+    const open = [...document.querySelectorAll('.modal-backdrop')].reverse().find(m => !m.hidden && m.id !== 'editorModal');
     if (open) { open.hidden = true; if (!$('viewMission').hidden) $('termInput').focus(); }
   });
   window.addEventListener('beforeunload', e => { if (session && !session.completed && session.lines.length > 3 && !$('viewMission').hidden) { e.preventDefault(); e.returnValue = ''; } });

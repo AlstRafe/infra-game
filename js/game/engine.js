@@ -4,13 +4,14 @@
   'use strict';
   const U = IG.util;
 
+  // name: track title · short: tight spaces · label: the product name (filters, dictionary)
   IG.tracks = [
-    { id: 'basics', name: 'Linux 基礎', short: 'Linux', color: '#8fa3b8', icon: '❯_', blurb: '端末操作・ログ調査・ファイル編集' },
-    { id: 'docker', name: 'Docker', short: 'Docker', color: '#2496ed', icon: '🐳', blurb: 'コンテナの起動・ビルド・Compose' },
-    { id: 'harbor', name: 'Harbor', short: 'Harbor', color: '#4cae4c', icon: '⚓', blurb: 'レジストリ・脆弱性スキャン・pull 認証' },
-    { id: 'k8s', name: 'Kubernetes', short: 'K8s', color: '#4f7cf0', icon: '☸', blurb: 'Pod・Service・ロールアウト・ノード障害' },
-    { id: 'ocp', name: 'OpenShift', short: 'OCP', color: '#e5484d', icon: '⛭', blurb: 'プロジェクト・Route・SCC' },
-    { id: 'aws', name: 'AWS', short: 'AWS', color: '#f5a524', icon: '☁', blurb: 'EKS 接続・セキュリティグループ・S3' },
+    { id: 'basics', name: 'Linux 基礎', short: 'Linux', label: 'Linux', color: '#8fa3b8', icon: '❯_', blurb: '端末操作・ログ調査・ファイル編集' },
+    { id: 'docker', name: 'Docker', short: 'Docker', label: 'Docker', color: '#2496ed', icon: '🐳', blurb: 'コンテナの起動・ビルド・Compose' },
+    { id: 'harbor', name: 'Harbor', short: 'Harbor', label: 'Harbor', color: '#4cae4c', icon: '⚓', blurb: 'レジストリ・脆弱性スキャン・pull 認証' },
+    { id: 'k8s', name: 'Kubernetes', short: 'K8s', label: 'Kubernetes', color: '#4f7cf0', icon: '☸', blurb: 'Pod・Service・ロールアウト・ノード障害' },
+    { id: 'ocp', name: 'OpenShift', short: 'OCP', label: 'OpenShift', color: '#e5484d', icon: '⛭', blurb: 'プロジェクト・Route・SCC' },
+    { id: 'aws', name: 'AWS', short: 'AWS', label: 'AWS', color: '#f5a524', icon: '☁', blurb: 'EKS 接続・セキュリティグループ・S3' },
   ];
   IG.ranks = [
     { xp: 0, name: '見習いオペレーター', en: 'Trainee' },

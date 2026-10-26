@@ -47,6 +47,16 @@ python -m http.server 8123
 
 AI・機械学習や言語フレームワークなど、このゲームの範囲外のドメインは「範囲外」と明示しています（カバー率には含めません）。合格すると XP とバッジが得られ、ミッションと同じキャリアに積み上がります。
 
+## コマンド辞典（検索と関連）
+
+画面上部の「コマンド辞典」、またはどの画面でも <kbd>Ctrl</kbd>+<kbd>K</kbd>（<kbd>/</kbd>・右上の ⌕）で開けます。ミッション中に開いても環境はそのままで、使用例の「入力」でターミナルに入ります。
+
+- **コマンド名でも「やりたいこと」でも**: `ss`、`k get pods`、`ポートを使っているプロセス`、`消したい ファイル`、`CrashLoopBackOff` などで検索。言い換え（消したい→削除、重い→CPU/負荷）や助詞の違いを吸収します
+- **558 コマンド + 175 レシピ**: Linux（LPIC/LFCS の範囲とシェル組み込み・制御構文）、Docker、Harbor、kubectl、oc、aws。シミュレータで動かないが実務で必要なもの（helm・trivy・git など）も「実機のみ」として収録
+- **関連をたどれる**: 各コマンドに書式・使用例・主なオプション・関連コマンド・一緒に使われるコマンド・そのコマンドを使うレシピ・学習問題・ミッション・公式ドキュメント
+- **ターミナルからも同じ辞典**: `man <コマンド>` / `<コマンド> --help` / `whatis` が全コマンドに対応し、`apropos <やりたいこと>`（`man -k`）は日本語でも探せます
+- 早見表（ミッション右側）・学習問題の「出てくるコマンド」・クリア画面のコマンド表も辞典につながっています
+
 ## シミュレータが扱えるもの（抜粋）
 
 - **Linux（Ubuntu 22.04/24.04・RHEL 9）**: bash 互換シェル（変数展開・`$(...)`・ヒアドキュメント・関数・ループ・`[[ ]]`・リダイレクト・履歴・Tab 補完）、権限（所有者・umask・sudo・ACL・chattr）、ユーザー管理、systemd/journalctl、apt/dnf、ネットワーク（ip/ss/ufw/firewalld/nmcli/netplan）、ストレージ（parted・LVM・mkfs・fstab・スワップ・オンライン拡張）など約 300 コマンド。対応範囲と再現できないものは [docs/LINUX-COVERAGE.md](docs/LINUX-COVERAGE.md) を参照
@@ -77,11 +87,15 @@ js/game/drills/*.js   学習問題（段階別は <分野>.js、資格対策の�
 js/game/certs/*.js    資格カタログ（試験コード・公式 URL・出題範囲と配点・対応する問題集）
 js/game/missions/*.js ミッション定義（データ駆動）
 js/ui/datacenter.js   アイソメトリックのデータセンター描画（Canvas 2D）
+js/ref/cmdref.js      コマンド辞典の本体（登録・検索・関連づけ・apropos。DOM 非依存）
+js/ref/<分野>.js      辞典のデータ（linux.js / linux-tasks.js / docker.js / harbor.js / k8s.js / openshift.js / aws.js）
+js/ui/ref.js          辞典の画面部品（#/ref のページと Ctrl+K の検索で共用）
 js/ui/app.js          画面制御（ホーム・ミッション・ターミナル・エディタ）
 portal.json           サイト一覧（Home Page）の CoreLab カードに出す「すぐ遊べるミッション」
 tests/run-solutions.js 全ミッションの模範解答を自動プレイして解けることを検証（portal.json のミッションも確認）
 tests/run-linux.js    Linux シミュレータの回帰テスト（実機の出力・エラー・終了コードと照合）
 tests/run-learn.js    学習問題・資格カタログの検証（出典・配点・採点・模擬試験・進捗）
+tests/run-ref.js      コマンド辞典の検証（全コマンドの収録・リンク・全使用例の実行・検索品質・man/apropos）
 ```
 
 ### テスト
@@ -93,9 +107,27 @@ node tests/run-linux.js              # Linux の回帰テスト（約 400 件）
 node tests/run-linux.js lvm -v       # 名前に lvm を含むケースだけ
 node tests/run-learn.js              # 学習問題と資格カタログ
 node tests/run-learn.js -v           # 資格ごとのカバー率つき
+node tests/run-ref.js                # コマンド辞典（約 1,150 の使用例をシミュレータで実行）
 ```
 
 各ミッションについて「開始時点で目標が未達成であること」と「模範解答で全目標を達成できること」を確認します。ミッションやシミュレータを変更したら必ず実行してください。
+
+### コマンド辞典への追加
+
+`js/ref/<分野>.js` の `IG.registerCommands({...})` に足します。書式は `js/ref/cmdref.js` 冒頭のコメントを参照してください。
+
+```js
+c('ss', 'net', 8, 'another utility to investigate sockets',          // 名前・分類・man のセクション・man の NAME 行
+  '待ち受け中のポート・接続を表示する（netstat の後継）。',             // 説明（最初の文が一覧と apropos に出ます）
+  'ss [options] [ FILTER ]',                                          // 書式
+  [['sudo ss -tlnp', '待ち受け中の TCP ポートとプロセス']],           // 使用例（3 つ目に 1 を書くと「実機のみ」）
+  'netstat, lsof, ip', 'ポート 待ち受け 接続 確認'),                  // 関連コマンド・検索用の言い換え
+```
+
+- シミュレータで動かないコマンドは `{ nosim: true }`、別名は `same('egrep', 'grep', 1, '…')`
+- 「やりたいこと」は `tasks: [{ q: '〜する', k: '言い換え', do: [['コマンド', '説明']], note: '…' }]`
+- シミュレータに新しいコマンドを足したら辞典にも登録してください（`node tests/run-ref.js` の coverage が確認します）
+- 使用例は自動でシミュレータ実行され、未対応のオプションや存在しない関連コマンドはテストで検出されます
 
 ### 学習問題の追加
 

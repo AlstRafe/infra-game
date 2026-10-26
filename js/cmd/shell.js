@@ -567,7 +567,7 @@
         else if (cmd === 'ssh' || cmd === 'scp') cands = cur.includes(':') ? null : Object.values(w.hosts).filter(h => h.sshable && h.name !== this.host.name).map(h => h.name + (cmd === 'scp' ? ':' : ''));
         else if (['su', 'id', 'groups', 'usermod', 'userdel', 'passwd', 'chage'].includes(cmd)) cands = Object.keys(this.host.users).filter(u => this.host.users[u].uid >= 1000 || u === 'root');
         else if (['kill', 'pkill', 'killall'].includes(cmd)) cands = cmd === 'kill' ? null : [...new Set(this.host.processes().map(p => p.cmd.split(/[\s:]/)[0].split('/').pop()))];
-        else if (['man', 'which', 'type', 'help'].includes(cmd)) cands = Object.keys(BUILTINS).concat(Object.keys(C));
+        else if (['man', 'which', 'type', 'help', 'whatis', 'whereis', 'info'].includes(cmd)) cands = Object.keys(BUILTINS).concat(Object.keys(C));
         else if (cmd === 'cd' || cmd === 'pushd' || cmd === 'rmdir') cands = this.pathCands(cur).filter(c => c.endsWith('/'));
         else cands = null;
       }
@@ -880,13 +880,18 @@
     popd(a, io, sh) { if (!sh.dirStack.length) return er(sh, io, 'bash: popd: directory stack empty'); const d = sh.dirStack.shift(); sh.frame.prev = sh.frame.cwd; sh.frame.cwd = d; return ok(sh, io, [sh.cwd, ...sh.dirStack].join(' ') + '\n'); },
     dirs(a, io, sh) { return ok(sh, io, [sh.cwd, ...sh.dirStack].join(' ') + '\n'); },
     help(a, io, sh) {
-      if (a[0] && IG.manpages && IG.manpages.help(a[0])) return ok(sh, io, IG.manpages.help(a[0]) + '\n');
+      if (a[0]) {
+        const e = IG.cmdref && IG.cmdref.get(a[0]);
+        if (e && (e.builtin || BUILTINS[a[0]])) return ok(sh, io, IG.manpages.help(a[0]) + '\n');
+        return er(sh, io, `bash: help: no help topics match \`${a[0]}'.  Try \`help help' or \`man -k ${a[0]}' or \`info ${a[0]}'.`);
+      }
       return ok(sh, io, IG.manpages ? IG.manpages.overview(sh.world.features) : 'GNU bash, version 5.1.16(1)-release\n');
     },
   };
   BUILTINS.typeset = BUILTINS.declare;
   BUILTINS['.'] = BUILTINS.source;
 
+  Shell.BUILTINS = BUILTINS;   // read by tests/run-ref.js (every command has a dictionary entry)
   IG.Shell = Shell;
   IG.shellBuiltins = BUILTINS;
   IG.shellWords = line => {

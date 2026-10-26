@@ -66,35 +66,58 @@
   def('dmesg', 1, 'print or control the kernel ring buffer', 'dmesg [options]', [['-T', 'human readable timestamps'], ['-l err', 'restrict output to the given levels']], 'カーネルメッセージ（Ubuntu は root 権限が必要）');
   def('hostnamectl', 1, 'Control the system hostname', 'hostnamectl [status | set-hostname NAME]', [], 'ホスト名');
   def('timedatectl', 1, 'Control the system time and date', 'timedatectl [status | set-timezone ZONE | list-timezones]', [], '時刻・タイムゾーン');
-  def('chown', 1, 'change file owner and group', 'chown [OPTION]... [OWNER][:[GROUP]] FILE...', [['-R', 'recursive']], '所有者変更');
   def('stat', 1, 'display file or file system status', 'stat [OPTION]... FILE...', [['-c FORMAT', "use the specified FORMAT, e.g. '%a %U %n'"]], 'ファイルの詳細情報');
   def('diff', 1, 'compare files line by line', 'diff [OPTION]... FILES', [['-u', 'output unified diff'], ['-q', 'report only when files differ'], ['-i', 'ignore case'], ['-w', 'ignore all white space']], '差分');
   def('jq', 1, 'Command-line JSON processor', "jq [options] 'filter' [file...]", [['-r', 'output raw strings'], ['-c', 'compact output'], ["'.items[].metadata.name'", 'iterate arrays'], ["'select(.state==\"running\")'", 'filter'], ["'map(.name)'", 'transform']], 'JSON 加工');
   def('tee', 1, 'read from standard input and write to standard output and files', 'tee [OPTION]... [FILE]...', [['-a', 'append to the given FILEs'], ['sudo tee FILE', 'write to a root-owned file from a pipe']], '分岐出力（sudo でファイルに書く定番）');
   def('nohup', 1, 'run a command immune to hangups', 'nohup COMMAND [ARG]... &', [], 'ログアウト後も実行');
   def('lsof', 8, 'list open files', 'lsof [-i :PORT] [FILE]', [['-i :PORT', 'which process listens on PORT (root)'], ['FILE', 'which process holds FILE']], '使用中のファイル・ポート');
-  def('chmod', 1, 'change file mode bits', 'chmod [OPTION]... MODE[,MODE]... FILE...', [['-R', 'recursive'], ['755', 'rwxr-xr-x'], ['644', 'rw-r--r--'], ['600', 'rw-------'], ['u+x', 'add execute for owner']], '権限変更');
   def('bash', 1, 'GNU Bourne-Again SHell', 'bash [options] [file]', [['-c STRING', 'read commands from STRING'], ['-x', 'print commands as they are executed (debug)'], ['-n', 'check syntax only']], 'シェル。スクリプト実行');
   def('vi', 1, 'Vi IMproved, a programmer\'s text editor', 'vi [file]', [['Esc → :wq', 'save and quit'], ['Esc → :q!', 'quit without saving'], ['Esc → :w', 'save'], ['Esc → :NUMBER', 'go to line']], 'エディタ（シミュレータでは画面上で編集）');
   def('date', 1, 'print or set the system date and time', 'date [OPTION]... [+FORMAT]', [['+%F', 'full date; like %Y-%m-%d'], ['+%T', 'time; same as %H:%M:%S'], ['-d STRING', "display time described by STRING, e.g. 'yesterday', '2 hours ago'"], ['-u', 'print Coordinated Universal Time (UTC)']], '日時表示');
   def('history', 1, 'display the command history (bash builtin)', 'history [n] | history -c', [['!!', 'repeat the last command'], ['!n', 'repeat command number n'], ['!str', 'repeat the last command starting with str'], ['!$', 'last argument of the previous command']], 'コマンド履歴');
 
-  const SEC_NAME = { 1: 'User Commands', 8: 'System Administration' };
+  // Every other command (and the examples, SEE ALSO and official link of these) comes from the command dictionary (js/ref/).
+  const SEC_NAME = { 1: 'User Commands', 5: 'File Formats', 7: 'Miscellaneous', 8: 'System Administration' };
+  const ref = n => (IG.cmdref ? IG.cmdref.get(n) : null);
+  // `man docker-run`, `man kubectl-get` → the "docker run" / "kubectl get" entry
+  const lookup = n => ref(n) || (/^[a-z][\w.]*-/.test(n) && !P[n] ? ref(n.replace(/-/g, ' ')) : null);
+  const page = n => n.replace(/ /g, '-');
+  const cap = s => s.charAt(0).toUpperCase() + s.slice(1) + (/[.!?)]$/.test(s) ? '' : '.');
+  const seeAlso = e => e.rel.map(r => { const x = ref(r); return x && x.topic === 'basics' ? `${r}(${x.s})` : r; }).join(', ');
   IG.manpages = {
-    has: n => !!P[n],
-    desc: n => (P[n] ? P[n].desc : null),
+    has: n => !!(P[n] || lookup(n)),
+    desc: n => (P[n] ? P[n].desc : (lookup(n) || {}).en || null),
+    sec: n => (P[n] ? P[n].sec : (lookup(n) || {}).s || 1),
+    opts: n => (P[n] ? P[n].opts : null),
+    // one whatis/apropos line: "ls (1)               - list directory contents"
+    line: (n, text) => `${`${page(n)} (${IG.manpages.sec(n)})`.padEnd(20)} - ${text || IG.manpages.desc(n)}`,
     help(n) {
-      const p = P[n];
-      if (!p) return null;
-      return `Usage: ${p.syn}\n${p.desc.charAt(0).toUpperCase() + p.desc.slice(1)}.\n\n${p.opts.map(([o, t]) => `  ${o.padEnd(28)} ${t}`).join('\n')}\n\nℹ ${p.ja}（抜粋。完全なオプションは実機の man を参照）`;
+      const p = P[n], e = lookup(n);
+      if (!p && !e) return null;
+      const out = p ? [`Usage: ${p.syn}`, cap(p.desc), '', p.opts.map(([o, t]) => `  ${o.padEnd(28)} ${t}`).join('\n')] : [`Usage: ${e.syn}`, cap(e.en)];
+      if (e && e.ex.length) out.push('', 'Examples:', e.ex.map(([c, t]) => `  ${c}\n      ${t}`).join('\n'));
+      out.push('', `ℹ ${e ? e.ja : p.ja}${p ? '（オプションは抜粋）' : ''}`);
+      if (e && e.doc) out.push(`  公式ドキュメント: ${e.doc}`);
+      return out.join('\n');
     },
     man(n) {
-      const p = P[n];
-      if (!p) return null;
-      const T = `${n.toUpperCase()}(${p.sec})`;
-      const mid = SEC_NAME[p.sec] || 'Manual';
+      const p = P[n], e = lookup(n);
+      if (!p && !e) return null;
+      const name = page(e ? e.name : n), sec = p ? p.sec : e.s;
+      const T = `${name.toUpperCase()}(${sec})`;
+      const mid = SEC_NAME[sec] || 'Manual';
       const pad = Math.max(1, 78 - T.length * 2 - mid.length);
-      return `${T}${' '.repeat(Math.floor(pad / 2))}${mid}${' '.repeat(Math.ceil(pad / 2))}${T}\n\nNAME\n       ${n} - ${p.desc}\n\nSYNOPSIS\n       ${p.syn}\n\nDESCRIPTION\n       ${p.ja}\n\nOPTIONS (excerpt)\n${p.opts.map(([o, t]) => `       ${o}\n              ${t}\n`).join('\n')}\nSEE ALSO\n       ${n} --help, info ${n}\n\nℹ CoreLab シミュレータ収録の抜粋版です。`;
+      const out = [`${T}${' '.repeat(Math.floor(pad / 2))}${mid}${' '.repeat(Math.ceil(pad / 2))}${T}`, '', 'NAME', `       ${name} - ${p ? p.desc : e.en}`, '', 'SYNOPSIS', `       ${p ? p.syn : e.syn}`, '', 'DESCRIPTION', `       ${e ? e.ja : p.ja}`];
+      if (e && e.alias) out.push(`       ${e.alias} と同じコマンドです。`);
+      if (e && e.nosim) out.push('', '       ※ このシミュレータでは実行できません（実務で使う知識として収録）。');
+      if (p && p.opts.length) out.push('', 'OPTIONS (excerpt)', p.opts.map(([o, t]) => `       ${o}\n              ${t}`).join('\n\n'));
+      if (e && e.ex.length) out.push('', 'EXAMPLES', e.ex.map(([c, t]) => `       $ ${c}\n              ${t}`).join('\n\n'));
+      const see = e ? seeAlso(e) : '';
+      out.push('', 'SEE ALSO', `       ${see ? see + ', ' : ''}${page(n)} --help`);
+      if (e && e.doc) out.push('', 'ONLINE DOCUMENTATION', `       ${e.doc}`);
+      out.push('', 'ℹ CoreLab 収録の要約版です。やりたいことから探すには apropos <キーワード>（日本語可）。');
+      return out.join('\n') + '\n';
     },
     overview(features) {
       const f = features || new Set();
@@ -111,12 +134,13 @@
         '【ディスク・カーネル】 lsblk blkid fdisk mount umount findmnt mkfs free vmstat uptime uname lscpu sysctl dmesg',
         '【シェル】 if/for/while/case・関数・$(...)・$((...))・ヒアドキュメント・リダイレクト・パイプ・&&/||・alias・export・source・history（!!）',
       ];
-      if (f.has('k8s') || f.has('ocp') || f.has('aws')) sec.push('【Kubernetes】 kubectl (k)  例) kubectl get pods -A / kubectl describe pod <name> / kubectl logs <pod>');
-      if (f.has('ocp')) sec.push('【OpenShift】 oc  例) oc login / oc new-project / oc new-app / oc expose svc/<name>');
-      if (f.has('docker')) sec.push('【Docker】 docker / docker compose  例) docker ps -a / docker run -d -p 8080:80 nginx:1.27');
-      if (f.has('harbor')) sec.push('【Harbor】 harbor  例) harbor project list / harbor artifact list <project>/<repo>');
-      if (f.has('aws')) sec.push('【AWS】 aws  例) aws sts get-caller-identity / aws ec2 describe-instances');
-      sec.push('', 'man <コマンド> / <コマンド> --help で使い方を表示 · Tab: 補完 · ↑/↓: 履歴 · Ctrl+R: 履歴検索', '迷ったら左のミッション欄の「ヒント」を押してください。');
+      const on = t => (IG.cmdref ? IG.cmdref.topicOn(t, f) : f.has(t));
+      if (on('k8s')) sec.push('【Kubernetes】 kubectl (k)  例) kubectl get pods -A / kubectl describe pod <name> / kubectl logs <pod>');
+      if (on('ocp')) sec.push('【OpenShift】 oc  例) oc login / oc new-project / oc new-app / oc expose svc/<name>');
+      if (on('docker')) sec.push('【Docker】 docker / docker compose  例) docker ps -a / docker run -d -p 8080:80 nginx:1.27');
+      if (on('harbor')) sec.push('【Harbor】 harbor  例) harbor project list / harbor artifact list <project>/<repo>');
+      if (on('aws')) sec.push('【AWS】 aws  例) aws sts get-caller-identity / aws ec2 describe-instances');
+      sec.push('', 'man <コマンド> / <コマンド> --help で使い方 · apropos <やりたいこと> でコマンド検索（例: apropos ポート 使用中）', 'Tab: 補完 · ↑/↓: 履歴 · Ctrl+R: 履歴検索', '迷ったら目標の「ヒント」、コマンドが分からなければ Ctrl+K（コマンド辞典）。');
       return sec.join('\n') + '\n';
     },
   };

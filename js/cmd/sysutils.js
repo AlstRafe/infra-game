@@ -1286,14 +1286,34 @@
     return o.r();
   };
   C.man = (argv, ctx) => {
-    const name = argv.filter(a => !a.startsWith('-'))[0];
+    if (argv[0] === '-k') return C.apropos(argv.slice(1), ctx);
+    if (argv[0] === '-f') return C.whatis(argv.slice(1), ctx);
+    const name = argv.filter(a => !a.startsWith('-') && !/^\d[a-z]?$/.test(a))[0];   // `man 5 crontab`
     if (!name) return { stdout: '', stderr: 'What manual page do you want?\nFor example, try \'man man\'.\n', code: 1 };
     const page = IG.manpages && IG.manpages.man(name);
-    if (!page) return { stdout: '', stderr: `No manual entry for ${name}\nℹ このシミュレータに収録していないページです。${name} --help を試してください。\n`, code: 16 };
+    if (!page) return { stdout: '', stderr: `No manual entry for ${name}\nℹ 名前が分からないときは apropos <やりたいこと> で探せます（例: apropos ディスク 空き）。\n`, code: 16 };
     return page;
   };
   C.info = C.man;
-  C.whatis = (argv) => join(argv.map(n => { const d = IG.manpages && IG.manpages.desc(n); return d ? `${n} (1) - ${d}` : `${n}: nothing appropriate.`; }));
+  C.whatis = (argv) => {
+    const names = argv.filter(a => !a.startsWith('-'));
+    if (!names.length) return { stdout: '', stderr: 'whatis what?\n', code: 1 };
+    const found = names.filter(n => IG.manpages.has(n));
+    return { stdout: join(found.map(n => IG.manpages.line(n))), stderr: join(names.filter(n => !found.includes(n)).map(n => `${n}: nothing appropriate.`)), code: found.length === names.length ? 0 : 16 };
+  };
+  // Real apropos searches names and NAME lines; this one also takes Japanese 「やりたいこと」 and adds the matching recipes.
+  C.apropos = (argv) => {
+    const words = argv.filter(a => !a.startsWith('-'));
+    if (!words.length) return { stdout: '', stderr: 'apropos what?\nℹ 例: apropos socket / apropos ポート 使用中\n', code: 1 };
+    const r = IG.cmdref.apropos(words);
+    if (!r.cmds.length && !r.tasks.length) return { stdout: '', stderr: `${words.join(' ')}: nothing appropriate.\n`, code: 16 };
+    const out = r.cmds.map(e => IG.manpages.line(e.name, r.ja ? IG.cmdref.lead(e.ja) : e.en));
+    if (r.tasks.length) {
+      out.push('', 'ℹ やりたいこと別のレシピ（コマンド辞典より）:');
+      for (const t of r.tasks) out.push(`  ■ ${t.q}`, ...t.do.slice(0, 3).map(([c, n]) => `      $ ${c}    # ${n}`));
+    }
+    return join(out);
+  };
   C.whereis = (argv, ctx) => join(argv.map(n => { const w = ctx.shell.which(n); return `${n}:${w ? ' ' + w.path : ''}${IG.manpages && IG.manpages.desc(n) ? ` /usr/share/man/man1/${n}.1.gz` : ''}`; }));
   C.which = (argv, ctx) => {
     const all = argv.includes('-a');
