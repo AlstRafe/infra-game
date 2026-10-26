@@ -1,0 +1,167 @@
+/* Certification catalogue: Kubernetes / クラウドネイティブ（CNCF・Linux Foundation）。
+ * 配点は公式の Domains & Competencies より（2026-10 時点）。 */
+IG.registerCerts({
+  topic: 'k8s',
+  note: 'KCNA → CKAD / CKA → CKS の 5 つが Kubestronaut（CNCF の称号）の対象です。',
+  certs: [
+    {
+      id: 'kcna', name: 'Kubernetes and Cloud Native Associate', code: 'KCNA', org: 'CNCF', level: 'foundational',
+      url: 'https://training.linuxfoundation.org/certification/kubernetes-cloud-native-associate/',
+      note: '選択式（90 分）。日本語版 KCNA-JP もあり',
+      domains: [
+        { name: 'Kubernetes Fundamentals', weight: 44, units: ['k8s:1', 'k8s:2', 'docker:1'] },
+        { name: 'Container Orchestration', weight: 28, units: ['k8s:2', 'k8s:3', 'k8s:#storage', 'k8s:4'] },
+        { name: 'Cloud Native Application Delivery', weight: 16, units: ['k8s:#workloads', 'k8s:#cloudnative'] },
+        { name: 'Cloud Native Architecture', weight: 12, units: ['k8s:#cloudnative'] },
+      ],
+    },
+    {
+      id: 'kcsa', name: 'Kubernetes and Cloud Native Security Associate', code: 'KCSA', org: 'CNCF', level: 'foundational',
+      url: 'https://training.linuxfoundation.org/certification/kubernetes-and-cloud-native-security-associate-kcsa/',
+      domains: [
+        { name: 'Overview of Cloud Native Security', weight: 14, units: ['k8s:#security', 'harbor:#supplychain'] },
+        { name: 'Kubernetes Cluster Component Security', weight: 22, units: ['k8s:5', 'k8s:#cluster', 'k8s:#security'] },
+        { name: 'Kubernetes Security Fundamentals', weight: 22, units: ['k8s:4', 'k8s:#security'] },
+        { name: 'Kubernetes Threat Model', weight: 16, units: ['k8s:#security', 'k8s:5'] },
+        { name: 'Platform Security', weight: 16, units: ['harbor:#supplychain', 'harbor:4', 'k8s:#cloudnative'] },
+        { name: 'Compliance and Security Frameworks', weight: 10, units: ['harbor:#supplychain'] },
+      ],
+    },
+    {
+      id: 'ckad', name: 'Certified Kubernetes Application Developer', code: 'CKAD', org: 'CNCF', level: 'associate',
+      url: 'https://training.linuxfoundation.org/certification/certified-kubernetes-application-developer-ckad/',
+      note: '実技（2 時間）。日本語版 CKAD-JP もあり',
+      domains: [
+        { name: 'Application Design and Build', weight: 20, units: ['docker:2', 'k8s:#workloads', 'k8s:#storage'] },
+        { name: 'Application Deployment', weight: 20, units: ['k8s:2', 'k8s:#workloads'] },
+        { name: 'Application Observability and Maintenance', weight: 15, units: ['k8s:3', 'k8s:#workloads', 'k8s:#cloudnative'] },
+        { name: 'Application Environment, Configuration and Security', weight: 25, units: ['k8s:2', 'k8s:4', 'k8s:#security', 'k8s:#workloads'] },
+        { name: 'Services and Networking', weight: 20, units: ['k8s:2', 'k8s:#netext', 'k8s:4'] },
+      ],
+    },
+    {
+      id: 'cka', name: 'Certified Kubernetes Administrator', code: 'CKA', org: 'CNCF', level: 'associate',
+      url: 'https://training.linuxfoundation.org/certification/certified-kubernetes-administrator-cka/',
+      note: '実技（2 時間）。日本語版 CKA-JP もあり',
+      domains: [
+        { name: 'Cluster Architecture, Installation & Configuration', weight: 25, units: ['k8s:#cluster', 'k8s:4', 'k8s:5', 'k8s:#workloads', 'k8s:#netext'] },
+        { name: 'Workloads & Scheduling', weight: 15, units: ['k8s:2', 'k8s:3', 'k8s:#workloads'] },
+        { name: 'Services & Networking', weight: 20, units: ['k8s:2', 'k8s:#netext', 'k8s:4'] },
+        { name: 'Storage', weight: 10, units: ['k8s:#storage'] },
+        { name: 'Troubleshooting', weight: 30, units: ['k8s:3', 'k8s:#cloudnative', 'k8s:5'] },
+      ],
+    },
+    {
+      id: 'cks', name: 'Certified Kubernetes Security Specialist', code: 'CKS', org: 'CNCF', level: 'professional',
+      url: 'https://training.linuxfoundation.org/certification/certified-kubernetes-security-specialist/',
+      note: '受験には有効な CKA が必要。実技（2 時間）',
+      domains: [
+        { name: 'Cluster Setup', weight: 15, units: ['k8s:4', 'k8s:#netext', 'k8s:#security'] },
+        { name: 'Cluster Hardening', weight: 15, units: ['k8s:4', 'k8s:#security', 'k8s:#cluster'] },
+        { name: 'System Hardening', weight: 10, units: ['basics:5', 'basics:#sec', 'k8s:#security'] },
+        { name: 'Minimize Microservice Vulnerabilities', weight: 20, units: ['k8s:4', 'k8s:#security'] },
+        { name: 'Supply Chain Security', weight: 20, units: ['harbor:#supplychain', 'harbor:3', 'docker:4'] },
+        { name: 'Monitoring, Logging and Runtime Security', weight: 20, units: ['k8s:#security', 'k8s:#cloudnative'] },
+      ],
+    },
+    {
+      id: 'ckne', name: 'Certified Kubernetes Network Engineer', code: 'CKNE', org: 'CNCF', level: 'professional',
+      url: 'https://training.linuxfoundation.org/certification/certified-kubernetes-network-engineer-ckne/',
+      note: 'ネットワーク専門。CNI / Gateway API / eBPF などの実技',
+      domains: [
+        { name: 'Kubernetes ネットワークの基礎（Pod / Service / DNS）', weight: 30, units: ['k8s:2', 'k8s:#netext'] },
+        { name: 'Ingress / Gateway API によるトラフィック管理', weight: 25, units: ['k8s:#netext'] },
+        { name: 'NetworkPolicy とセグメンテーション', weight: 20, units: ['k8s:4', 'k8s:#security'] },
+        { name: 'CNI プラグインと実装（Cilium など）', weight: 15, units: ['k8s:#netext', 'k8s:#cloudnative'] },
+        { name: 'ネットワークのトラブルシュート', weight: 10, units: ['k8s:3', 'basics:3'] },
+      ],
+    },
+    {
+      id: 'cnpa', name: 'Certified Cloud Native Platform Engineering Associate', code: 'CNPA', org: 'CNCF', level: 'foundational',
+      url: 'https://training.linuxfoundation.org/certification/certified-cloud-native-platform-engineering-associate-cnpa/',
+      domains: [
+        { name: 'プラットフォームエンジニアリングの中核（API / 抽象化）', weight: 25, units: ['k8s:#cloudnative', 'k8s:#netext'] },
+        { name: '開発者体験とセルフサービス', weight: 20, units: ['k8s:#workloads', 'ocp:#declarative'] },
+        { name: 'GitOps と継続的デリバリ', weight: 20, units: ['k8s:#cloudnative', 'ocp:#observe'] },
+        { name: '可観測性', weight: 20, units: ['k8s:#cloudnative'] },
+        { name: 'プラットフォームのセキュリティとガバナンス', weight: 15, units: ['k8s:#security', 'harbor:#supplychain'] },
+      ],
+    },
+    {
+      id: 'cnpe', name: 'Certified Cloud Native Platform Engineer', code: 'CNPE', org: 'CNCF', level: 'professional',
+      url: 'https://training.linuxfoundation.org/certification/certified-cloud-native-platform-engineer-cnpe/',
+      domains: [
+        { name: 'プラットフォームの設計と構築', weight: 30, units: ['k8s:#cluster', 'k8s:#netext', 'k8s:#cloudnative'] },
+        { name: 'ワークロードの提供と自動化', weight: 25, units: ['k8s:#workloads', 'ocp:#observe'] },
+        { name: '可観測性と信頼性', weight: 20, units: ['k8s:#cloudnative', 'k8s:3'] },
+        { name: 'セキュリティとポリシー', weight: 25, units: ['k8s:#security', 'harbor:#supplychain', 'k8s:4'] },
+      ],
+    },
+    {
+      id: 'capa', name: 'Certified Argo Project Associate', code: 'CAPA', org: 'CNCF', level: 'foundational',
+      url: 'https://training.linuxfoundation.org/certification/certified-argo-project-associate-capa/',
+      note: 'Argo CD / Workflows / Rollouts / Events。このゲームは GitOps の概念のみ対応',
+      domains: [
+        { name: 'Argo CD（GitOps の概念と同期）', weight: 40, units: ['k8s:#cloudnative', 'ocp:#observe'] },
+        { name: 'Argo Workflows', weight: 20, out: true },
+        { name: 'Argo Rollouts（カナリア / Blue-Green）', weight: 20, units: ['k8s:2', 'aws:#devapp'] },
+        { name: 'Argo Events', weight: 20, out: true },
+      ],
+    },
+    {
+      id: 'cca', name: 'Cilium Certified Associate', code: 'CCA', org: 'CNCF', level: 'foundational',
+      url: 'https://training.linuxfoundation.org/certification/cilium-certified-associate-cca/',
+      domains: [
+        { name: 'Cilium の基礎と eBPF', weight: 30, units: ['k8s:#netext', 'basics:5'] },
+        { name: 'ネットワークポリシーと可観測性（Hubble）', weight: 40, units: ['k8s:4', 'k8s:#security', 'k8s:#cloudnative'] },
+        { name: 'Service Mesh / Gateway API', weight: 30, units: ['k8s:#netext', 'k8s:#cloudnative'] },
+      ],
+    },
+    {
+      id: 'kca', name: 'Kyverno Certified Associate', code: 'KCA', org: 'CNCF', level: 'foundational',
+      url: 'https://training.linuxfoundation.org/certification/kyverno-certified-associate-kca/',
+      domains: [
+        { name: 'ポリシー管理とアドミッション制御', weight: 50, units: ['k8s:#security', 'k8s:5'] },
+        { name: 'サプライチェーン検証（署名・イメージ検証）', weight: 30, units: ['harbor:#supplychain', 'harbor:4'] },
+        { name: 'Kyverno 固有の記法と運用', weight: 20, out: true },
+      ],
+    },
+    {
+      id: 'ica', name: 'Istio Certified Associate', code: 'ICA', org: 'CNCF', level: 'foundational',
+      url: 'https://training.linuxfoundation.org/certification/istio-certified-associate-ica/',
+      domains: [
+        { name: 'サービスメッシュの概念とアーキテクチャ', weight: 35, units: ['k8s:#cloudnative', 'k8s:#netext'] },
+        { name: 'トラフィック管理（VirtualService / DestinationRule）', weight: 35, out: true },
+        { name: 'セキュリティ（mTLS / 認可）', weight: 30, units: ['k8s:#security', 'k8s:#cloudnative'] },
+      ],
+    },
+    {
+      id: 'pca', name: 'Prometheus Certified Associate', code: 'PCA', org: 'CNCF', level: 'foundational',
+      url: 'https://training.linuxfoundation.org/certification/prometheus-certified-associate-pca/',
+      domains: [
+        { name: '可観測性の概念', weight: 18, units: ['k8s:#cloudnative'] },
+        { name: 'Prometheus の基礎（収集・Exporter）', weight: 32, units: ['k8s:#cloudnative', 'k8s:3'] },
+        { name: 'PromQL', weight: 28, out: true },
+        { name: 'ダッシュボードとアラート', weight: 22, units: ['k8s:#cloudnative', 'aws:#monitor'] },
+      ],
+    },
+    {
+      id: 'otca', name: 'OpenTelemetry Certified Associate', code: 'OTCA', org: 'CNCF', level: 'foundational',
+      url: 'https://training.linuxfoundation.org/certification/opentelemetry-certified-associate-otca/',
+      domains: [
+        { name: '可観測性とテレメトリの基礎', weight: 35, units: ['k8s:#cloudnative'] },
+        { name: 'OpenTelemetry API / SDK と計装', weight: 35, out: true },
+        { name: 'Collector とデータパイプライン', weight: 30, units: ['k8s:#cloudnative', 'ocp:#observe'] },
+      ],
+    },
+    {
+      id: 'cgoa', name: 'Certified GitOps Associate', code: 'CGOA', org: 'CNCF', level: 'foundational',
+      url: 'https://training.linuxfoundation.org/certification/certified-gitops-associate-cgoa/',
+      domains: [
+        { name: 'GitOps の用語と原則', weight: 40, units: ['k8s:#cloudnative', 'ocp:#observe'] },
+        { name: '関連プラクティス（CI/CD・宣言的構成）', weight: 30, units: ['k8s:#workloads', 'basics:#automation'] },
+        { name: 'GitOps のパターンとツール', weight: 30, units: ['ocp:#observe', 'k8s:#cloudnative'] },
+      ],
+    },
+  ],
+});

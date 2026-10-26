@@ -31,6 +31,22 @@ python -m http.server 8123
 
 各トラックは順番に解放されます。★3 = ヒントなし＆目標時間内。
 
+## ラーニング（学習問題と資格対策）
+
+画面上部の「ラーニング」から、分野ごとの学習問題に進めます。ミッションの目標欄からも、その回に必要な知識の問題集へ直接飛べます（戻るとミッションは続きから再開し、離れていた時間はタイムに加算されません）。
+
+- **6 分野 × 5 段階**: 入門 → 基礎 → 実務 → 応用 → エキスパート（Linux / Docker / Harbor / Kubernetes / OpenShift / AWS）
+- **資格対策の補講 24 本**: 段階別では扱いきれない試験範囲（シェルスクリプト、SELinux、Ansible、Swarm、Podman、CKA のクラスタ構築、サプライチェーン、AWS の監視・設計など）
+- **全 333 問**: 選択式とコマンド記述式。1 問ごとに解説と、公式ドキュメントへの出典リンクが付きます
+- **資格 60 試験**: 公式の出題範囲（ドメインと配点）を掲載し、各ドメインにどの問題集が対応しているかとカバー率を表示。配点に応じて出題する模擬試験つき
+  - Linux: LFCA / LFCS / RHCSA(EX200) / RHCE(EX294) / LPIC-1〜3 / LinuC レベル1〜3 / CompTIA Linux+
+  - コンテナ: DCA / EX188、レジストリは CKS のサプライチェーン分野に対応
+  - Kubernetes: KCNA / KCSA / CKAD / CKA / CKS / CKNE / CNPA / CNPE と CNCF の関連認定（CAPA・CCA・KCA・ICA・PCA・OTCA・CGOA）
+  - OpenShift: EX180 / EX280 / EX380 / EX288 / EX282 / EX316 / EX156 / EX336 / EX370 / EX430 / EX432 / EX378 / EX267
+  - AWS: CLF-C02 / SAA-C03 / SOA-C03 / DVA-C02 / SAP-C02 / DOP-C02 / SCS-C03 / ANS-C01 / AIF-C01 / AIB-C01 / AIP-C01 / MLA-C02 / DEA-C01
+
+AI・機械学習や言語フレームワークなど、このゲームの範囲外のドメインは「範囲外」と明示しています（カバー率には含めません）。合格すると XP とバッジが得られ、ミッションと同じキャリアに積み上がります。
+
 ## シミュレータが扱えるもの（抜粋）
 
 - **Linux（Ubuntu 22.04/24.04・RHEL 9）**: bash 互換シェル（変数展開・`$(...)`・ヒアドキュメント・関数・ループ・`[[ ]]`・リダイレクト・履歴・Tab 補完）、権限（所有者・umask・sudo・ACL・chattr）、ユーザー管理、systemd/journalctl、apt/dnf、ネットワーク（ip/ss/ufw/firewalld/nmcli/netplan）、ストレージ（parted・LVM・mkfs・fstab・スワップ・オンライン拡張）など約 300 コマンド。対応範囲と再現できないものは [docs/LINUX-COVERAGE.md](docs/LINUX-COVERAGE.md) を参照
@@ -56,12 +72,16 @@ js/cmd/shell.js       シェル本体（コマンド実行・権限・ssh/sudo �
 js/cmd/coreutils.js textproc.js sysutils.js storage.js netutils.js extras.js   Linux コマンド群
 js/cmd/kubectl.js     kubectl / oc
 js/game/engine.js     トラック・ランク・バッジ・セッション（目標判定/採点）・進捗保存
+js/game/learn.js      ラーニング層（段階・問題集・資格カタログ・ドリル/模擬試験の実行と採点）
+js/game/drills/*.js   学習問題（段階別は <分野>.js、資格対策の補講は extra-<分野>.js）
+js/game/certs/*.js    資格カタログ（試験コード・公式 URL・出題範囲と配点・対応する問題集）
 js/game/missions/*.js ミッション定義（データ駆動）
 js/ui/datacenter.js   アイソメトリックのデータセンター描画（Canvas 2D）
 js/ui/app.js          画面制御（ホーム・ミッション・ターミナル・エディタ）
 portal.json           サイト一覧（Home Page）の CoreLab カードに出す「すぐ遊べるミッション」
 tests/run-solutions.js 全ミッションの模範解答を自動プレイして解けることを検証（portal.json のミッションも確認）
 tests/run-linux.js    Linux シミュレータの回帰テスト（実機の出力・エラー・終了コードと照合）
+tests/run-learn.js    学習問題・資格カタログの検証（出典・配点・採点・模擬試験・進捗）
 ```
 
 ### テスト
@@ -71,9 +91,32 @@ node tests/run-solutions.js          # 全ミッション
 node tests/run-solutions.js k8s-03 -v # 1 本を出力付きで
 node tests/run-linux.js              # Linux の回帰テスト（約 400 件）
 node tests/run-linux.js lvm -v       # 名前に lvm を含むケースだけ
+node tests/run-learn.js              # 学習問題と資格カタログ
+node tests/run-learn.js -v           # 資格ごとのカバー率つき
 ```
 
 各ミッションについて「開始時点で目標が未達成であること」と「模範解答で全目標を達成できること」を確認します。ミッションやシミュレータを変更したら必ず実行してください。
+
+### 学習問題の追加
+
+`js/game/drills/` で `IG.registerDrills({...})`（段階別 5 本）または `IG.addExtras({...})`（資格対策の補講）を呼びます。
+
+```js
+IG.addExtras({
+  topic: 'k8s',
+  refs: { helm: ['Helm Docs', 'https://helm.sh/docs/'] },   // 出典（公式ドキュメント）
+  extras: [{
+    id: 'workloads', title: 'ワークロードとパッケージ', goal: '到達目標',
+    refs: ['helm'], points: ['要点…'],
+    qs: [
+      { q: '設問', c: ['正解', '誤り1', '誤り2'], x: '解説', r: 'helm' },        // 選択式（c[0] が正解）
+      { q: '設問', a: 'helm rollback web', ok: [/^helm rollback web$/], x: '解説', r: 'helm' },  // 記述式
+    ],
+  }],
+});
+```
+
+段階別の問題集に `missions: ['k8s-01']` を書くと、そのミッションの「必要な知識」に表示されます。資格は `js/game/certs/` で `IG.registerCerts({...})` に公式の出題範囲（配点の合計は 100）と対応する問題集（`'<分野>:<段階>'` または `'<分野>:#<補講 id>'`）を書きます。追加したら `index.html` の `<script>` に足し、`node tests/run-learn.js` を実行してください。
 
 ### ミッションの追加
 

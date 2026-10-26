@@ -1,4 +1,5 @@
-/* CoreLab UI controller: routing, home map, mission screen, terminal, editor, modals. */
+/* CoreLab UI controller: routing, home map, learning (drills & mock exams), mission screen,
+ * terminal, editor, modals. */
 (function (IG) {
   'use strict';
   const U = IG.util;
@@ -10,6 +11,8 @@
   const progress = new IG.Progress(storage);
   const unlockAll = /[?&]unlock=all\b/.test(location.search);
   let homeView = null, missionView = null, session = null, tick = null, toastTimer = null;
+  let run = null;                 // the drill / mock exam being played
+  let stash = null;               // a mission left for a drill, so it can resume where it was
   const term = { history: [], idx: 0, lastTab: '', pending: null, search: null };
   const editor = { path: null, host: null, original: '', onSave: null, readonly: false };
 
@@ -107,22 +110,286 @@
     $('badgeList').innerHTML = Object.entries(IG.badges).map(([id, b]) => `<span class="badge ${progress.data.badges.includes(id) ? 'got' : ''}" title="${esc(b.name)}: ${esc(b.desc)}" aria-label="${esc(b.name)}">${b.icon}</span>`).join('');
   }
 
+  /* ------------------------------------------------------------ learning: drills & certifications */
+  // A unit is "<topic>:<n>" or "<topic>:#<id>"; in a URL the pack id is written "e.<id>".
+  const refToUrl = ref => String(ref).replace(/^#/, 'e.');
+  const urlToRef = s => (String(s).startsWith('e.') ? '#' + String(s).slice(2) : String(s));
+  const pct = x => Math.round(x * 100) + '%';
+  function refLinks(topic, keys) {
+    const list = (keys || []).map(k => IG.drillRef(topic, k)).filter(Boolean);
+    if (!list.length) return '';
+    return `<ul class="src-list">${list.map(r => `<li><a href="${esc(r.url)}" target="_blank" rel="noopener noreferrer">${esc(r.title)}</a></li>`).join('')}</ul>`;
+  }
+  function unitStat(topic, unit) {
+    const d = progress.drill(topic, unit.n ? unit.n : '#' + unit.id);
+    if (!d) return { label: '未挑戦', cls: '' };
+    if (d.passed) return { label: `合格 ${pct(d.best)}`, cls: 'passed' };
+    return { label: `最高 ${pct(d.best)}`, cls: 'tried' };
+  }
+
+  function showLearn(topic) {
+    stashMission();
+    stopMission();
+    run = null;
+    $('viewHome').hidden = true;
+    $('viewMission').hidden = true;
+    $('viewDrill').hidden = true;
+    $('viewLearn').hidden = false;
+    setNav('learn');
+    renderProfile();
+    window.scrollTo(0, 0);
+    if (topic && IG.drills[topic]) renderLearnTopic(topic); else renderLearnIndex();
+  }
+  function renderLearnIndex() {
+    document.title = 'ラーニング — CoreLab';
+    $('learnTitle').textContent = '分野ごとの学習問題';
+    $('learnLead').textContent = 'ミッションに必要な知識を、入門からエキスパートまで 5 段階で。問題はすべて公式ドキュメントが出典で、各分野の認定資格の試験範囲に対応しています。';
+    $('learnCrumb').hidden = true;
+    const topics = IG.drillTopics();
+    const allUnits = topics.reduce((n, t) => n + IG.drillUnits(t).length, 0);
+    const passedUnits = topics.reduce((n, t) => n + IG.drillUnits(t).filter(u => progress.unitPassed(t, u)).length, 0);
+    const exams = IG.certs.filter(c => progress.examPassed(c.id)).length;
+    $('learnBody').innerHTML = `
+      <dl class="hero-stats learn-stats">
+        <div><dt>合格した問題集</dt><dd>${passedUnits}/${allUnits}</dd></div>
+        <div><dt>模擬試験 合格</dt><dd>${exams}/${IG.certs.length}</dd></div>
+        <div><dt>収録問題</dt><dd>${topics.reduce((n, t) => n + IG.drillUnits(t).reduce((m, u) => m + u.qs.length, 0), 0)}</dd></div>
+      </dl>
+      <div class="learn-grid">${topics.map(t => {
+        const d = IG.drills[t], tr = trackOf(t);
+        const done = progress.drillPassedCount(t), nx = progress.nextDrill(t);
+        const certs = IG.certsOf(t);
+        return `<article class="learn-card" style="--tc:${tr.color}">
+          <header><span class="track-icon" aria-hidden="true">${tr.icon}</span><div><h2>${esc(tr.name)}</h2><p>${esc(d.blurb)}</p></div></header>
+          <ol class="level-dots" aria-label="レベルの進捗">${d.levels.map(l => {
+            const s = unitStat(t, l);
+            return `<li class="${s.cls}" title="Lv${l.n} ${esc(l.title)} — ${s.label}"><b>${l.n}</b><span>${esc(IG.levels[l.n - 1].name)}</span></li>`;
+          }).join('')}</ol>
+          <p class="learn-meta">段階 ${done}/${d.levels.length} 合格${(d.extras || []).length ? ` · 資格対策 ${(d.extras || []).length} 本` : ''}${certs.length ? ` · 対応資格 ${certs.length}` : ''}</p>
+          <footer><a class="btn primary small" href="#/drill/${t}/${nx.n}">${done ? '続ける' : 'はじめる'}: Lv${nx.n} ${esc(nx.title)}</a><a class="btn ghost small" href="#/learn/${t}">分野の詳細 →</a></footer>
+        </article>`;
+      }).join('')}</div>
+      <p class="small-print">出典リンクは各認定機関・ベンダーの公式ドキュメントです（新しいタブで開きます）。内容は 2026-10 時点の公開情報にもとづきます。</p>`;
+  }
+  function renderLearnTopic(topic) {
+    const d = IG.drills[topic], tr = trackOf(topic);
+    document.title = `${tr.name} のラーニング — CoreLab`;
+    $('learnTitle').textContent = `${tr.name} — 学習問題`;
+    $('learnLead').textContent = d.blurb;
+    const crumb = $('learnCrumb');
+    crumb.hidden = false;
+    crumb.innerHTML = `<a href="#/learn">← 分野一覧</a>${d.certs ? `<span class="cert-hint">対応資格: ${esc(d.certs)}</span>` : ''}`;
+    const unitCard = (unit, extra) => {
+      const ref = unit.n ? unit.n : '#' + unit.id;
+      const s = unitStat(topic, unit);
+      const certs = IG.certsForUnit(`${topic}:${ref}`);
+      return `<article class="unit ${s.cls}">
+        <header>
+          <span class="unit-badge">${unit.n ? 'Lv' + unit.n : '資格'}</span>
+          <div><h3>${esc(unit.title)}</h3><small>${esc(unit.goal)}</small></div>
+          <span class="unit-stat">${esc(s.label)}</span>
+        </header>
+        <ul class="points">${unit.points.map(p => `<li>${inlineCode(p)}</li>`).join('')}</ul>
+        ${refLinks(topic, unit.refs)}
+        ${certs.length ? `<p class="unit-certs">試験範囲: ${certs.slice(0, 6).map(c => `<a href="#/learn/${topic}#cert-${c.id}">${esc(c.code)}</a>`).join('、')}${certs.length > 6 ? ` ほか ${certs.length - 6}` : ''}</p>` : ''}
+        <footer><a class="btn ${extra ? 'ghost' : 'primary'} small" href="#/drill/${topic}/${refToUrl(ref)}">${s.cls ? 'もう一度解く' : '問題を解く'}（${unit.qs.length} 問）</a>
+        ${(unit.missions || []).length ? (unit.missions || []).map(id => { const m = IG.mission(id); return m ? `<a class="btn ghost small" href="#/play/${id}">関連ミッション: ${esc(m.title)}</a>` : ''; }).join('') : ''}</footer>
+      </article>`;
+    };
+    const certs = IG.certsOf(topic);
+    $('learnBody').innerHTML = `
+      <h2 class="section-label big">段階別（入門 → エキスパート）</h2>
+      <div class="units">${d.levels.map(l => unitCard(l, false)).join('')}</div>
+      ${(d.extras || []).length ? `<h2 class="section-label big">資格対策の補講</h2>
+        <p class="muted flat">段階別の 5 本に加えて、資格の試験範囲を埋めるための問題集です。</p>
+        <div class="units">${d.extras.map(e => unitCard(e, true)).join('')}</div>` : ''}
+      ${certs.length ? `<h2 class="section-label big">対応資格と試験範囲</h2>
+        <p class="muted flat">公式の出題範囲（ドメインと配点）に、このゲームのどの問題集が対応しているかを示します。模擬試験は配点に応じて出題します。${IG.certNotes[topic] ? esc(IG.certNotes[topic]) : ''}</p>
+        <div class="certs">${certs.map(c => certCard(c, topic)).join('')}</div>` : ''}`;
+    if (location.hash.includes('#cert-')) {
+      const el = document.getElementById(location.hash.split('#cert-')[1] ? 'cert-' + location.hash.split('#cert-')[1] : '');
+      if (el) { el.open = true; el.scrollIntoView({ block: 'center' }); }
+    }
+  }
+  function certCard(c, topic) {
+    const cov = IG.certCoverage(c);
+    const ex = progress.exam(c.id);
+    const size = Math.min(IG.EXAM_SIZE, cov.qs);
+    return `<details class="cert" id="cert-${c.id}">
+      <summary>
+        <span class="cert-code">${esc(c.code)}</span>
+        <span class="cert-name">${esc(c.name)}<small>${esc(c.org)} · ${esc(IG.certLevels[c.level] || '')}${ex ? (ex.passed ? ' · 模擬試験 合格' : ` · 模擬試験 最高 ${pct(ex.best)}`) : ''}</small></span>
+        <span class="cov" title="公式の配点のうち、このゲームの問題集が対応している割合"><i style="width:${cov.pct}%"></i><b>${cov.pct}%</b></span>
+      </summary>
+      <div class="cert-body">
+        ${c.note ? `<p class="muted flat">${esc(c.note)}</p>` : ''}
+        <p class="flat"><a href="${esc(c.url)}" target="_blank" rel="noopener noreferrer">公式の試験範囲を見る</a>${cov.out ? ` · このゲームの範囲外: 配点 ${cov.out}%` : ''}${cov.missing ? ` · 未対応: 配点 ${cov.missing}%` : ''}</p>
+        <table class="dom-table">
+          <thead><tr><th>出題範囲（公式）</th><th>配点</th><th>対応する問題集</th></tr></thead>
+          <tbody>${c.domains.map(dm => {
+            const units = IG.domainUnits(dm);
+            const cell = dm.out ? '<span class="out">このゲームの範囲外</span>'
+              : units.length ? units.map(u => `<a href="#/drill/${u.topic}/${refToUrl(IG.unitRef(u.topic, u.unit).split(':')[1])}">${esc((u.topic === topic ? '' : (trackOf(u.topic) || {}).short + ' ') + IG.unitName(u.unit))}</a>`).join('、')
+                : '<span class="out">未対応</span>';
+            return `<tr class="${dm.out ? 'is-out' : units.length ? '' : 'is-missing'}"><td>${esc(dm.name)}</td><td>${dm.weight}%</td><td>${cell}</td></tr>`;
+          }).join('')}</tbody>
+        </table>
+        ${size >= 5 ? `<a class="btn primary small" href="#/exam/${c.id}">模擬試験に挑戦（${size} 問 · 合格 ${Math.round(IG.EXAM_PASS * 100)}%）</a>` : '<p class="muted flat">この試験の対応問題がまだ少ないため、模擬試験は用意できていません。</p>'}
+      </div>
+    </details>`;
+  }
+
+  /* ---------------------------------------- a drill / exam run */
+  function startDrill(topic, ref) {
+    const u = IG.drillUnit(`${topic}:${ref}`);
+    if (!u.unit) { location.hash = '#/learn'; return; }
+    try { run = IG.drillRun(topic, ref); } catch (e) { location.hash = '#/learn'; return; }
+    openRunView(trackOf(topic), `#/learn/${topic}`);
+    $('drillNotes').innerHTML = `<h2>要点</h2><ul class="points">${u.unit.points.map(p => `<li>${inlineCode(p)}</li>`).join('')}</ul>
+      <h2>出典（公式ドキュメント）</h2>${refLinks(topic, u.unit.refs)}
+      <p class="muted flat">${esc(u.unit.goal)}</p>`;
+    renderQuestion();
+  }
+  function startExam(certId) {
+    const c = IG.cert(certId);
+    if (!c) { location.hash = '#/learn'; return; }
+    const cov = IG.certCoverage(c);
+    try { run = IG.examRun(certId, Math.min(IG.EXAM_SIZE, cov.qs)); } catch (e) { location.hash = '#/learn'; return; }
+    openRunView(trackOf(c.topic), `#/learn/${c.topic}`);
+    $('drillNotes').innerHTML = `<h2>${esc(c.code)}</h2>
+      <p class="flat">${esc(c.name)}<br><small class="muted">${esc(c.org)} · ${esc(IG.certLevels[c.level] || '')}</small></p>
+      <p class="flat"><a href="${esc(c.url)}" target="_blank" rel="noopener noreferrer">公式の試験範囲</a></p>
+      <p class="muted flat">公式の配点に応じて、対応する問題集から ${run.items.length} 問を出題します。合格ラインは ${Math.round(IG.EXAM_PASS * 100)}% です。本番の形式・難易度を再現するものではありません。</p>
+      <p class="muted flat">このゲームの対応範囲: 配点の ${cov.pct}%${cov.out ? `（範囲外 ${cov.out}%）` : ''}${cov.missing ? `（未対応 ${cov.missing}%）` : ''}</p>`;
+    renderQuestion();
+  }
+  // Leaving a mission for a drill: keep the session (and the screen) so it can be resumed.
+  function stashMission() {
+    if (!session || $('viewMission').hidden) return;
+    stash = { id: session.m.id, session, out: $('termOut').innerHTML, events: $('eventList').innerHTML, history: term.history.slice(), leftAt: IG.clock.now() };
+  }
+  function openRunView(tr, backHref) {
+    stashMission();
+    stopMission();
+    $('viewHome').hidden = true;
+    $('viewMission').hidden = true;
+    $('viewLearn').hidden = true;
+    $('viewDrill').hidden = false;
+    setNav('learn');
+    renderProfile();
+    const chip = $('drillChip');
+    chip.textContent = (tr || {}).name || 'LEARNING';
+    chip.style.setProperty('--tc', (tr || {}).color || '#38d6c4');
+    $('drillTitle').textContent = run.meta.title;
+    document.title = `${run.meta.title} — CoreLab`;
+    $('drillBack').href = backHref;
+    window.scrollTo(0, 0);
+  }
+  function renderQuestion() {
+    if (!run) return;
+    const total = run.items.length;
+    $('drillCount').textContent = `${Math.min(run.pos + 1, total)} / ${total}`;
+    $('drillFill').style.width = `${(run.answers.length / total) * 100}%`;
+    const it = run.current;
+    const q = it.q;
+    const answered = run.answers[run.pos];
+    const choices = q.c
+      ? `<ol class="choices">${it.order.map((orig, i) => {
+          const cls = answered ? (orig === 0 ? 'right' : (answered.given === i ? 'wrong' : '')) : '';
+          return `<li><button class="choice ${cls}" data-choice="${i}" ${answered ? 'disabled' : ''}><span class="pick">${String.fromCharCode(65 + i)}</span><span>${esc(q.c[orig])}</span></button></li>`;
+        }).join('')}</ol>`
+      : `<form class="typed" id="typedForm"><label for="typedInput">コマンドを入力</label>
+         <input id="typedInput" autocomplete="off" spellcheck="false" autocapitalize="off" placeholder="例: kubectl get pods" ${answered ? 'disabled' : ''} value="${answered ? esc(String(answered.given)) : ''}">
+         <button class="btn primary small" type="submit" ${answered ? 'disabled' : ''}>回答する</button></form>`;
+    $('drillMain').innerHTML = `
+      <article class="qcard">
+        <p class="qnum">第 ${run.pos + 1} 問${it.domain ? ` <span class="qdomain">${esc(it.domain)}</span>` : ''}${q.c ? '' : ' <span class="qdomain">記述</span>'}</p>
+        <h2 class="qtext">${inlineCode(q.q)}</h2>
+        ${q.code ? `<pre class="qcode">${esc(q.code)}</pre>` : ''}
+        ${choices}
+        <div class="feedback" id="feedback"></div>
+      </article>`;
+    if (answered) showFeedback(answered);
+    else if (!q.c) { const i = $('typedInput'); if (window.innerWidth > 820) i.focus(); }
+  }
+  function showFeedback(a) {
+    const last = run.answers.length >= run.items.length;
+    $('feedback').innerHTML = `
+      <p class="verdict ${a.correct ? 'ok' : 'ng'}">${a.correct ? '✔ 正解' : '✘ 不正解'}${a.correct ? '' : `　正解: <code>${esc(a.expected)}</code>`}</p>
+      <p class="why">${inlineCode(a.item.q.x)}</p>
+      ${a.ref ? `<p class="src">出典: <a href="${esc(a.ref.url)}" target="_blank" rel="noopener noreferrer">${esc(a.ref.title)}</a></p>` : ''}
+      <button class="btn primary small" id="nextQ">${last ? '結果を見る' : '次の問題 →'}</button>`;
+    $('nextQ').focus({ preventScroll: true });
+  }
+  function answerCurrent(v) {
+    if (!run || run.answers[run.pos]) return;
+    const a = run.answer(v);
+    if (!a) return;
+    renderQuestion();
+  }
+  function advance() {
+    if (!run) return;
+    if (run.next()) { renderQuestion(); return; }
+    showRunResult();
+  }
+  function showRunResult() {
+    const res = run.result();
+    const rec = progress.recordRun(run, res);
+    renderProfile();
+    const exam = run.meta.kind === 'exam';
+    const cert = exam ? run.meta.cert : null;
+    const topic = exam ? cert.topic : run.meta.topic;
+    const d = IG.drills[topic];
+    const nextLevel = !exam && run.meta.unit.n ? d.levels.find(l => l.n === Number(run.meta.unit.n) + 1) : null;
+    $('drillFill').style.width = '100%';
+    $('drillMain').innerHTML = `
+      <article class="qcard result-card">
+        <p class="kicker">${exam ? 'MOCK EXAM RESULT' : 'DRILL RESULT'}</p>
+        <h2>${res.passed ? '合格！' : 'もう一歩'} <span class="score">${res.score} / ${res.total}（${pct(res.pct)}）</span></h2>
+        <p class="muted flat">合格ライン ${Math.round(run.meta.pass * 100)}% · 所要 ${fmtTime(res.time)}${rec.gain ? ` · 獲得 +${rec.gain} XP` : ''}</p>
+        ${rec.rankUp ? `<p class="levelup">🎉 ランクアップ！「${esc(rec.rankUp.name)}」になりました</p>` : ''}
+        ${rec.newBadges.map(b => `<p class="levelup">${IG.badges[b].icon} バッジ獲得: ${esc(IG.badges[b].name)}</p>`).join('')}
+        ${res.missed.length ? `<h3>間違えた問題（${res.missed.length}）</h3>
+          <ol class="missed">${res.missed.map(m => `<li><b>${inlineCode(m.item.q.q)}</b><span class="ans">正解: <code>${esc(m.expected)}</code></span><span class="why">${inlineCode(m.item.q.x)}</span>${m.ref ? `<a href="${esc(m.ref.url)}" target="_blank" rel="noopener noreferrer">${esc(m.ref.title)}</a>` : ''}</li>`).join('')}</ol>`
+          : '<p class="flat">全問正解です。</p>'}
+        <footer class="result-actions">
+          <button class="btn primary small" id="retryRun">もう一度</button>
+          ${nextLevel ? `<a class="btn ghost small" href="#/drill/${topic}/${nextLevel.n}">次のレベル: Lv${nextLevel.n} ${esc(nextLevel.title)}</a>` : ''}
+          ${exam ? '' : `<a class="btn ghost small" href="#/learn/${topic}">${esc((trackOf(topic) || {}).name || '')}の一覧へ</a>`}
+          ${exam ? `<a class="btn ghost small" href="#/learn/${topic}#cert-${cert.id}">試験範囲に戻る</a>` : ''}
+          ${stash ? `<a class="btn ghost small" href="#/play/${stash.id}">ミッションに戻る: ${esc((IG.mission(stash.id) || {}).title || '')}</a>` : ''}
+        </footer>
+      </article>`;
+    $('retryRun').onclick = () => { const h = location.hash; location.hash = '#/learn'; setTimeout(() => { location.hash = h; }, 0); };
+  }
+
   /* ------------------------------------------------------------ mission */
   function stopMission() {
     clearInterval(tick); tick = null;
     $('missionTip').hidden = true;
     if ($('terminal').classList.contains('max')) toggleMax(false);
   }
-  function openMission(id) {
+  function openMission(id, restart) {
     const m = IG.mission(id);
     if (!m) { location.hash = '#/'; return; }
     if (!m.sandbox && !progress.unlocked(m, unlockAll)) { toast('🔒 このミッションはまだロックされています'); location.hash = '#/'; return; }
+    // Back from a drill: pick the mission up where it was left, and do not count the time away.
+    const resume = !restart && stash && stash.id === id ? stash : null;
     stopMission();
     closeAllModals();
     if (!progress.data.seenIntro) { progress.data.seenIntro = true; progress.save(); }
-    IG.clock.offset = 0;
-    session = new IG.Session(m);
+    run = null;
+    if (resume) {
+      session = resume.session;
+      session.startedAt += IG.clock.now() - resume.leftAt;
+    } else {
+      stash = null;
+      IG.clock.offset = 0;
+      session = new IG.Session(m);
+    }
     $('viewHome').hidden = true;
+    $('viewLearn').hidden = true;
+    $('viewDrill').hidden = true;
     $('viewMission').hidden = false;
     setNav(m.sandbox ? 'sandbox' : 'home');
     document.title = `${m.title} — CoreLab`;
@@ -138,14 +405,22 @@
     $('mStars').hidden = !!m.sandbox;
     $('showSolution').hidden = !!m.sandbox;
     renderObjectives();
+    renderNeedKnow(m);
     renderCheat();
-    $('eventList').innerHTML = '';
-    session.world.listeners.push(e => addEvent(e.msg, e.level));
-    addEvent(m.sandbox ? 'フリーラボを起動しました' : `ミッション開始: ${m.title}`, 'INFO');
-    $('termOut').innerHTML = '';
-    printLine('sys', 'CoreLab 訓練シェルに接続しました（すべてブラウザ内のシミュレーションです）');
-    printLine('sys', m.sandbox ? 'help でコマンド一覧。README.md に例があります。' : 'help でコマンド一覧 · Tab で補完 · 左の「目標」を達成するとクリアです');
-    term.history = []; term.idx = 0; term.pending = null; term.search = null;
+    if (resume) {
+      $('eventList').innerHTML = resume.events;
+      $('termOut').innerHTML = resume.out;
+      term.history = resume.history; term.idx = resume.history.length; term.pending = null; term.search = null;
+      addEvent('学習問題から戻りました（環境はそのままです）', 'INFO');
+    } else {
+      $('eventList').innerHTML = '';
+      session.world.listeners.push(e => addEvent(e.msg, e.level));
+      addEvent(m.sandbox ? 'フリーラボを起動しました' : `ミッション開始: ${m.title}`, 'INFO');
+      $('termOut').innerHTML = '';
+      printLine('sys', 'CoreLab 訓練シェルに接続しました（すべてブラウザ内のシミュレーションです）');
+      printLine('sys', m.sandbox ? 'help でコマンド一覧。README.md に例があります。' : 'help でコマンド一覧 · Tab で補完 · 左の「目標」を達成するとクリアです');
+      term.history = []; term.idx = 0; term.pending = null; term.search = null;
+    }
     updatePrompt();
     if (!missionView) missionView = new IG.DC.View($('dcMission'), { compact: true, onHover: h => missionTip(h) });
     missionView.setScene(IG.DC.sceneFromWorld(session.world));
@@ -183,6 +458,19 @@
         <div class="obj-hints">${shown.map(h => `<div class="hint">💡 ${inlineCode(h)}</div>`).join('')}
         ${left > 0 && !session.done[i] ? `<button class="hint-btn" data-hint="${i}" title="ヒントを見ると評価の★が減ります">ヒントを見る（残り ${left}）</button>` : ''}</div></li>`;
     }).join('');
+  }
+  // Drills whose level lists this mission, shown under the objectives.
+  function renderNeedKnow(m) {
+    const links = IG.drillsForMission(m.id);
+    $('needKnow').hidden = !links.length;
+    if (!links.length) return;
+    $('needLinks').innerHTML = links.map(({ topic, level }) => {
+      const tr = trackOf(topic) || {};
+      const s = unitStat(topic, level);
+      return `<a class="need-link ${s.cls}" href="#/drill/${topic}/${level.n}" style="--tc:${tr.color || '#38d6c4'}">
+        <span class="need-lv">Lv${level.n}</span>
+        <span><strong>${esc(level.title)}</strong><small>${esc(tr.short || topic)} · ${level.qs.length} 問 · ${esc(s.label)}</small></span></a>`;
+    }).join('') + `<a class="need-link more" href="#/learn/${m.track || links[0].topic}"><span class="need-lv">＋</span><span><strong>この分野の学習問題すべて</strong><small>資格の試験範囲・模擬試験もここから</small></span></a>`;
   }
   function renderCheat() {
     const f = session.world.features;
@@ -414,7 +702,7 @@
     const nx = list[list.indexOf(m) + 1] || nextMission();
     $('rNext').textContent = nx ? `次へ: ${nx.title} →` : 'マップへ →';
     $('rNext').onclick = () => { $('resultModal').hidden = true; location.hash = nx ? `#/play/${nx.id}` : '#/'; if (nx && location.hash === `#/play/${nx.id}`) openMission(nx.id); };
-    $('rRetry').onclick = () => { $('resultModal').hidden = true; openMission(m.id); };
+    $('rRetry').onclick = () => { $('resultModal').hidden = true; stash = null; openMission(m.id, true); };
     $('rStay').onclick = () => { $('resultModal').hidden = true; $('termInput').focus(); };
     renderProfile();
     $('resultModal').hidden = false;
@@ -430,14 +718,19 @@
 
   /* ------------------------------------------------------------ events */
   function route() {
-    const m = location.hash.match(/^#\/play\/([\w-]+)/);
-    if (m) openMission(m[1]); else showHome();
+    const h = location.hash;
+    let m;
+    if ((m = h.match(/^#\/play\/([\w-]+)/))) return openMission(m[1]);
+    if ((m = h.match(/^#\/drill\/([\w-]+)\/([\w.-]+)/))) return startDrill(m[1], urlToRef(m[2]));
+    if ((m = h.match(/^#\/exam\/([\w.-]+)/))) return startExam(m[1]);
+    if ((m = h.match(/^#\/learn(?:\/([\w-]+))?/))) return showLearn(m[1]);
+    showHome();
   }
   window.addEventListener('hashchange', route);
 
   document.addEventListener('click', e => {
     const play = e.target.closest('[data-play]');
-    if (play && !play.disabled) { const id = play.dataset.play; if (location.hash === `#/play/${id}`) openMission(id); else location.hash = `#/play/${id}`; return; }
+    if (play && !play.disabled) { const id = play.dataset.play; if (location.hash === `#/play/${id}`) openMission(id, true); else location.hash = `#/play/${id}`; return; }
     const hint = e.target.closest('[data-hint]');
     if (hint && session) { const i = Number(hint.dataset.hint); const h = session.hint(i); if (h) { addEvent(`ヒント使用: ${session.m.objectives[i].title}`, 'WARN'); renderObjectives(); onTick(); } return; }
     const cmd = e.target.closest('[data-cmd]');
@@ -447,6 +740,30 @@
     const close = e.target.closest('[data-close]');
     if (close) { close.closest('.modal-backdrop').hidden = true; return; }
     if (e.target.classList.contains('modal-backdrop') && e.target.id !== 'editorModal' && e.target.id !== 'resultModal') e.target.hidden = true;
+  });
+  // drill / mock exam: choices, typed answers, next question
+  $('drillMain').addEventListener('click', e => {
+    const c = e.target.closest('[data-choice]');
+    if (c && !c.disabled) { answerCurrent(Number(c.dataset.choice)); return; }
+    if (e.target.closest('#nextQ')) advance();
+  });
+  $('drillMain').addEventListener('submit', e => {
+    if (!e.target.closest('#typedForm')) return;
+    e.preventDefault();
+    const input = $('typedInput');
+    if (!input || input.disabled) return;
+    if (!input.value.trim()) { toast('コマンドを入力してください'); input.focus(); return; }
+    answerCurrent(input.value);
+  });
+  document.addEventListener('keydown', e => {
+    if ($('viewDrill').hidden || !run) return;
+    if (e.target.id === 'typedInput') return;
+    const it = run.current;
+    if (run.answers[run.pos]) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); advance(); } return; }
+    if (it && it.q.c && /^[1-9a-dA-D]$/.test(e.key)) {
+      const i = /[1-9]/.test(e.key) ? Number(e.key) - 1 : e.key.toLowerCase().charCodeAt(0) - 97;
+      if (i >= 0 && i < it.order.length) { e.preventDefault(); answerCurrent(i); }
+    }
   });
   $('howtoBtn').onclick = () => { $('howtoModal').hidden = false; };
   // Served under a sub-path of a site list (e.g. /infra/ on this PC's front page)? Then offer the way back to it.
@@ -469,7 +786,7 @@
     }
   });
   $('resetProgress').onclick = () => { if (confirm('すべての進捗（XP・★・バッジ）をリセットします。よろしいですか？')) { progress.reset(); showHome(); toast('進捗をリセットしました'); } };
-  $('resetMission').onclick = () => { if (session) { openMission(session.m.id); toast('環境を初期状態に戻しました'); } };
+  $('resetMission').onclick = () => { if (session) { openMission(session.m.id, true); toast('環境を初期状態に戻しました'); } };
   $('showSolution').onclick = showSolution;
   $('termClear').onclick = () => { $('termOut').innerHTML = ''; $('termInput').focus(); };
   $('termMax').onclick = () => toggleMax();

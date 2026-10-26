@@ -1,0 +1,123 @@
+/* Learning drills: Red Hat OpenShift Container Platform. Sources: docs.redhat.com (OCP 4.16). */
+(function () {
+  const base = 'https://docs.redhat.com/en/documentation/openshift_container_platform/4.16/html/';
+  IG.registerDrills({
+    topic: 'ocp',
+    blurb: 'oc とプロジェクト・Route から SCC、Operator、Machine Config によるクラスタのライフサイクル管理まで。',
+    certs: 'EX188 / EX280 / EX288 / EX380',
+    refs: {
+      arch: ['OCP 4.16 Architecture', base + 'architecture'],
+      cli: ['OCP 4.16 CLI tools（oc）', base + 'cli_tools'],
+      apps: ['OCP 4.16 Building applications（Projects / new-app）', base + 'building_applications'],
+      net: ['OCP 4.16 Networking（Routes / OVN-Kubernetes / Egress）', base + 'networking'],
+      auth: ['OCP 4.16 Authentication and authorization（SCC / RBAC）', base + 'authentication_and_authorization'],
+      builds: ['OCP 4.16 Builds using BuildConfig', base + 'builds_using_buildconfig'],
+      images: ['OCP 4.16 Images（ImageStreams / イメージ作成ガイドライン）', base + 'images'],
+      operators: ['OCP 4.16 Operators（OLM）', base + 'operators'],
+      nodes: ['OCP 4.16 Nodes', base + 'nodes'],
+      update: ['OCP 4.16 Updating clusters', base + 'updating_clusters'],
+      machine: ['OCP 4.16 Machine management', base + 'machine_management'],
+      monitoring: ['OCP 4.16 Monitoring', base + 'monitoring'],
+      backup: ['OCP 4.16 Backup and restore', base + 'backup_and_restore'],
+    },
+    levels: [
+      {
+        n: 1, title: 'OpenShift と oc の基本', goal: 'ログインしてプロジェクトを作り、アプリをデプロイして公開できる',
+        missions: ['ocp-01'],
+        refs: ['arch', 'cli', 'apps', 'net'],
+        points: [
+          'OpenShift Container Platform（OCP）= Kubernetes ＋ Web コンソール・Route・ビルド・OAuth 認証・Operator による自動運用',
+          '`oc` は `kubectl` の機能をすべて含み、`oc login` `oc new-project` `oc new-app` `oc expose` などを追加',
+          'Project = Namespace に表示名・説明・アクセス制御を加えたもの。`oc project <名前>` で切り替え',
+          'Route で外部公開: `oc expose service/<名前>` → `oc get route` でホスト名を確認',
+        ],
+        qs: [
+          { q: '`oc` と `kubectl` の関係として正しいものは？', c: ['oc は kubectl の機能を含み、login や new-app など OpenShift 向けのコマンドを追加している', 'まったく互換性がない', 'oc は読み取り専用のコマンド', 'kubectl の方が OpenShift の機能を多く持つ'], x: '`oc get pods` など kubectl と同じ書き方がそのまま使えます。', r: 'cli' },
+          { q: '新しいプロジェクト `shop` を作成するコマンドを入力してください。', a: 'oc new-project shop', ok: [/^oc new-project shop( --display-name[ =]\S+| --description[ =]\S+)*$/], x: '作成と同時にそのプロジェクトに切り替わります。', r: 'apps' },
+          { q: 'OpenShift の「Project」とは？', c: ['Namespace に表示名・説明・アクセス制御などを加えたもの', '仮想マシンのまとまり', 'クラスタそのもの', 'Git リポジトリ'], x: '一般ユーザーは `oc new-project` で自分の Project を作れます（self-provisioner ロール）。', r: 'apps' },
+          { q: 'Service `web` を外部公開する Route を作成するコマンドを入力してください。', a: 'oc expose service/web', ok: [/^oc expose (svc|service)[\/ ]web( --hostname[ =]\S+| --port[ =]\S+| --name[ =]\S+)*$/], x: 'Route はクラスタの Ingress Controller（HAProxy ベースのルーター）がホスト名で振り分けます。', r: 'net' },
+          { q: 'クラスタの API サーバーにログインするコマンドは？', c: ['oc login https://api.cluster.example.com:6443 -u dev', 'oc connect api.cluster.example.com', 'kubectl login -u dev', 'oc auth -u dev'], x: 'ログインすると kubeconfig にトークンが保存されます。`oc whoami` で確認。', r: 'cli' },
+          { q: '`oc new-app` が行うことは？', c: ['イメージやソースコードから Deployment・Service（とビルド設定など）をまとめて作成する', 'プロジェクトを作成する', 'Route だけを作成する', 'クラスタに Operator をインストールする'], x: '公開まで行うには続けて `oc expose service/<名前>` を実行します。', r: 'apps' },
+        ],
+      },
+      {
+        n: 2, title: 'Route・ImageStream・ビルド', goal: 'TLS 付きで公開し、ソースからビルドして更新できる',
+        missions: ['ocp-01'],
+        refs: ['net', 'builds', 'images', 'cli'],
+        points: [
+          'Route の TLS 終端: edge（ルーターで終端）/ passthrough（Pod まで暗号化のまま）/ reencrypt（ルーターで終端して再暗号化）',
+          'ImageStream はイメージへの参照を抽象化。タグの更新をトリガーにビルドやデプロイを自動化',
+          'BuildConfig: Source-to-Image（S2I）/ Docker / Pipeline。`oc start-build` → `oc logs -f bc/<名前>`',
+          '`oc rsh <pod>` でコンテナのシェル、`oc debug` でデバッグ用 Pod、`oc get events` で出来事',
+        ],
+        qs: [
+          { q: 'TLS をルーターで終端せず、Pod まで暗号化したまま届ける Route の種類は？', c: ['passthrough', 'edge', 'reencrypt', 'insecure'], x: 'passthrough では証明書は Pod 側が持ちます。パスベースの振り分けはできません。', r: 'net' },
+          { q: 'Source-to-Image（S2I）の説明として正しいものは？', c: ['ソースコードとビルダーイメージから、Dockerfile なしで実行可能なイメージを作る', 'Dockerfile を自動生成して保存する', 'イメージをソースコードに逆変換する', 'Git にイメージを保存する'], x: '言語ごとのビルダーイメージが依存の取得やビルドを担当します。', r: 'builds' },
+          { q: 'ImageStream を使う利点は？', c: ['イメージ参照を抽象化し、タグの更新をトリガーにビルドやデプロイを自動化できる', 'イメージが圧縮されて小さくなる', '脆弱性が自動で修正される', 'レジストリが不要になる'], x: 'ImageStreamTag の更新を ImageChange トリガーで検知して再ビルド・再デプロイできます。', r: 'images' },
+          { q: 'BuildConfig `api` のビルドを開始するコマンドを入力してください。', a: 'oc start-build api', ok: [/^oc start-build (bc\/|buildconfig\/)?api( --follow| -F| --wait| --from-dir[ =]\S+)*$/], x: '`--follow` でビルドログを追えます。', r: 'builds' },
+          { q: '稼働中の Pod のコンテナでリモートシェルを開くコマンドは？', c: ['oc rsh <pod>', 'oc ssh <pod>', 'oc shell <pod>', 'oc attach node/<node>'], x: '`oc rsh` は `oc exec -it <pod> -- sh` 相当です。', r: 'cli' },
+          { q: 'edge TLS の Route で、HTTP でのアクセスを HTTPS へリダイレクトさせる設定は？', c: ['insecureEdgeTerminationPolicy: Redirect', 'termination: passthrough', 'tls.redirect: true', 'haproxy.router.openshift.io/timeout'], x: 'None（拒否）/ Allow（許可）/ Redirect（リダイレクト）から選べます。', r: 'net' },
+        ],
+      },
+      {
+        n: 3, title: 'SCC と権限のトラブル', goal: '権限エラーで起動しないコンテナを、安全な方法で直せる',
+        missions: ['ocp-02'],
+        refs: ['auth', 'images'],
+        points: [
+          '既定の SCC `restricted-v2`: プロジェクトに割り当てられた範囲の任意 UID で実行、root 不可、capabilities を削減',
+          'root 前提のイメージ（80 番で待ち受け、/var/cache に書き込み）は Permission denied で CrashLoopBackOff になる',
+          '基本の対処は非 root 対応イメージへの置き換え（例: 8080 で待ち受ける unprivileged 版）と、グループ 0 に書き込み権限を与えるイメージ設計',
+          '`anyuid` などの SCC 付与は最終手段。専用の ServiceAccount に限定し、理由を記録する',
+          'プロジェクト権限: `oc adm policy add-role-to-user edit alice -n shop`',
+        ],
+        qs: [
+          { q: 'nginx が `bind() to 0.0.0.0:80 failed (13: Permission denied)` で落ちる。原因は？', c: ['restricted-v2 SCC により非 root の任意 UID で動くため、1024 未満のポートを使えない', 'Route が作られていない', 'Service のポートが間違っている', 'ノードのファイアウォール'], x: '同じイメージが Docker では動いても、OpenShift では root で動かないため失敗します。', r: 'auth' },
+          { q: '上の問題への推奨対処は？', c: ['非 root で動く（8080 などで待ち受ける）イメージに置き換える', 'default ServiceAccount に anyuid を付与する', 'privileged SCC を付与する', 'SCC を削除する'], x: 'セキュリティを緩める前に、イメージ側を OpenShift の制約に合わせるのが原則です。', r: 'auth' },
+          { q: 'OpenShift 向けイメージで、ランダムな UID でもファイルを書けるようにする定石は？', c: ['書き込むディレクトリをグループ 0（root グループ）所有にし、グループに書き込み権限を付ける', 'すべてのファイルを chmod 777 にする', 'Dockerfile で USER root にする', 'ボリュームを読み取り専用にする'], x: '任意 UID でも補助グループに 0 が付くため、`chgrp -R 0 dir && chmod -R g=u dir` が定番です。', r: 'images' },
+          { q: 'ユーザー `alice` にプロジェクト `shop` の edit ロールを付与するコマンドを入力してください。', a: 'oc adm policy add-role-to-user edit alice -n shop', ok: [/^oc adm policy add-role-to-user edit alice (-n ?|--namespace[ =])shop$/, /^oc (-n ?|--namespace[ =])shop adm policy add-role-to-user edit alice$/], x: 'admin / edit / view が代表的なロールです。', r: 'auth' },
+          { q: '起動した Pod にどの SCC が適用されたかを確認する方法は？', c: ['Pod のアノテーション openshift.io/scc を見る（oc get pod <名前> -o yaml）', 'oc get scc の一覧を見るだけでわかる', 'ノードのログを見る', 'Route の設定を見る'], x: 'アドミッション時に選ばれた SCC 名がアノテーションに記録されます。', r: 'auth' },
+          { q: '`anyuid` SCC を付与するときの注意点は？', c: ['その ServiceAccount で動く Pod は root を含む任意の UID で動けるため、専用 SA に限定して最小範囲にする', '何の影響もないので気軽に付けてよい', 'クラスタ全体の Pod が root になる', 'Route が使えなくなる'], x: '`oc adm policy add-scc-to-user anyuid -z <sa>` のように、専用 SA にだけ付与します。', r: 'auth' },
+        ],
+      },
+      {
+        n: 4, title: 'Operator・モニタリング・ネットワーク', goal: 'プラットフォームの健全性を把握し、Operator とネットワークを運用できる',
+        missions: [],
+        refs: ['operators', 'arch', 'monitoring', 'net'],
+        points: [
+          'OLM（Operator Lifecycle Manager）: OperatorHub から Subscription で導入。チャネルと承認方式（Automatic / Manual）で更新を管理',
+          'プラットフォーム自体も Cluster Operator が管理: `oc get clusteroperators`（Available / Progressing / Degraded）',
+          '組み込みモニタリング（Prometheus / Alertmanager）。ユーザーワークロードの監視を有効にして ServiceMonitor で収集',
+          '既定の CNI は OVN-Kubernetes。NetworkPolicy・EgressFirewall・EgressIP で通信を制御',
+        ],
+        qs: [
+          { q: 'プラットフォームの各コンポーネント（Cluster Operator）の健全性を一覧するコマンドを入力してください。', a: 'oc get clusteroperators', ok: [/^oc get (clusteroperators?|co)$/], x: 'Degraded=True や Available=False のものから調べます。', r: 'arch' },
+          { q: 'Operator の自動更新を止め、更新を手動で承認したい。Subscription の設定は？', c: ['installPlanApproval: Manual', 'channel: manual', 'startingCSV: none', 'source: manual'], x: 'Manual では新しい InstallPlan を承認するまで更新されません。', r: 'operators' },
+          { q: 'ClusterOperator の `Degraded=True` が意味するのは？', c: ['そのコンポーネントが期待する状態を満たせず、機能が低下している', '更新中である', '完全に正常である', '削除される予定である'], x: '`oc describe clusteroperator <名前>` でメッセージを確認し、関連する Namespace の Pod を調べます。', r: 'arch' },
+          { q: 'OCP 4.16 の新規インストールで既定となるネットワークプラグインは？', c: ['OVN-Kubernetes', 'OpenShift SDN', 'Calico', 'Flannel'], x: 'OpenShift SDN は非推奨となり、OVN-Kubernetes が既定です。', r: 'net' },
+          { q: '自分のアプリの Prometheus メトリクスを収集したい。必要なのは？', c: ['ユーザーワークロードのモニタリングを有効にし、ServiceMonitor を作成する', 'Prometheus を自分で別途インストールする必要がある', 'Route を作成するだけ', 'ImageStream を作成する'], x: 'プラットフォームの Prometheus とは別に、ユーザー用の監視スタックが動きます。', r: 'monitoring' },
+          { q: '特定の Namespace から外部への通信の送信元 IP を固定したい（相手のファイアウォールで許可するため）。使う機能は？', c: ['EgressIP', 'Route', 'NodePort', 'ImageStream'], x: '外向き通信の制限には EgressFirewall を使います。', r: 'net' },
+        ],
+      },
+      {
+        n: 5, title: 'クラスタのライフサイクル管理', goal: 'ノード設定・アップデート・スケール・バックアップを運用できる',
+        missions: [],
+        refs: ['arch', 'update', 'machine', 'nodes', 'backup'],
+        points: [
+          'OCP 4 のノードは RHCOS。OS 設定は Machine Config Operator（MCO）が MachineConfig で宣言的に管理する',
+          'MachineConfig は MachineConfigPool 単位で適用され、ノードは順に cordon / drain・再起動される',
+          'アップデートは Cluster Version Operator（CVO）がチャネル（stable / fast / eus など）に従って実行: `oc adm upgrade`',
+          'Machine API: MachineSet でノードを増減。ClusterAutoscaler / MachineAutoscaler で自動化',
+          'ノード調査は `oc debug node/<名前>` → `chroot /host`。etcd バックアップはコントロールプレーンで `cluster-backup.sh`',
+        ],
+        qs: [
+          { q: 'ノードの OS 設定（カーネル引数や設定ファイル）を宣言的に変更する方法は？', c: ['MachineConfig を作成し、Machine Config Operator に適用させる', '各ノードに SSH して手で編集する', 'DaemonSet で毎回書き換える', 'ConfigMap に書く'], x: '手で変更すると MCO が設定のずれを検知します。RHCOS は MachineConfig で管理します。', r: 'arch' },
+          { q: 'クラスタのアップデートを管理するコンポーネントは？', c: ['Cluster Version Operator（CVO）', 'Operator Lifecycle Manager（OLM）', 'Machine Config Operator', 'Ingress Operator'], x: 'OLM が管理するのは OperatorHub から入れた Operator の更新です。', r: 'update' },
+          { q: 'ノード `worker-1` に SSH せずにデバッグ用シェルを開くコマンドを入力してください。', a: 'oc debug node/worker-1', ok: [/^oc debug node\/worker-1( -- \S+.*)?$/], x: '開いたら `chroot /host` でホストのファイルシステムを使えます。', r: 'nodes' },
+          { q: 'MachineSet を使ってワーカーノードを 5 台にするコマンドは？', c: ['oc scale machineset <名前> --replicas=5 -n openshift-machine-api', 'oc scale node --replicas=5', 'oc adm scale cluster --workers=5', 'oc edit nodes'], x: 'MachineSet は openshift-machine-api Namespace にあります。', r: 'machine' },
+          { q: '新しい MachineConfig を worker プールに適用すると、何が起きる？', c: ['プール内のノードが順番に cordon / drain され、設定を適用して再起動する', '全ノードが同時に再起動する', '無停止で即時に反映される', '手動で各ノードに適用するまで何も起きない'], x: '同時に更新するノード数は MachineConfigPool の maxUnavailable で制御します。', r: 'arch' },
+          { q: 'OCP 4 で etcd をバックアップする手順として正しいものは？', c: ['コントロールプレーンノードで cluster-backup.sh を実行する', 'oc get etcd -o yaml をファイルに保存する', 'etcd の Pod を削除して再作成する', 'Route をエクスポートする'], x: 'スナップショットと静的 Pod のリソースが保存されます。`oc debug node/<cp>` から実行します。', r: 'backup' },
+        ],
+      },
+    ],
+  });
+})();

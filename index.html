@@ -24,6 +24,7 @@
     </a>
     <nav class="topnav" aria-label="メイン">
       <a href="#/" data-nav="home">ミッション</a>
+      <a href="#/learn" data-nav="learn">ラーニング</a>
       <a href="#/play/sandbox" data-nav="sandbox">フリーラボ</a>
       <button type="button" id="howtoBtn">遊び方</button>
     </nav>
@@ -83,6 +84,31 @@
       </div>
     </section>
 
+    <!-- ============================== LEARN (drills & certifications) -->
+    <section id="viewLearn" class="view" aria-label="ラーニング" hidden>
+      <div class="learn-head">
+        <p class="eyebrow">LEARNING</p>
+        <h1 id="learnTitle">分野ごとの学習問題</h1>
+        <p class="lead" id="learnLead">ミッションに必要な知識を、入門からエキスパートまで 5 段階で。すべての問題に公式ドキュメントの出典が付いています。</p>
+        <div class="learn-crumb" id="learnCrumb" hidden></div>
+      </div>
+      <div id="learnBody"></div>
+    </section>
+
+    <!-- ============================== DRILL / MOCK EXAM -->
+    <section id="viewDrill" class="view" aria-label="ドリル" hidden>
+      <div class="drill-bar">
+        <a class="btn ghost small" id="drillBack" href="#/learn">← ラーニング</a>
+        <span class="track-chip" id="drillChip"></span>
+        <h1 id="drillTitle"></h1>
+        <div class="drill-meta"><span id="drillCount"></span><span class="drill-progress"><i id="drillFill"></i></span></div>
+      </div>
+      <div class="drill-layout">
+        <aside class="drill-notes" id="drillNotes" aria-label="要点と出典"></aside>
+        <div class="drill-main" id="drillMain"></div>
+      </div>
+    </section>
+
     <!-- ============================== MISSION -->
     <section id="viewMission" class="view" aria-label="ミッション" hidden>
       <div class="mission-bar">
@@ -106,6 +132,11 @@
           </details>
           <h2 class="section-label">目標 <span id="mProgress">0/3</span></h2>
           <ol class="objectives" id="mObjectives"></ol>
+          <div class="need-know" id="needKnow" hidden>
+            <h2 class="section-label">必要な知識</h2>
+            <p>行き詰まったら、この分野の学習問題で基礎を固めてから戻れます（進行状況は保持されます）。</p>
+            <div class="need-links" id="needLinks"></div>
+          </div>
           <div class="sandbox-note" id="sandboxNote" hidden>
             <p>フリーラボには目標がありません。好きなコマンドを試してみましょう。</p>
           </div>
@@ -227,6 +258,24 @@
   <script src="./js/cmd/manpages.js"></script>
   <script src="./js/cmd/kubectl.js"></script>
   <script src="./js/game/engine.js"></script>
+  <script src="./js/game/learn.js"></script>
+  <script src="./js/game/drills/linux.js"></script>
+  <script src="./js/game/drills/docker.js"></script>
+  <script src="./js/game/drills/harbor.js"></script>
+  <script src="./js/game/drills/k8s.js"></script>
+  <script src="./js/game/drills/openshift.js"></script>
+  <script src="./js/game/drills/aws.js"></script>
+  <script src="./js/game/drills/extra-linux.js"></script>
+  <script src="./js/game/drills/extra-docker.js"></script>
+  <script src="./js/game/drills/extra-harbor.js"></script>
+  <script src="./js/game/drills/extra-k8s.js"></script>
+  <script src="./js/game/drills/extra-openshift.js"></script>
+  <script src="./js/game/drills/extra-aws.js"></script>
+  <script src="./js/game/certs/linux.js"></script>
+  <script src="./js/game/certs/containers.js"></script>
+  <script src="./js/game/certs/k8s.js"></script>
+  <script src="./js/game/certs/openshift.js"></script>
+  <script src="./js/game/certs/aws.js"></script>
   <script src="./js/game/missions/basics.js"></script>
   <script src="./js/game/missions/docker.js"></script>
   <script src="./js/game/missions/harbor.js"></script>
