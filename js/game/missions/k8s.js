@@ -34,7 +34,7 @@
       const { amf, smf } = core(w, B, cl);
       const svc = B.svc('smf-voice', 'core', { port: 8080, targetPort: 8080 });
       B.apply(cl, amf, smf, svc);
-      B.files(w, { [M + '/smf-voice-deployment.yaml']: B.yaml(smf), [M + '/amf-deployment.yaml']: B.yaml(amf), [M + '/smf-voice-service.yaml']: B.yaml(svc), [HOME + '/lab/README.md']: '# lab\n\nクラスタ: training-cluster（kubectl の既定 namespace は core）\nマニフェストは manifests/ 配下。変更は必ずファイルを直してから kubectl apply -f で反映すること（GitOps 準拠）。\n' });
+      B.files(w, { [M + '/smf-voice-deployment.yaml']: B.yaml(smf), [M + '/amf-deployment.yaml']: B.yaml(amf), [M + '/smf-voice-service.yaml']: B.yaml(svc), [HOME + '/lab/README.md']: IG.t('# lab\n\nクラスタ: training-cluster（kubectl の既定 namespace は core）\nマニフェストは manifests/ 配下。変更は必ずファイルを直してから kubectl apply -f で反映すること（GitOps 準拠）。\n') });
     },
     objectives: [
       { title: 'クラスタの状態を確認する', detail: 'ノードと Pod の一覧を見る',
@@ -152,7 +152,7 @@
       w.addImage('registry.lab.local/ops/notify:3.0', { kind: 'app', app: 'notify', port: 8080, version: '3.0.1', requiresEnv: ['SMTP_HOST', 'SMTP_PASSWORD'] });
       const d = B.deploy('notify', 'ops', { image: 'registry.lab.local/ops/notify:3.0', port: 8080, replicas: 2, envFrom: [{ configMapRef: { name: 'notify-config' } }], env: { SMTP_PASSWORD: { valueFrom: { secretKeyRef: { name: 'notify-secret', key: 'smtp-password' } } } } });
       B.apply(cl, d);
-      B.files(w, { [HOME + '/runbook/notify.md']: '# notify 設定値\n\n## ConfigMap: notify-config\n- SMTP_HOST = mail.lab.local\n- SMTP_PORT = 587\n\n## Secret: notify-secret\n- smtp-password = not-a-real-password   ※訓練用の架空の値\n\n作成例:\n  kubectl create configmap <名前> --from-literal=KEY=VALUE ...\n  kubectl create secret generic <名前> --from-literal=key=value\n', [HOME + '/manifests/notify.yaml']: B.yaml(d) });
+      B.files(w, { [HOME + '/runbook/notify.md']: IG.t('# notify 設定値\n\n## ConfigMap: notify-config\n- SMTP_HOST = mail.lab.local\n- SMTP_PORT = 587\n\n## Secret: notify-secret\n- smtp-password = not-a-real-password   ※訓練用の架空の値\n\n作成例:\n  kubectl create configmap <名前> --from-literal=KEY=VALUE ...\n  kubectl create secret generic <名前> --from-literal=key=value\n'), [HOME + '/manifests/notify.yaml']: B.yaml(d) });
     },
     objectives: [
       { title: '起動できない理由を確認する', detail: 'Pod の Events から足りないリソースを特定する',
@@ -190,7 +190,7 @@
       w.addImage('registry.lab.local/analytics/report:1.4', { kind: 'app', app: 'report', port: 8080, version: '1.4.0' });
       const d = B.deploy('report', 'analytics', { image: 'registry.lab.local/analytics/report:1.4', port: 8080, replicas: 1, resources: { requests: { cpu: '500m', memory: '16Gi' }, limits: { memory: '16Gi' } } });
       B.apply(cl, d);
-      B.files(w, { [HOME + '/manifests/report.yaml']: B.yaml(d), [HOME + '/manifests/NOTE.txt']: 'report の実測メモリ使用量: ピーク 380Mi 前後（2026-10 計測）\n' });
+      B.files(w, { [HOME + '/manifests/report.yaml']: B.yaml(d), [HOME + '/manifests/NOTE.txt']: IG.t('report の実測メモリ使用量: ピーク 380Mi 前後（2026-10 計測）\n') });
     },
     objectives: [
       { title: 'Pending の理由を確認する', detail: 'スケジューラが Pod を配置できない理由を読む',
@@ -229,11 +229,11 @@
       w.addHost('worker-2', {
         user: 'ubuntu', ip: '10.0.1.13', services: { kubelet: 'active', containerd: 'active' }, baseUsedGiB: 8, journal, motd: 'worker-2 (training-cluster)\n\n  Usage of /:   92.3% of 50GB   ⚠',
         files: {
-          '/var/log/app/debug.log': { content: '2026-10-23T23:59:59Z DEBUG dump request payload size=1048576 (repeated)\n…（中略）…\n', size: 38 * 1024 ** 3 },
+          '/var/log/app/debug.log': { content: IG.t('2026-10-23T23:59:59Z DEBUG dump request payload size=1048576 (repeated)\n…（中略）…\n'), size: 38 * 1024 ** 3 },
           '/var/log/app/app.log': { content: '2026-10-23T23:59:59Z INFO billing-agent heartbeat\n', size: 12 * 1024 ** 2 },
           '/var/log/syslog': { content: 'Oct 24 00:00:01 worker-2 CRON[4412]: (root) CMD (logrotate /etc/logrotate.conf)\n', size: 84 * 1024 ** 2 },
-          '/etc/logrotate.d/app': '# TODO: debug.log もローテーション対象に入れる\n/var/log/app/app.log {\n    daily\n    rotate 7\n    compress\n}\n',
-          '/home/ubuntu/NOTE.txt': '先週 debug ログを一時的に有効化した（戻し忘れ注意）— 佐藤\n',
+          '/etc/logrotate.d/app': IG.t('# TODO: debug.log もローテーション対象に入れる\n/var/log/app/app.log {\n    daily\n    rotate 7\n    compress\n}\n'),
+          '/home/ubuntu/NOTE.txt': IG.t('先週 debug ログを一時的に有効化した（戻し忘れ注意）— 佐藤\n'),
         },
       });
       const cl = training(w, B, {

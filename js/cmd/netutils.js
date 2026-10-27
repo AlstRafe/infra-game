@@ -60,7 +60,7 @@
     const v4 = flags.includes('-4');
     const ifs = ifaces(ctx);
     const h = ctx.host;
-    if (/^(set|add|del|delete|change|replace|flush)$/.test(sub) || /^(set|add|del)$/.test(pos[2] || '')) return root(ctx) ? { stdout: '', stderr: 'ℹ ネットワーク設定の変更はこのシミュレータでは保持しません（netplan / nmcli での恒久設定も未対応）。\n', code: 1 } : { stdout: '', stderr: 'RTNETLINK answers: Operation not permitted\n', code: 2 };
+    if (/^(set|add|del|delete|change|replace|flush)$/.test(sub) || /^(set|add|del)$/.test(pos[2] || '')) return root(ctx) ? { stdout: '', stderr: IG.t('ℹ ネットワーク設定の変更はこのシミュレータでは保持しません（netplan / nmcli での恒久設定も未対応）。\n'), code: 1 } : { stdout: '', stderr: 'RTNETLINK answers: Operation not permitted\n', code: 2 };
     if (/^a(ddr(ess)?)?$/.test(obj)) {
       const sel = pos[2] === 'dev' ? ifs.filter(i => i.name === pos[3]) : pos[1] && pos[1] !== 'show' ? ifs.filter(i => i.name === pos[1]) : ifs;
       if (br) return join(sel.map(i => `${i.name.padEnd(16)} ${i.state.padEnd(14)} ${i.ip}/${i.prefix} ${i.name === 'lo' ? '::1/128' : 'fe80::' + i.mac.slice(-8).replace(/:/g, '') + '/64'}`));
@@ -135,7 +135,7 @@
     const ec2 = ctx.world.aws && ctx.world.aws.instances.find(i => i.publicIp === ip || i.privateIp === ip);
     const blocked = (ec2 && !(ec2.sgIds || []).some(id => (ctx.world.aws.sgs[id] || { ingress: [] }).ingress.some(r => r.proto === 'icmp' || r.proto === '-1'))) || /^(8\.8\.|1\.1\.1\.)/.test(ip) || (target && target.os === 'rhel' && target.svcState('firewalld') === 'active' && false);
     const label = host === ip ? ip : `${host} (${ip})`;
-    if (blocked) return { stdout: `PING ${label} 56(84) bytes of data.\n\n--- ${host} ping statistics ---\n${n} packets transmitted, 0 received, 100% packet loss, time ${n * 1000 - 1}ms\n\n`, stderr: ec2 ? 'ℹ ICMP がセキュリティグループで許可されていない可能性があります（ping が通らなくても HTTP は通ることがあります）。\n' : 'ℹ この訓練環境はインターネットに出られません。\n', code: 1 };
+    if (blocked) return { stdout: `PING ${label} 56(84) bytes of data.\n\n--- ${host} ping statistics ---\n${n} packets transmitted, 0 received, 100% packet loss, time ${n * 1000 - 1}ms\n\n`, stderr: ec2 ? IG.t('ℹ ICMP がセキュリティグループで許可されていない可能性があります（ping が通らなくても HTTP は通ることがあります）。\n') : IG.t('ℹ この訓練環境はインターネットに出られません。\n'), code: 1 };
     const rows = Array.from({ length: Math.min(n, 20) }, (_, i) => `64 bytes from ${host === ip ? ip : `${host} (${ip})`}: icmp_seq=${i + 1} ttl=${target === ctx.host || /^127\./.test(ip) ? 64 : 63} time=${(0.2 + (U.hash(ip + i) % 90) / 100).toFixed(3)} ms`);
     return `PING ${label} 56(84) bytes of data.\n${rows.join('\n')}\n\n--- ${host} ping statistics ---\n${n} packets transmitted, ${n} received, 0% packet loss, time ${n * 1000 - 998}ms\nrtt min/avg/max/mdev = 0.231/0.512/0.902/0.188 ms`;
   };
@@ -173,7 +173,7 @@
   };
   C.nslookup = (argv, ctx) => {
     const name = argv.filter(a => !a.startsWith('-'))[0];
-    if (!name) return { stdout: '', stderr: 'ℹ 対話モードは未対応です。nslookup <名前> の形で使ってください。\n', code: 1 };
+    if (!name) return { stdout: '', stderr: IG.t('ℹ 対話モードは未対応です。nslookup <名前> の形で使ってください。\n'), code: 1 };
     const server = ctx.pod ? '10.96.0.10' : ctx.container ? '127.0.0.11' : ctx.host.os === 'ubuntu' ? '127.0.0.53' : '10.0.0.2';
     const ip = ctx.pod || ctx.container ? ctx.world.resolveName(name, ctx.from) : dnsAnswer(ctx, name);
     if (!ip) return { stdout: `Server:\t\t${server}\nAddress:\t${server}#53\n\n** server can't find ${name}: NXDOMAIN\n`, stderr: '', code: 1 };
@@ -205,7 +205,7 @@
       const code = Number((r.error.match(/curl: \((\d+)\)/) || [])[1] || 1);
       let msg = r.error;
       if ((f['max-time'] || f.m || f['connect-timeout']) && code === 28) msg = msg.replace(/after \d+ ms/, `after ${Number(f['max-time'] || f.m || f['connect-timeout']) * 1000} ms`);
-      if (silent && !showErr) return { stdout: '', stderr: `ℹ curl が失敗しました（exit ${code}）。-s を外すとエラー内容が表示されます。\n`, code };
+      if (silent && !showErr) return { stdout: '', stderr: IG.t(`ℹ curl が失敗しました（exit {0}）。-s を外すとエラー内容が表示されます。\n`, { 0: code }), code };
       return { stdout: '', stderr: msg + '\n', code };
     }
     const ctype = /^[{[]/.test(r.body) ? 'application/json' : /^<\?xml/.test(r.body) ? 'application/xml' : /^<(!doctype|html)/i.test(r.body) ? 'text/html' : 'text/plain';
@@ -269,7 +269,7 @@
   C.nc = (argv, ctx) => {
     const fl = new Set(argv.filter(a => /^-[a-zA-Z]+$/.test(a)).join('').replace(/-/g, '').split(''));
     const pos = argv.filter((a, i) => !/^-/.test(a) && !/^-w$/.test(argv[i - 1]));
-    if (fl.has('l')) return { stdout: '', stderr: 'ℹ nc -l（待ち受け）はこのシミュレータでは未対応です。待ち受け中のポートは ss -tlnp で確認できます。\n', code: 1 };
+    if (fl.has('l')) return { stdout: '', stderr: IG.t('ℹ nc -l（待ち受け）はこのシミュレータでは未対応です。待ち受け中のポートは ss -tlnp で確認できます。\n'), code: 1 };
     const [host, portSpec] = pos;
     if (!host || !portSpec) return { stdout: '', stderr: 'usage: nc [-46CDdFhklNnrStUuvZz] [-I length] [-i interval] [-M ttl]\n\t  [-m minttl] [-O length] [-P proxy_username] [-p source_port]\n\t  [-q seconds] [-s sourceaddr] [-T keyword] [-V rtable] [-W recvlimit]\n\t  [-w timeout] [-X proxy_protocol] [-x proxy_address[:port]]\n\t  [destination] [port]\n', code: 1 };
     const ports = portSpec.includes('-') ? (([a, b]) => Array.from({ length: Math.min(200, b - a + 1) }, (_, k) => a + k))(portSpec.split('-').map(Number)) : [Number(portSpec)];
@@ -297,13 +297,13 @@
   C.netcat = C.nc;
   C.telnet = (argv, ctx) => {
     const [host, p] = argv.filter(a => !a.startsWith('-'));
-    if (!host) return { stdout: '', stderr: 'ℹ telnet <ホスト> <ポート> の形式で使ってください。\n', code: 1 };
+    if (!host) return { stdout: '', stderr: IG.t('ℹ telnet <ホスト> <ポート> の形式で使ってください。\n'), code: 1 };
     const port = Number(p || 23);
     const r = tcpConnect(ctx, host, port);
     if (r.unresolved) return { stdout: '', stderr: `telnet: could not resolve ${host}/${port}: Name or service not known\n`, code: 1 };
     if (r.timeout) return { stdout: `Trying ${r.ip}...\n`, stderr: `telnet: Unable to connect to remote host: Connection timed out\n`, code: 1 };
     if (r.refused) return { stdout: `Trying ${r.ip}...\n`, stderr: `telnet: Unable to connect to remote host: Connection refused\n`, code: 1 };
-    return `Trying ${r.ip}...\nConnected to ${host}.\nEscape character is '^]'.\n${r.svc === 'ssh' || r.svc === 'sshd' ? 'SSH-2.0-OpenSSH_8.9p1 Ubuntu-3ubuntu0.10\n' : ''}Connection closed by foreign host.\nℹ 接続確認だけを行いました（対話入力は再現していません）。`;
+    return IG.t(`Trying {0}...\nConnected to {1}.\nEscape character is '^]'.\n{2}Connection closed by foreign host.\nℹ 接続確認だけを行いました（対話入力は再現していません）。`, { 0: r.ip, 1: host, 2: r.svc === 'ssh' || r.svc === 'sshd' ? 'SSH-2.0-OpenSSH_8.9p1 Ubuntu-3ubuntu0.10\n' : '' });
   };
 
   /* ================================================================ ssh family */
@@ -331,7 +331,7 @@
     const h = Object.values(w.hosts).find(x => x.name === t.host || x.ip === t.host || x.publicIp === t.host || (resolve(ctx, t.host) && x.ip === resolve(ctx, t.host)));
     if (!h) {
       const ec2 = w.aws && w.aws.instances.find(i => i.publicIp === t.host || i.publicDns === t.host || i.privateIp === t.host);
-      if (ec2) return { error: `ssh: connect to host ${t.host} port 22: Connection timed out\nℹ この訓練では EC2 へのログインは扱いません。AWS CLI で調査してください。`, code: 255 };
+      if (ec2) return { error: IG.t(`ssh: connect to host {0} port 22: Connection timed out\nℹ この訓練では EC2 へのログインは扱いません。AWS CLI で調査してください。`, { 0: t.host }), code: 255 };
       const ip = resolve(ctx, t.host);
       if (ip) return { error: `ssh: connect to host ${t.host} port 22: Connection timed out`, code: 255 };
       return { error: `ssh: Could not resolve hostname ${t.host}: ${t.host.includes('.') ? 'Name or service not known' : 'Temporary failure in name resolution'}`, code: 255 };
@@ -343,7 +343,7 @@
     if (h !== ctx.host && !h.firewallAllows(22, 'tcp', ctx.host.ip)) return { error: `ssh: connect to host ${t.host} port 22: Connection timed out`, code: 255 };
     const u = h.users[t.user];
     if (!u || u.locked || /nologin|false/.test(u.shell)) return { error: `${t.user}@${t.host}: Permission denied (publickey).`, code: 255 };
-    if (t.user === 'root') return { error: `${t.user}@${t.host}: Permission denied (publickey).\nℹ PermitRootLogin prohibit-password のため root で直接ログインできません。一般ユーザーで入って sudo を使います。`, code: 255 };
+    if (t.user === 'root') return { error: IG.t(`{0}@{1}: Permission denied (publickey).\nℹ PermitRootLogin prohibit-password のため root で直接ログインできません。一般ユーザーで入って sudo を使います。`, { 0: t.user, 1: t.host }), code: 255 };
     // key-based: login user is pre-authorized; others need ssh-copy-id
     const ak = h.vfs.read(u.home + '/.ssh/authorized_keys') || '';
     const myPub = ctx.vfs.read(ctx.shell.home() + '/.ssh/id_ed25519.pub') || '';
@@ -425,7 +425,7 @@
   C.rsync = (argv, ctx) => {
     const fl = new Set(argv.filter(a => /^-[a-zA-Z]+$/.test(a)).join('').replace(/-/g, '').split(''));
     const pos = argv.filter(a => !a.startsWith('-'));
-    if (pos.length < 2) return { stdout: '', stderr: 'rsync  version 3.2.7  protocol version 31\nℹ rsync -av <コピー元> <コピー先> の形式で使ってください（host:path でリモート指定可）。\n', code: 1 };
+    if (pos.length < 2) return { stdout: '', stderr: IG.t('rsync  version 3.2.7  protocol version 31\nℹ rsync -av <コピー元> <コピー先> の形式で使ってください（host:path でリモート指定可）。\n'), code: 1 };
     const dst = remoteFs(ctx, pos[pos.length - 1]);
     if (dst.error) return { stdout: '', stderr: dst.error + '\nrsync: connection unexpectedly closed (0 bytes received so far) [sender]\nrsync error: unexplained error (code 255) at io.c(232) [sender=3.2.7]\n', code: 255 };
     const o = out();
@@ -487,7 +487,7 @@
     h.vfs.mkdirp(h.users[t.user].home + '/.ssh', { owner: t.user, mode: 0o700 });
     const cur = h.vfs.read(ak) || '';
     if (cur.includes(pub.trim())) return { stdout: '', stderr: `/usr/bin/ssh-copy-id: INFO: Source of key(s) to be installed: "${keyFile}"\n/usr/bin/ssh-copy-id: INFO: attempting to log in with the new key(s), to filter out any that are already installed\n\n/usr/bin/ssh-copy-id: WARNING: All keys were skipped because they already exist on the remote system.\n\t\t(if you think this is a mistake, you may want to use -f option)\n\n`, code: 0 };
-    if (t.user !== h.user) return { stdout: '', stderr: `/usr/bin/ssh-copy-id: INFO: Source of key(s) to be installed: "${keyFile}"\n${t.user}@${t.host}'s password: \nℹ 初回はパスワード認証が必要ですが、この訓練環境ではパスワード入力を再現できません。サーバー側で管理者が authorized_keys に公開鍵を追記する手順で代替してください。\n`, code: 1 };
+    if (t.user !== h.user) return { stdout: '', stderr: IG.t(`/usr/bin/ssh-copy-id: INFO: Source of key(s) to be installed: "{0}"\n{1}@{2}'s password: \nℹ 初回はパスワード認証が必要ですが、この訓練環境ではパスワード入力を再現できません。サーバー側で管理者が authorized_keys に公開鍵を追記する手順で代替してください。\n`, { 0: keyFile, 1: t.user, 2: t.host }), code: 1 };
     h.vfs.write(ak, cur + pub, { owner: t.user, mode: 0o600 });
     return { stdout: `\nNumber of key(s) added: 1\n\nNow try logging into the machine, with:   "ssh '${t.user}@${t.host}'"\nand check to make sure that only the key(s) you wanted were added.\n\n`, stderr: `/usr/bin/ssh-copy-id: INFO: Source of key(s) to be installed: "${keyFile}"\n/usr/bin/ssh-copy-id: INFO: attempting to log in with the new key(s), to filter out any that are already installed\n/usr/bin/ssh-copy-id: INFO: 1 key(s) remain to be installed -- if you are prompted now it is to install the new keys\n`, code: 0 };
   };
@@ -495,7 +495,7 @@
   /* ================================================================ firewalls */
   C.ufw = (argv, ctx) => {
     const h = ctx.host;
-    if (h.os === 'rhel') return { stdout: '', stderr: 'bash: ufw: command not found\nℹ RHEL 系のファイアウォールは firewall-cmd（firewalld）です。\n', code: 127 };
+    if (h.os === 'rhel') return { stdout: '', stderr: IG.t('bash: ufw: command not found\nℹ RHEL 系のファイアウォールは firewall-cmd（firewalld）です。\n'), code: 127 };
     if (!root(ctx)) return { stdout: '', stderr: 'ERROR: You need to be root to run this script\n', code: 1 };
     const u = h.firewall.ufw;
     const force = argv.includes('--force');
@@ -509,12 +509,12 @@
         const sshOk = u.rules.some(r => r.action !== 'deny' && (r.port === '22' || r.app === 'OpenSSH'));
         if (!force && ctx.shell.stack.some(s => s.host === h.name && !s.via) && h.name !== 'bastion') {
           const ans = ctx.stdin.trim();
-          if (!/^y/i.test(ans)) return { stdout: 'Command may disrupt existing ssh connections. Proceed with operation (y|n)? Aborted\n', stderr: ctx.hasStdin ? '' : 'ℹ 確認に応答できないため中断しました。sudo ufw --force enable か、echo y | sudo ufw enable を使います。\n', code: 0 };
+          if (!/^y/i.test(ans)) return { stdout: 'Command may disrupt existing ssh connections. Proceed with operation (y|n)? Aborted\n', stderr: ctx.hasStdin ? '' : IG.t('ℹ 確認に応答できないため中断しました。sudo ufw --force enable か、echo y | sudo ufw enable を使います。\n'), code: 0 };
         }
         u.enabled = true;
         h.enabled.ufw = true;
         ctx.world.emit(`${h.hostname}: ufw enabled${sshOk ? '' : ' (SSH not allowed!)'}`, sshOk ? 'INFO' : 'WARN');
-        return (force ? '' : 'Command may disrupt existing ssh connections. Proceed with operation (y|n)? ') + 'Firewall is active and enabled on system startup' + (sshOk ? '' : '\nℹ 注意: 22/tcp（OpenSSH）を許可していないため、新しい SSH 接続は遮断されます。');
+        return (force ? '' : 'Command may disrupt existing ssh connections. Proceed with operation (y|n)? ') + 'Firewall is active and enabled on system startup' + (sshOk ? '' : IG.t('\nℹ 注意: 22/tcp（OpenSSH）を許可していないため、新しい SSH 接続は遮断されます。'));
       }
       case 'disable': u.enabled = false; return 'Firewall stopped and disabled on system startup';
       case 'reset': if (!force && !/^y/i.test(ctx.stdin.trim())) return 'Resetting all rules to installed defaults. Proceed with operation (y|n)? Aborted'; u.enabled = false; u.rules = []; return `Backing up 'user.rules' to '/etc/ufw/user.rules.${IG.strftime('%Y%m%d_%H%M%S', ctx.world.now())}'\nBacking up 'before.rules' to '/etc/ufw/before.rules.${IG.strftime('%Y%m%d_%H%M%S', ctx.world.now())}'`;
@@ -534,7 +534,7 @@
         return r.from && r.from !== 'any' ? 'Rule added' : 'Rules updated\nRules updated (v6)';
       }
       case 'delete': {
-        if (/^\d+$/.test(a[1] || '')) { const i = Number(a[1]) - 1; if (!u.rules[i]) return { stdout: '', stderr: 'ERROR: Could not find rule \'' + a[1] + "'\n", code: 1 }; const r = u.rules[i]; if (!force && !/^y/i.test(ctx.stdin.trim())) return `Deleting:\n ${r.action} ${r.port || r.app}\nProceed with operation (y|n)? Aborted\nℹ sudo ufw --force delete ${a[1]} で確認を省略できます。`; u.rules.splice(i, 1); return 'Rule deleted'; }
+        if (/^\d+$/.test(a[1] || '')) { const i = Number(a[1]) - 1; if (!u.rules[i]) return { stdout: '', stderr: 'ERROR: Could not find rule \'' + a[1] + "'\n", code: 1 }; const r = u.rules[i]; if (!force && !/^y/i.test(ctx.stdin.trim())) return IG.t(`Deleting:\n {0} {1}\nProceed with operation (y|n)? Aborted\nℹ sudo ufw --force delete {2} で確認を省略できます。`, { 0: r.action, 1: r.port || r.app, 2: a[1] }); u.rules.splice(i, 1); return 'Rule deleted'; }
         const act = a[1]; const spec = a.slice(2).join(' ');
         const idx = u.rules.findIndex(r => r.action === act && ((r.port && (r.port + (r.proto ? '/' + r.proto : '')) === spec) || r.port === spec || r.app === spec));
         if (idx < 0) return 'Could not delete non-existent rule\nCould not delete non-existent rule (v6)';
@@ -562,7 +562,7 @@
       if (op === '-D') { const i = R.findIndex(r => r.chain === rule.chain && r.dport === rule.dport && r.target === rule.target); if (i < 0) return { stdout: '', stderr: 'iptables: Bad rule (does a matching rule exist in that chain?).\n', code: 1 }; R.splice(i, 1); return ''; }
       if (op === '-I') R.unshift(rule); else R.push(rule);
       ctx.world.emit(`${h.hostname}: iptables ${op} ${rule.chain} ${rule.dport ? 'dport ' + rule.dport + ' ' : ''}-j ${rule.target}`, /DROP|REJECT/.test(rule.target) ? 'WARN' : 'INFO');
-      return 'ℹ iptables のルールは即時反映されますが、再起動で消えます（永続化は iptables-persistent / netfilter-persistent）。\n'.replace(/^/, '') && '';
+      return IG.t('ℹ iptables のルールは即時反映されますが、再起動で消えます（永続化は iptables-persistent / netfilter-persistent）。\n').replace(/^/, '') && '';
     }
     return { stdout: '', stderr: 'iptables v1.8.7 (nf_tables): no command specified\nTry `iptables -h\' or \'iptables --help\' for more information.\n', code: 2 };
   };
@@ -589,7 +589,7 @@
     if (val('--add-service')) return add('service', val('--add-service'));
     if (val('--remove-port')) return rem('port', val('--remove-port'));
     if (val('--remove-service')) return rem('service', val('--remove-service'));
-    return { stdout: '', stderr: 'usage: see firewall-cmd man page\nℹ --state / --list-all / --add-port=80/tcp [--permanent] / --add-service=http / --reload に対応しています。\n', code: 2 };
+    return { stdout: '', stderr: IG.t('usage: see firewall-cmd man page\nℹ --state / --list-all / --add-port=80/tcp [--permanent] / --add-service=http / --reload に対応しています。\n'), code: 2 };
   };
   C.tcpdump = (argv, ctx) => {
     if (!root(ctx)) return { stdout: '', stderr: 'tcpdump: eth0: You don\'t have permission to capture on that device\n(socket: Operation not permitted)\n', code: 1 };

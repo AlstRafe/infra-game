@@ -251,7 +251,7 @@
   const VF = ['name', 'p', 'publish', 'e', 'env', 't', 'tag', 'f', 'file', 'u', 'username', 'password', 'tail', 'network', 'env-file', 'format', 'filter', 'w', 'workdir', 'platform', 'entrypoint', 'restart', 'n'];
   function docker(argv, ctx) {
     const w = ctx.world, D = w.docker;
-    if (!D || !D.enabled) return fail('Cannot connect to the Docker daemon at unix:///var/run/docker.sock. Is the docker daemon running?\n\nℹ このミッションの踏み台では Docker を使いません。');
+    if (!D || !D.enabled) return fail(IG.t('Cannot connect to the Docker daemon at unix:///var/run/docker.sock. Is the docker daemon running?\n\nℹ このミッションの踏み台では Docker を使いません。'));
     if (ctx.pod) return fail(`OCI runtime exec failed: exec failed: unable to start container process: exec: "docker": executable file not found in $PATH: unknown`, 126);
     const sub = argv[0];
     const rest = argv.slice(1);
@@ -332,7 +332,7 @@
         let lines = c.logs.concat(c.access);
         const tail = U.first(a.flags.tail || a.flags.n);
         if (tail) lines = lines.slice(-Number(tail));
-        return ok(lines.join('\n') + (a.flags.f ? '\nℹ -f（フォロー）は未対応のため現在までのログを表示しました。' : ''));
+        return ok(lines.join('\n') + (a.flags.f ? IG.t('\nℹ -f（フォロー）は未対応のため現在までのログを表示しました。') : ''));
       }
       case 'inspect': {
         const n = rest.find(x => !x.startsWith('-'));
@@ -349,7 +349,7 @@
         if (c.status !== 'running') return fail(`Error response from daemon: container ${c.id} is not running`);
         const cmd = a.pos.slice(1);
         if (!cmd.length) return fail('"docker exec" requires at least 2 arguments.');
-        if (/^(\/bin\/)?(ba)?sh$/.test(cmd[0]) && cmd.length === 1) return fail(`ℹ 対話シェルは未対応です。例: docker exec ${c.name} env / docker exec ${c.name} curl -s http://localhost:${c.rt.port}/`);
+        if (/^(\/bin\/)?(ba)?sh$/.test(cmd[0]) && cmd.length === 1) return fail(IG.t(`ℹ 対話シェルは未対応です。例: docker exec {0} env / docker exec {1} curl -s http://localhost:{2}/`, { 0: c.name, 1: c.name, 2: c.rt.port }));
         return ctx.shell.runArgv(cmd[0] === 'sh' && cmd[1] === '-c' ? IG.shellWords(cmd.slice(2).join(' ')) : cmd, { container: { name: c.name, env: c.env } });
       }
       case 'tag': {
@@ -366,7 +366,7 @@
         const u = U.first(a.flags.u || a.flags.username);
         let p = U.first(a.flags.p || a.flags.password);
         if (a.flags['password-stdin']) p = (ctx.stdin || '').trim();
-        if (!u || !p) return fail('ℹ 対話入力は未対応です。docker login <registry> -u <user> -p <password>（または --password-stdin）を使ってください。');
+        if (!u || !p) return fail(IG.t('ℹ 対話入力は未対応です。docker login <registry> -u <user> -p <password>（または --password-stdin）を使ってください。'));
         const warn = a.flags.p || a.flags.password ? 'WARNING! Using --password via the CLI is insecure. Use --password-stdin.\n' : '';
         if (w.harbor && host === w.harbor.host) {
           if (!w.harbor.auth(u, p)) return fail(`${warn}Error response from daemon: Get "https://${host}/v2/": unauthorized: authentication required`);
@@ -374,7 +374,7 @@
           w.emit(`docker login ${host} as ${u}`);
           return ok(`${warn}WARNING! Your password will be stored unencrypted in /home/operator/.docker/config.json.\nConfigure a credential helper to remove this warning. See\nhttps://docs.docker.com/engine/reference/commandline/login/#credential-stores\n\nLogin Succeeded`);
         }
-        return fail(`${warn}Error response from daemon: Get "https://${host === 'docker.io' ? 'registry-1.docker.io' : host}/v2/": dial tcp: lookup ${host}: no such host\n\nℹ この訓練環境はインターネットに出られません。社内レジストリ（Harbor）を使ってください。`);
+        return fail(IG.t(`{0}Error response from daemon: Get "https://{1}/v2/": dial tcp: lookup {2}: no such host\n\nℹ この訓練環境はインターネットに出られません。社内レジストリ（Harbor）を使ってください。`, { 0: warn, 1: host === 'docker.io' ? 'registry-1.docker.io' : host, 2: host }));
       }
       case 'logout': {
         const host = rest[0] || 'docker.io';
@@ -387,7 +387,7 @@
         const img = D.findImage(ref);
         const p = IG.images.parse(ref);
         if (!img) return fail(`An image does not exist locally with the tag: ${p.host ? p.full.replace(/:latest$/, '') : p.name}`);
-        if (!p.host) return fail(`The push refers to repository [docker.io/library/${p.name}]\n${U.hex(ref, 12)}: Preparing\ndenied: requested access to the resource is denied\n\nℹ Docker Hub ではなく社内レジストリに push するには、先に docker tag で <registry>/<project>/<repo>:<tag> 形式の名前を付けます。`);
+        if (!p.host) return fail(IG.t(`The push refers to repository [docker.io/library/{0}]\n{1}: Preparing\ndenied: requested access to the resource is denied\n\nℹ Docker Hub ではなく社内レジストリに push するには、先に docker tag で <registry>/<project>/<repo>:<tag> 形式の名前を付けます。`, { 0: p.name, 1: U.hex(ref, 12) }));
         if (!w.harbor || p.host !== w.harbor.host) return fail(`The push refers to repository [${p.host}/${p.name}]\nGet "https://${p.host}/v2/": dial tcp: lookup ${p.host}: no such host`);
         const r = w.harbor.push(p, D.logins[p.host], img.meta);
         const layers = [U.hex(ref + 'l1', 12), U.hex(ref + 'l2', 12), U.hex(img.meta.base || 'base', 12)];
@@ -411,10 +411,10 @@
       }
       case 'network':
         if (rest[0] === 'ls') return ok(U.table(['NETWORK ID', 'NAME', 'DRIVER', 'SCOPE'], D.networks.map(n => [U.hex('net' + n, 12), n, n === 'host' ? 'host' : n === 'none' ? 'null' : 'bridge', 'local'])));
-        return fail('ℹ docker network は ls のみ対応しています。');
+        return fail(IG.t('ℹ docker network は ls のみ対応しています。'));
       case 'compose': return compose(rest, ctx);
       case 'stats': case 'top': case 'system':
-        return fail(`ℹ docker ${sub} はこのシミュレータでは未対応です。`);
+        return fail(IG.t(`ℹ docker {0} はこのシミュレータでは未対応です。`, { 0: sub }));
       default:
         return fail(`docker: '${sub}' is not a docker command.\nSee 'docker --help'`);
     }
@@ -449,7 +449,7 @@
     const ports = [];
     for (const p of U.list(a.flags.p || a.flags.publish)) {
       const parts = String(p).split(':');
-      if (parts.length < 2 || parts.some(x => !/^\d+$/.test(x.replace('/tcp', '')))) return fail(`docker: invalid publish opts format (should be name=value but no = found)\nℹ -p <ホスト側ポート>:<コンテナ側ポート> の形式で指定します（例: -p 8080:80）`);
+      if (parts.length < 2 || parts.some(x => !/^\d+$/.test(x.replace('/tcp', '')))) return fail(IG.t(`docker: invalid publish opts format (should be name=value but no = found)\nℹ -p <ホスト側ポート>:<コンテナ側ポート> の形式で指定します（例: -p 8080:80）`));
       ports.push({ host: Number(parts[parts.length - 2]), container: Number(parts[parts.length - 1].replace('/tcp', '')) });
     }
     const env = {};
@@ -486,7 +486,7 @@
         return ok(out.join('\n'));
       }
       if (c.status !== 'running') return { out: out.concat(c.logs).join('\n'), code: c.exitCode };
-      return ok(out.concat(c.logs, '', `ℹ フォアグラウンド実行はシミュレータでは保持できないため、バックグラウンド（-d 相当）で起動しました。`).join('\n'));
+      return ok(out.concat(c.logs, '', IG.t(`ℹ フォアグラウンド実行はシミュレータでは保持できないため、バックグラウンド（-d 相当）で起動しました。`)).join('\n'));
     }
     return ok(out.concat(c.id).join('\n'));
   }
@@ -536,7 +536,7 @@
         w.emit(`docker compose up (${cfg.project}): ${started.map(c => `${c.service}=${c.status}`).join(', ')}`, started.every(c => c.status === 'running') ? 'INFO' : 'WARN');
         const head = `[+] Running ${lines.length}/${lines.length}`;
         let txt = [head, ...lines].join('\n');
-        if (!a.flags.d && !a.flags.detach) txt += '\nℹ フォアグラウンド実行は保持できないため -d 相当で起動しました。ログは docker compose logs で確認できます。';
+        if (!a.flags.d && !a.flags.detach) txt += IG.t('\nℹ フォアグラウンド実行は保持できないため -d 相当で起動しました。ログは docker compose logs で確認できます。');
         return ok(txt);
       }
       case 'down': {

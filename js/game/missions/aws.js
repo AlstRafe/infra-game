@@ -26,7 +26,7 @@
         nodes: [{ name: 'ip-10-0-1-23.ap-northeast-1.compute.internal' }, { name: 'ip-10-0-2-117.ap-northeast-1.compute.internal' }, { name: 'ip-10-0-3-41.ap-northeast-1.compute.internal' }] });
       A.eks['prod-eks'] = { name: 'prod-eks', clusterName: 'prod-eks', version: '1.30', status: 'ACTIVE', endpoint: cl.server };
       B.apply(cl, B.deploy('web', 'shop', { image: 'nginx:1.27', port: 80, replicas: 0 }), B.svc('web', 'shop', { port: 80, targetPort: 80, type: 'LoadBalancer' }));
-      B.files(w, { [HOME + '/handover.txt']: '引き継ぎ\n- 本番 EKS: prod-eks（ap-northeast-1）\n- kubeconfig は aws eks update-kubeconfig で作成する\n- shop/web は 2 台が正常\n' });
+      B.files(w, { [HOME + '/handover.txt']: IG.t('引き継ぎ\n- 本番 EKS: prod-eks（ap-northeast-1）\n- kubeconfig は aws eks update-kubeconfig で作成する\n- shop/web は 2 台が正常\n') });
     },
     objectives: [
       { title: '認証情報を確認する', detail: '今使っている AWS の IAM 主体を確認する',
@@ -63,9 +63,9 @@
       const A = aws(w);
       A.addSG({ id: SG, name: 'corp-portal-sg', description: 'corp portal web server', ingress: [{ proto: 'tcp', from: 80, to: 80, cidrs: ['0.0.0.0/0'] }, { proto: 'tcp', from: 22, to: 22, cidrs: ['0.0.0.0/0'] }] });
       A.addSG({ id: 'sg-0f9e8d7c6b5a40002', name: 'default', description: 'default VPC security group', ingress: [] });
-      A.addInstance({ id: 'i-0c0ffee1234567890', name: 'corp-portal', privateIp: '10.0.1.50', publicIp: '203.0.113.10', listen: [80, 443, 22], sgIds: [SG], body: '<!doctype html><title>CoreLab Portal</title><h1>CoreLab 社内ポータル (EC2)</h1>' });
+      A.addInstance({ id: 'i-0c0ffee1234567890', name: 'corp-portal', privateIp: '10.0.1.50', publicIp: '203.0.113.10', listen: [80, 443, 22], sgIds: [SG], body: IG.t('<!doctype html><title>CoreLab Portal</title><h1>CoreLab 社内ポータル (EC2)</h1>') });
       A.addInstance({ id: 'i-0badc0de987654321', name: 'batch-worker', privateIp: '10.0.2.71', publicIp: null, state: 'stopped', sgIds: ['sg-0f9e8d7c6b5a40002'] });
-      w.hosts.bastion.vfs.write(HOME + '/audit/finding-0042.txt', '指摘: corp-portal-sg で tcp/22 が 0.0.0.0/0 に許可されている\n対応: 送信元をオフィスのグローバル IP 帯 198.51.100.0/24 に限定すること\n（この踏み台の送信元 IP: 198.51.100.20）\n', { mkdirs: true });
+      w.hosts.bastion.vfs.write(HOME + '/audit/finding-0042.txt', IG.t('指摘: corp-portal-sg で tcp/22 が 0.0.0.0/0 に許可されている\n対応: 送信元をオフィスのグローバル IP 帯 198.51.100.0/24 に限定すること\n（この踏み台の送信元 IP: 198.51.100.20）\n'), { mkdirs: true });
     },
     objectives: [
       { title: 'セキュリティグループを調べる', detail: 'インスタンスに付いている SG の受信ルールを確認する',
@@ -144,7 +144,7 @@
       A.addBucket({ name: 'corelab-sandbox', objects: { 'hello.txt': 'hello from S3\n' } });
       const cl = B.cluster(w, { name: 'training-cluster', server: 'https://10.0.0.10:6443', namespaces: ['lab'], ns: 'lab', nodes: [{ name: 'cp-1', role: 'control-plane' }, { name: 'worker-1' }, { name: 'worker-2' }] });
       B.apply(cl, B.deploy('hello', 'lab', { image: 'nginx:1.27', port: 80, replicas: 2 }), B.svc('hello', 'lab', { port: 80, targetPort: 80 }));
-      B.files(w, { [HOME + '/README.md']: '# フリーラボ\n\n例:\n  kubectl get all\n  kubectl create deployment web --image=nginx:1.27 --replicas=3\n  kubectl expose deployment web --port=80\n  kubectl run tmp --rm -it --image=curlimages/curl -- curl -s http://web\n  docker run -d --name web -p 8080:80 nginx:1.27\n  aws ec2 describe-instances --output text --query "Reservations[].Instances[].InstanceId"\n', [HOME + '/app/Dockerfile']: 'FROM nginx:1.27\nCOPY index.html /usr/share/nginx/html/index.html\n', [HOME + '/app/index.html']: '<h1>My first image</h1>\n' });
+      B.files(w, { [HOME + '/README.md']: IG.t('# フリーラボ\n\n例:\n  kubectl get all\n  kubectl create deployment web --image=nginx:1.27 --replicas=3\n  kubectl expose deployment web --port=80\n  kubectl run tmp --rm -it --image=curlimages/curl -- curl -s http://web\n  docker run -d --name web -p 8080:80 nginx:1.27\n  aws ec2 describe-instances --output text --query "Reservations[].Instances[].InstanceId"\n'), [HOME + '/app/Dockerfile']: 'FROM nginx:1.27\nCOPY index.html /usr/share/nginx/html/index.html\n', [HOME + '/app/index.html']: '<h1>My first image</h1>\n' });
     },
     objectives: [],
     solution: [],

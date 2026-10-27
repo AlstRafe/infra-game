@@ -5,6 +5,7 @@ Kubernetes・Docker・Harbor・OpenShift・AWS の「よくある障害」を、
 - インストール不要・オフラインで動作（外部 CDN も不使用）
 - すべての操作はブラウザ内のシミュレーション。実際のクラスタ・クラウド・ネットワークには一切接続しません
 - 表示されるホスト名・IP・ログ・脆弱性・顧客データ・パスワードはすべて訓練用の架空データです
+- 日本語・한국어・English (UK)・中文（台灣）。画面右上の地球のアイコンで切り替えます（ミッション・学習問題・資格・コマンド辞典まですべて）
 
 ## 起動
 
@@ -16,7 +17,7 @@ python -m http.server 8123
 
 → http://localhost:8123/
 
-開発用に全ミッションを解放するには URL に `?unlock=all` を付けます（例: `http://localhost:8123/?unlock=all`）。
+開発用に全ミッションを解放するには URL に `?unlock=all` を付けます（例: `http://localhost:8123/?unlock=all`）。言語は `?lang=ko` / `?lang=en-GB` / `?lang=zh-TW` / `?lang=ja` でも選べます。
 
 ## ミッション（19 本 + フリーラボ）
 
@@ -72,6 +73,8 @@ AI・機械学習や言語フレームワークなど、このゲームの範囲
 index.html            画面構造（スクリプトの読み込み順もここが正）
 css/app.css           テーマ・レイアウト・レスポンシブ
 js/core/util.js       共通処理・YAML パーサ/シリアライザ・仮想ファイルシステム
+js/core/i18n.js       言語の選択と翻訳（IG.t・IG.i18n.deep・言語メニュー。下の「言語」を参照）
+js/i18n/<言語>/*.js   翻訳（ko / en-GB / zh-TW。ui・sim・missions・learn・ref の 5 ファイル）
 js/sim/               シミュレーションモデル（DOM 非依存）
   images.js           イメージカタログとコンテナ起動判定
   world.js            1 ミッション分の世界（ホスト・クラスタ・HTTP 経路解決）
@@ -96,6 +99,7 @@ tests/run-solutions.js 全ミッションの模範解答を自動プレイして
 tests/run-linux.js    Linux シミュレータの回帰テスト（実機の出力・エラー・終了コードと照合）
 tests/run-learn.js    学習問題・資格カタログの検証（出典・配点・採点・模擬試験・進捗）
 tests/run-ref.js      コマンド辞典の検証（全コマンドの収録・リンク・全使用例の実行・検索品質・man/apropos）
+tests/run-i18n.js     翻訳の検証（訳のない文・{名前} の欠け・各言語で全ミッションが解けるか・portal.json）
 ```
 
 ### テスト
@@ -108,6 +112,8 @@ node tests/run-linux.js lvm -v       # 名前に lvm を含むケースだけ
 node tests/run-learn.js              # 学習問題と資格カタログ
 node tests/run-learn.js -v           # 資格ごとのカバー率つき
 node tests/run-ref.js                # コマンド辞典（約 1,150 の使用例をシミュレータで実行）
+node tests/run-i18n.js               # 3 言語の翻訳（ko / en-GB / zh-TW）
+node tests/run-i18n.js en-GB -v      # 1 言語だけ、全件表示
 ```
 
 各ミッションについて「開始時点で目標が未達成であること」と「模範解答で全目標を達成できること」を確認します。ミッションやシミュレータを変更したら必ず実行してください。
@@ -175,6 +181,17 @@ IG.registerMission({
 ```
 
 新しいファイルを作ったら `index.html` の `<script>` に追加してください（テストも同じ順序で読み込みます）。
+
+### 言語
+
+文はすべて日本語で書き、表示するときにその日本語を各言語の訳（`js/i18n/<言語>/*.js` の `"日本語": "訳"`）で引き当てます。訳がない文は日本語のまま出ます。
+
+- コードの文は `IG.t('〜を表示する')`、差し込みは `IG.t('{n} 件', { n })`（画面のコードでは `T(...)`）
+- ミッション・学習問題・辞典のデータは登録時に `IG.i18n.deep()` が訳すので、そのまま日本語で書けばよい。`id`・`solution`・`cmd`・`a`・`ok` などターミナルに打つ値は訳しません（一覧は `js/core/i18n.js` の `KEEP`）
+- `index.html` の文は起動時に訳します。中にタグを含む文は要素に `data-i18n` を付けて丸ごと 1 文にします
+- 選んだ言語は Cookie `lang` に入り、Home Page の他のサイトと共有されます（単体で開いたときは localStorage にも保存）
+
+日本語の文を足したり変えたりしたら、ko / en-GB / zh-TW の 3 ファイルすべてに同じ日本語をキーにした訳を足し、`node tests/run-i18n.js` を実行してください（訳のない文を一覧します）。表記は en-GB が英国式（centre・licence・optimise）、zh-TW が台湾の用語（伺服器・連接埠・映像倉庫）、`{名前}` とコマンド・パス・コードは訳さずそのまま。辞典の検索語（`k`）は各言語の言い換えを空白区切りで書きます。
 
 ## ロードマップ
 

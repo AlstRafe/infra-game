@@ -274,7 +274,7 @@
     const zones = [], links = [];
     const now = w.now();
     const recent = w.traffic.filter(x => now - x.at < 3500);
-    const bast = { id: 'bastion', label: '踏み台', sub: 'bastion', color: '#8fa3b8', icon: '❯_', racks: [] };
+    const bast = { id: 'bastion', label: IG.t('踏み台'), sub: 'bastion', color: '#8fa3b8', icon: '❯_', racks: [] };
     for (const h of Object.values(w.hosts)) {
       const isNode = Object.values(w.clusters).some(c => c.nodes.some(n => n.host === h.name));
       if (isNode) continue;
@@ -285,11 +285,11 @@
     zones.push(bast);
     if (w.features.has('docker') && w.docker) {
       const cs = w.docker.containers;
-      zones.push({ id: 'docker', label: 'Docker ホスト', sub: `${cs.filter(c => c.status === 'running').length}/${cs.length} running`, color: '#2496ed', icon: '🐳', racks: [{
+      zones.push({ id: 'docker', label: IG.t('Docker ホスト'), sub: `${cs.filter(c => c.status === 'running').length}/${cs.length} running`, color: '#2496ed', icon: '🐳', racks: [{
         label: 'docker-engine', state: worst(cs.map(c => (c.status === 'running' ? 'ok' : c.meta.kind === 'tool' ? 'off' : 'bad'))) === 'off' ? 'ok' : worst(cs.map(c => (c.status === 'running' ? 'ok' : c.meta.kind === 'tool' ? 'ok' : 'bad'))),
         units: cs.map(c => ({ label: c.name, state: c.status === 'running' ? 'ok' : c.meta.kind === 'tool' ? 'off' : 'bad' })),
-        info: cs.length ? cs.map(c => `${c.name} (${c.imageRef}) ${c.status}${c.ports.length && c.status === 'running' ? ' :' + c.ports.map(p => p.host).join(',') : ''}`) : ['コンテナなし'],
-      }, { label: 'images', kind: 'small', state: 'ok', units: w.docker.images.slice(0, 8).map(i => ({ label: i.ref, state: 'info', load: 0.3 })), info: w.docker.images.map(i => i.ref).slice(0, 10).concat(w.docker.images.length ? [] : ['イメージなし']) }] });
+        info: cs.length ? cs.map(c => `${c.name} (${c.imageRef}) ${c.status}${c.ports.length && c.status === 'running' ? ' :' + c.ports.map(p => p.host).join(',') : ''}`) : [IG.t('コンテナなし')],
+      }, { label: 'images', kind: 'small', state: 'ok', units: w.docker.images.slice(0, 8).map(i => ({ label: i.ref, state: 'info', load: 0.3 })), info: w.docker.images.map(i => i.ref).slice(0, 10).concat(w.docker.images.length ? [] : [IG.t('イメージなし')]) }] });
       links.push({ from: 'bastion', to: 'docker', active: recent.some(x => x.target && x.target.kind === 'container'), ok: !recent.some(x => x.target && x.target.kind === 'container' && !x.ok) });
     }
     for (const c of Object.values(w.clusters)) {
@@ -303,17 +303,17 @@
           info: [`${n.role} · ${ns.ready ? 'Ready' : 'NotReady'}${n.cordoned ? ' · SchedulingDisabled' : ''}`, ns.diskPressure ? `⚠ DiskPressure (disk ${ns.diskPct}%)` : null, ...units.map(u => `${u.label.split('/')[1]}  ${u.status}`)].filter(Boolean) };
       });
       const pending = c.pods.filter(p => !p.node);
-      if (pending.length) racks.push({ label: 'Pending', kind: 'small', state: 'warn', units: pending.map(p => ({ label: p.name, state: 'warn' })), info: ['スケジュール待ちの Pod', ...pending.map(p => p.name)] });
+      if (pending.length) racks.push({ label: 'Pending', kind: 'small', state: 'warn', units: pending.map(p => ({ label: p.name, state: 'warn' })), info: [IG.t('スケジュール待ちの Pod'), ...pending.map(p => p.name)] });
       const ctx = w.context();
-      zones.push({ id: 'cluster:' + c.name, label: c.name, sub: `${c.openshift ? 'OpenShift' : c.flavor === 'eks' ? 'Amazon EKS' : 'Kubernetes'}${ctx && ctx.cluster === c.name ? ' · 接続中' : ' · 未接続'}`, color, icon: c.openshift ? '⛭' : '☸', racks });
+      zones.push({ id: 'cluster:' + c.name, label: c.name, sub: `${c.openshift ? 'OpenShift' : c.flavor === 'eks' ? 'Amazon EKS' : 'Kubernetes'}${ctx && ctx.cluster === c.name ? IG.t(' · 接続中') : IG.t(' · 未接続')}`, color, icon: c.openshift ? '⛭' : '☸', racks });
       links.push({ from: 'bastion', to: 'cluster:' + c.name, ghost: !(ctx && ctx.cluster === c.name), active: recent.some(x => x.target && x.target.cluster === c.name), ok: !recent.some(x => x.target && x.target.cluster === c.name && !x.ok) });
     }
     if (w.harbor && w.features.has('harbor')) {
       const ps = Object.values(w.harbor.projects).filter(p => p.name !== 'library' || Object.keys(p.repos).length);
       zones.push({ id: 'harbor', label: 'Harbor', sub: w.harbor.host, color: '#4cae4c', icon: '⚓', racks: ps.length ? ps.map(p => {
         const arts = Object.entries(p.repos).flatMap(([r, tags]) => Object.values(tags).map(tg => ({ label: `${r}:${tg.tag}`, state: !tg.scan ? 'off' : tg.scan.critical ? 'bad' : tg.scan.high ? 'warn' : 'ok', scan: tg.scan })));
-        return { label: p.name, state: worst(arts.map(a => a.state)) === 'off' ? 'ok' : worst(arts.map(a => a.state)), units: arts, info: [`${p.public ? 'public' : 'private'}${p.preventVul ? ` · 脆弱性ブロック >= ${p.preventVul}` : ''}`, ...arts.map(a => `${a.label}  ${a.scan ? `C${a.scan.critical}/H${a.scan.high}` : '未スキャン'}`)] };
-      }) : [{ label: '(プロジェクトなし)', state: 'off', units: [], info: ['harbor project create <name>'] }] });
+        return { label: p.name, state: worst(arts.map(a => a.state)) === 'off' ? 'ok' : worst(arts.map(a => a.state)), units: arts, info: [`${p.public ? 'public' : 'private'}${p.preventVul ? IG.t(` · 脆弱性ブロック >= {0}`, { 0: p.preventVul }) : ''}`, ...arts.map(a => `${a.label}  ${a.scan ? `C${a.scan.critical}/H${a.scan.high}` : IG.t('未スキャン')}`)] };
+      }) : [{ label: IG.t('(プロジェクトなし)'), state: 'off', units: [], info: ['harbor project create <name>'] }] });
       links.push({ from: 'bastion', to: 'harbor', active: recent.some(x => x.target && x.target.kind === 'harbor') });
     }
     if (w.aws && w.features.has('aws')) {
@@ -322,11 +322,11 @@
         const sgs = i.sgIds.map(id => A.sgs[id]).filter(Boolean);
         const world22 = sgs.some(s => s.ingress.some(r => r.from <= 22 && r.to >= 22 && r.cidrs.includes('0.0.0.0/0')));
         const units = i.listen.map(p => { const open = sgs.some(s => s.ingress.some(r => r.from <= p && r.to >= p)); return { label: `tcp/${p}`, state: p === 22 && world22 ? 'bad' : open ? 'ok' : 'off' }; });
-        return { label: i.name, state: i.state !== 'running' ? 'off' : world22 ? 'warn' : 'ok', units, info: [`${i.id} · ${i.type} · ${i.state}`, i.publicIp ? `public ${i.publicIp}` : 'public IP なし', ...sgs.flatMap(s => s.ingress.map(r => `${s.name}: ${r.proto}/${r.from}${r.to !== r.from ? '-' + r.to : ''} ← ${r.cidrs.join(', ')}`))] };
+        return { label: i.name, state: i.state !== 'running' ? 'off' : world22 ? 'warn' : 'ok', units, info: [`${i.id} · ${i.type} · ${i.state}`, i.publicIp ? `public ${i.publicIp}` : IG.t('public IP なし'), ...sgs.flatMap(s => s.ingress.map(r => `${s.name}: ${r.proto}/${r.from}${r.to !== r.from ? '-' + r.to : ''} ← ${r.cidrs.join(', ')}`))] };
       });
-      for (const b of Object.values(A.buckets)) racks.push({ label: b.name.replace(/^corelab-/, ''), kind: 'bucket', state: A.bucketPublic(b) ? 'bad' : 'ok', info: [`s3://${b.name}`, A.bucketPublic(b) ? '⚠ 公開状態（誰でも読める）' : 'Block Public Access / 非公開', `${Object.keys(b.objects).length} objects`] });
+      for (const b of Object.values(A.buckets)) racks.push({ label: b.name.replace(/^corelab-/, ''), kind: 'bucket', state: A.bucketPublic(b) ? 'bad' : 'ok', info: [`s3://${b.name}`, A.bucketPublic(b) ? IG.t('⚠ 公開状態（誰でも読める）') : IG.t('Block Public Access / 非公開'), `${Object.keys(b.objects).length} objects`] });
       if (Object.keys(A.eks).length && !Object.values(w.clusters).some(c => c.flavor === 'eks')) racks.push({ label: 'EKS', kind: 'small', state: 'info', units: [] });
-      zones.push({ id: 'aws', label: 'AWS ap-northeast-1', sub: `account ${A.account}`, color: '#f5a524', icon: '☁', racks: racks.length ? racks : [{ label: '(リソースなし)', state: 'off', units: [] }] });
+      zones.push({ id: 'aws', label: 'AWS ap-northeast-1', sub: `account ${A.account}`, color: '#f5a524', icon: '☁', racks: racks.length ? racks : [{ label: IG.t('(リソースなし)'), state: 'off', units: [] }] });
       links.push({ from: 'bastion', to: 'aws', active: recent.some(x => x.target && (x.target.kind === 'ec2' || x.target.kind === 's3')), ok: !recent.some(x => x.target && (x.target.kind === 'ec2' || x.target.kind === 's3') && !x.ok) });
     }
     return { zones: grid(zones), links };
@@ -334,14 +334,14 @@
 
   // Home screen: one zone per track; one rack per mission, lit when cleared.
   function sceneFromProgress(progress, unlockAll) {
-    const zones = [{ id: 'core', label: 'CoreLab', sub: 'NOC', color: '#38d6c4', icon: '◈', racks: [{ label: 'あなた', kind: 'small', state: 'ok', units: [{ label: 'operator', state: 'ok' }], info: [progress.rank().cur.name, `XP ${progress.data.xp}`] }] }];
+    const zones = [{ id: 'core', label: 'CoreLab', sub: 'NOC', color: '#38d6c4', icon: '◈', racks: [{ label: IG.t('あなた'), kind: 'small', state: 'ok', units: [{ label: 'operator', state: 'ok' }], info: [progress.rank().cur.name, `XP ${progress.data.xp}`] }] }];
     const links = [];
     for (const t of IG.tracks) {
       const ms = IG.missionsOf(t.id);
       const done = ms.filter(m => progress.cleared(m.id)).length;
-      zones.push({ id: t.id, label: t.name, sub: `${done}/${ms.length} 稼働`, color: t.color, icon: t.icon, ghost: done === 0 && !progress.unlocked(ms[0], unlockAll), cols: Math.min(3, ms.length), racks: ms.map(m => {
+      zones.push({ id: t.id, label: t.name, sub: IG.t(`{0}/{1} 稼働`, { 0: done, 1: ms.length }), color: t.color, icon: t.icon, ghost: done === 0 && !progress.unlocked(ms[0], unlockAll), cols: Math.min(3, ms.length), racks: ms.map(m => {
         const st = progress.stars(m.id);
-        return { label: `#${m.order} ${m.title.length > 7 ? m.title.slice(0, 6) + '…' : m.title}`, title: m.title, mission: m.id, state: st ? 'ok' : progress.unlocked(m, unlockAll) ? 'warn' : 'ghost', units: st ? Array.from({ length: 2 + st * 2 }, (_, i) => ({ label: '', state: i < st * 2 ? 'ok' : 'info', load: 0.3 + ((i * 37) % 60) / 100 })) : [], info: [m.summary, st ? `${'★'.repeat(st)}${'☆'.repeat(3 - st)} クリア済み` : progress.unlocked(m, unlockAll) ? '▶ 挑戦できます' : '🔒 前のミッションをクリアすると解放'] };
+        return { label: `#${m.order} ${m.title.length > 7 ? m.title.slice(0, 6) + '…' : m.title}`, title: m.title, mission: m.id, state: st ? 'ok' : progress.unlocked(m, unlockAll) ? 'warn' : 'ghost', units: st ? Array.from({ length: 2 + st * 2 }, (_, i) => ({ label: '', state: i < st * 2 ? 'ok' : 'info', load: 0.3 + ((i * 37) % 60) / 100 })) : [], info: [m.summary, st ? IG.t(`{0}{1} クリア済み`, { 0: '★'.repeat(st), 1: '☆'.repeat(3 - st) }) : progress.unlocked(m, unlockAll) ? IG.t('▶ 挑戦できます') : IG.t('🔒 前のミッションをクリアすると解放')] };
       }) });
       links.push({ from: 'core', to: t.id, ghost: done === 0, active: done > 0, ok: true });
     }

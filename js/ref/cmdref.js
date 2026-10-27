@@ -25,6 +25,9 @@
   const hashId = s => { let h = 5381; for (const ch of s) h = ((h * 33) ^ ch.codePointAt(0)) >>> 0; return h.toString(36); };
 
   IG.registerCommands = d => {
+    const ids = (d.tasks || []).map(t => hashId(t.q));   // from the Japanese: the same address in every language
+    IG.i18n.deep(d);
+    for (const k in d.cats || {}) d.cats[k] = IG.t(d.cats[k]);   // a category key may be one deep() keeps (image)
     const topic = d.topic;
     if (!R.topics.includes(topic)) R.topics.push(topic);
     R.cats[topic] = Object.assign(R.cats[topic] || {}, d.cats || {});
@@ -36,8 +39,8 @@
       R.entries.push(e);
       R.byName[e.name] = e;
     }
-    for (const t of d.tasks || []) {
-      const task = Object.assign({ topic, k: '', see: [] }, t, { id: hashId(t.q), see: list(t.see) });
+    for (const [i, t] of (d.tasks || []).entries()) {
+      const task = Object.assign({ topic, k: '', see: [] }, t, { id: ids[i], see: list(t.see) });
       R.tasks.push(task);
       R.byTask[task.id] = task;
     }
@@ -49,8 +52,8 @@
     return e && e.same && R.byName[e.same] ? Object.assign({}, R.byName[e.same], { name: e.name, alias: e.same, en: e.en || R.byName[e.same].en, ja: e.ja || R.byName[e.same].ja }) : e || null;
   };
   R.task = id => R.byTask[id] || null;
-  // The first sentence of a description (a 「。」 inside brackets does not end it).
-  R.lead = text => { let d = 0; const t = String(text || ''); for (let i = 0; i < t.length; i++) { const ch = t[i]; if ('（(「'.includes(ch)) d++; else if ('）)」'.includes(ch)) d--; else if (ch === '。' && d <= 0) return t.slice(0, i); } return t; };
+  // The first sentence of a description (a 「。」 or ". " inside brackets does not end it).
+  R.lead = text => { let d = 0; const t = String(text || ''); for (let i = 0; i < t.length; i++) { const ch = t[i]; if ('（(「'.includes(ch)) d++; else if ('）)」'.includes(ch)) d--; else if (d <= 0 && (ch === '。' || (ch === '.' && (i + 1 === t.length || /\s/.test(t[i + 1])) && /[a-z\uac00-\ud7a3)]/i.test(t[i - 1] || '')))) return t.slice(0, i); } return t; };
   R.catName = (topic, cat) => (R.cats[topic] || {})[cat] || cat;
   R.inCat = (topic, cat) => R.entries.filter(e => e.topic === topic && e.cat === cat && !e.same);
   // Is a topic's toolset present in a mission world? (Linux always; kubectl also with OpenShift and EKS.)
@@ -370,19 +373,21 @@
   R.inGame = e => !e.nosim;
 
   /* ------------------------------------------------------------ terminal: apropos / man -k */
-  // Real apropos matches names and NAME lines; this one also understands Japanese and lists recipes.
+  // Real apropos matches names and NAME lines; this one also understands what you want to do, in
+  // Japanese, Korean, Chinese, or several English words on the English screens (apropos port in use),
+  // and lists recipes.
   R.apropos = words => {
     const q = words.join(' ').trim();
-    const ascii = /^[\x20-\x7e]+$/.test(q);
+    const plain = !/^[\x20-\x7e]+$/.test(q) || (IG.i18n && IG.i18n.lang === 'en-GB' && words.length > 1);
     let cmds;
-    if (ascii) {
+    if (!plain) {
       const res = words.map(w => new RegExp(w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i'));
       cmds = R.entries.filter(e => !e.nosim && res.some(re => re.test(e.name) || re.test(e.en)));
       cmds.sort((a, b) => a.name.localeCompare(b.name));
     } else {
       cmds = R.search(q, { kind: 'cmd', limit: 12 }).map(h => h.item).filter(e => !e.nosim);
     }
-    const tasks = ascii ? [] : R.search(q, { kind: 'task', limit: 3 }).map(h => h.item);
-    return { cmds, tasks, ja: !ascii };
+    const tasks = plain ? R.search(q, { kind: 'task', limit: 3 }).map(h => h.item) : [];
+    return { cmds, tasks, plain };
   };
 })(globalThis.IG = globalThis.IG || {});

@@ -12,7 +12,7 @@
       users: { developer: { password: 'developer' }, kubeadmin: { password: 'not-for-training', admin: true } },
       nodes: [{ name: 'worker-0.ocp.lab.local' }, { name: 'worker-1.ocp.lab.local' }, { name: 'worker-2.ocp.lab.local' }], subnet: 3,
     });
-    B.files(w, { [HOME + '/runbook/openshift.md']: `# OpenShift 訓練クラスタ\n\n- API     : ${API}\n- ユーザー: developer / developer   ※訓練用\n- アプリの公開 URL: http://<route名>-<project名>.${APPS}\n\n## 基本\n- oc login ${API} -u developer -p developer\n- oc new-project <name>       # namespace に相当\n- oc new-app <image> --name=<name>\n- oc expose service/<name>    # Route を作って外部公開\n` });
+    B.files(w, { [HOME + '/runbook/openshift.md']: IG.t(`# OpenShift 訓練クラスタ\n\n- API     : {0}\n- ユーザー: developer / developer   ※訓練用\n- アプリの公開 URL: http://<route名>-<project名>.{1}\n\n## 基本\n- oc login {2} -u developer -p developer\n- oc new-project <name>       # namespace に相当\n- oc new-app <image> --name=<name>\n- oc expose service/<name>    # Route を作って外部公開\n`, { 0: API, 1: APPS, 2: API }) });
     return cl;
   }
 

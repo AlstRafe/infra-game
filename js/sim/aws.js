@@ -57,7 +57,7 @@
         const allowed = inst.sgIds.some(id => (this.sgs[id] ? this.sgs[id].ingress : []).some(r => (r.proto === '-1' || r.proto === 'tcp') && req.port >= r.from && req.port <= r.to && r.cidrs.some(c => inCidr(srcIp, c))));
         if (!allowed) return timeout;
         if (!inst.listen.includes(req.port)) return { error: `curl: (7) Failed to connect to ${req.host} port ${req.port} after 4 ms: Couldn't connect to server`, target: { kind: 'ec2', id: inst.id } };
-        if (req.port === 22) return { error: 'curl: (1) Received HTTP/0.9 when not allowed\nℹ 22番は SSH です（SSH-2.0-OpenSSH_9.6）。', target: { kind: 'ec2', id: inst.id } };
+        if (req.port === 22) return { error: IG.t('curl: (1) Received HTTP/0.9 when not allowed\nℹ 22番は SSH です（SSH-2.0-OpenSSH_9.6）。'), target: { kind: 'ec2', id: inst.id } };
         const r = IG.runtime.respond({ kind: 'web', server: 'nginx/1.26.2', body: inst.body }, req.path);
         return Object.assign({ target: { kind: 'ec2', id: inst.id } }, r);
       }
@@ -144,7 +144,7 @@
   function aws(argv, ctx) {
     const w = ctx.world, A = w.aws;
     if (argv[0] === '--version') return ok('aws-cli/2.18.5 Python/3.12.6 Linux/5.15.0-1066-aws exe/x86_64.ubuntu.22');
-    if (!A || !A.enabled) return fail('\nUnable to locate credentials. You can configure credentials by running "aws configure".\n\nℹ このミッションでは AWS を使いません。');
+    if (!A || !A.enabled) return fail(IG.t('\nUnable to locate credentials. You can configure credentials by running "aws configure".\n\nℹ このミッションでは AWS を使いません。'));
     if (ctx.pod) return fail('OCI runtime exec failed: exec: "aws": executable file not found in $PATH: unknown', 126);
     // multi-value flags like --instance-ids a b
     const multi = new Set(['instance-ids', 'group-ids', 'group-names']);
@@ -161,12 +161,12 @@
     const out = obj => {
       let v = q ? jmes(obj, q.replace(/^['"]|['"]$/g, '')) : obj;
       if (outFmt === 'text') return ok(toText(v));
-      if (outFmt === 'table') return ok(JSON.stringify(v, null, 4) + '\n\nℹ --output table は未対応のため JSON で表示しました。');
+      if (outFmt === 'table') return ok(JSON.stringify(v, null, 4) + IG.t('\n\nℹ --output table は未対応のため JSON で表示しました。'));
       return ok(v === undefined ? '' : JSON.stringify(v, null, 4));
     };
     const need = (...names) => { const miss = names.filter(n => !a.flags[n]); return miss.length ? fail(USAGE + `aws: error: the following arguments are required: ${miss.map(n => '--' + n).join(', ')}`, 252) : null; };
     const opErr = (code, opName, msg) => fail(`\nAn error occurred (${code}) when calling the ${opName} operation: ${msg}`, 254);
-    if (!svc || svc === 'help') return ok('AWS CLI (simulated subset)\n\n  aws sts get-caller-identity\n  aws configure list | get region | set region <r>\n  aws ec2 describe-instances | describe-security-groups | authorize-security-group-ingress | revoke-security-group-ingress | start-instances | stop-instances\n  aws s3 ls | cp | mb\n  aws s3api get-public-access-block | put-public-access-block | get-bucket-policy | get-bucket-policy-status | delete-bucket-policy\n  aws eks list-clusters | describe-cluster | update-kubeconfig\n\n共通: --query \'<JMESPath>\' --output json|text');
+    if (!svc || svc === 'help') return ok(IG.t('AWS CLI (simulated subset)\n\n  aws sts get-caller-identity\n  aws configure list | get region | set region <r>\n  aws ec2 describe-instances | describe-security-groups | authorize-security-group-ingress | revoke-security-group-ingress | start-instances | stop-instances\n  aws s3 ls | cp | mb\n  aws s3api get-public-access-block | put-public-access-block | get-bucket-policy | get-bucket-policy-status | delete-bucket-policy\n  aws eks list-clusters | describe-cluster | update-kubeconfig\n\n共通: --query \'<JMESPath>\' --output json|text'));
     switch (svc) {
       case 'configure': {
         if (op === 'list' || !op) return ok(`      Name                    Value             Type    Location\n      ----                    -----             ----    --------\n   profile                <not set>             None    None\naccess_key     ****************7QXA shared-credentials-file    \nsecret_key     ****************r2Lk shared-credentials-file    \n    region           ${A.region.padEnd(16)}      config-file    ~/.aws/config`);
@@ -331,7 +331,7 @@
         ctx.vfs.write(ctx.vfs.isDir(target) ? target + '/' + IG.VFS.base('/' + src.key) : target, b.objects[src.key]);
         return ok(`download: s3://${src.bucket}/${src.key} to ${p2 || './' + IG.VFS.base('/' + src.key)}`);
       }
-      return fail('ℹ aws s3 cp は <ローカル> → s3://… または s3://… → <ローカル> の形式のみ対応しています。');
+      return fail(IG.t('ℹ aws s3 cp は <ローカル> → s3://… または s3://… → <ローカル> の形式のみ対応しています。'));
     }
     return fail(USAGE + `aws: error: argument subcommand: Invalid choice, valid choices are:\n\nls | cp | mb`, 252);
   }

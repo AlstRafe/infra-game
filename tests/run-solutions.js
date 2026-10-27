@@ -44,7 +44,8 @@ for (const m of IG.missions) {
 // be open from the start (first of their track) and keep the title the card shows.
 if (!only) {
   const card = JSON.parse(fs.readFileSync(path.join(root, 'portal.json'), 'utf8'));
-  for (const [text, href] of card.items) {
+  for (const [said, href] of card.items) {
+    const text = typeof said === 'string' ? said : said.ja; // the other languages: tests/run-i18n.js
     const m = IG.mission((href.match(/^\/#\/play\/([\w-]+)$/) || [])[1]);
     const ok = !!m && m.order === 1 && text.startsWith(m.title);
     if (!ok) failed++;

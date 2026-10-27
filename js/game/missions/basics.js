@@ -26,8 +26,8 @@
     cwd: HOME,
     setup(w, B) {
       B.files(w, {
-        [HOME + '/README-FIRST.txt']: 'CoreLab 訓練環境へようこそ！\n\n- ここはブラウザ内のシミュレーションです。何を壊しても大丈夫。\n- ls でファイル一覧、cat <ファイル> で中身を表示、cd <ディレクトリ> で移動します。\n- Tab キーで入力補完、↑ キーで前のコマンドを呼び出せます。\n- 困ったら help コマンド、またはミッション欄の「ヒント」を押してください。\n',
-        [HOME + '/runbook/oncall.md']: '# 当番手順書（抜粋）\n\n1. アプリのログは /var/log/app/app.log にある\n2. grep で ERROR の行だけを抜き出し、どのサービス（[ ] の中）が多いか調べる\n3. 原因と思われるサービス名を ~/report.txt に1行で書いて報告する\n   例: echo サービス名 > ~/report.txt\n',
+        [HOME + '/README-FIRST.txt']: IG.t('CoreLab 訓練環境へようこそ！\n\n- ここはブラウザ内のシミュレーションです。何を壊しても大丈夫。\n- ls でファイル一覧、cat <ファイル> で中身を表示、cd <ディレクトリ> で移動します。\n- Tab キーで入力補完、↑ キーで前のコマンドを呼び出せます。\n- 困ったら help コマンド、またはミッション欄の「ヒント」を押してください。\n'),
+        [HOME + '/runbook/oncall.md']: IG.t('# 当番手順書（抜粋）\n\n1. アプリのログは /var/log/app/app.log にある\n2. grep で ERROR の行だけを抜き出し、どのサービス（[ ] の中）が多いか調べる\n3. 原因と思われるサービス名を ~/report.txt に1行で書いて報告する\n   例: echo サービス名 > ~/report.txt\n'),
         [HOME + '/.bash_history']: '',
         '/var/log/app/app.log': appLog.join('\n') + '\n',
         '/var/log/app/app.log.1': '2026-10-23T23:59:59Z INFO  [api-gateway] rotated\n',
@@ -73,9 +73,9 @@
           '/etc/nginx/nginx.conf': 'user www-data;\nworker_processes auto;\n\nevents { worker_connections 768; }\n\nhttp {\n    include /etc/nginx/mime.types;\n    access_log /var/log/nginx/access.log;\n    error_log /var/log/nginx/error.log;\n    include /etc/nginx/conf.d/*.conf;\n}\n',
           '/etc/nginx/conf.d/portal.conf': conf,
           '/etc/nginx/mime.types': 'types { text/html html; }\n',
-          '/var/www/portal/index.html': '<!doctype html><title>CoreLab Portal</title><h1>CoreLab 社内ポータル</h1><p>今日も安全運用で。</p>',
+          '/var/www/portal/index.html': IG.t('<!doctype html><title>CoreLab Portal</title><h1>CoreLab 社内ポータル</h1><p>今日も安全運用で。</p>'),
           '/var/log/nginx/error.log': '2026/10/23 22:47:10 [emerg] 2412#2412: unknown directive "listn" in /etc/nginx/conf.d/portal.conf:2\n',
-          '/home/ubuntu/CHANGELOG.txt': '2026-10-23 夜: portal.conf の listen を整理（担当: 佐藤）\n',
+          '/home/ubuntu/CHANGELOG.txt': IG.t('2026-10-23 夜: portal.conf の listen を整理（担当: 佐藤）\n'),
         },
         journal: { nginx: [
           'Oct 23 22:47:09 web-01 systemd[1]: Stopping nginx.service - A high performance web server...',
@@ -98,9 +98,9 @@
             return null;
           },
         },
-        web: { port: 80, service: 'nginx', server: 'nginx/1.26.2', body: '<!doctype html><title>CoreLab Portal</title><h1>CoreLab 社内ポータル</h1><p>今日も安全運用で。</p>' },
+        web: { port: 80, service: 'nginx', server: 'nginx/1.26.2', body: IG.t('<!doctype html><title>CoreLab Portal</title><h1>CoreLab 社内ポータル</h1><p>今日も安全運用で。</p>') },
       });
-      B.files(w, { [HOME + '/tickets/INC-2041.txt']: '件名: 社内ポータル (http://web-01/) が表示されない\n対象: web-01 (10.0.1.31) / ユーザー ubuntu（sudo 可）\n接続: ssh web-01\n' });
+      B.files(w, { [HOME + '/tickets/INC-2041.txt']: IG.t('件名: 社内ポータル (http://web-01/) が表示されない\n対象: web-01 (10.0.1.31) / ユーザー ubuntu（sudo 可）\n接続: ssh web-01\n') });
     },
     objectives: [
       { title: '落ちた理由をログで確認する', detail: 'web-01 に SSH し、nginx のステータスかログを確認する',

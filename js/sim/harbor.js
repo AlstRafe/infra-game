@@ -56,8 +56,8 @@
     push(parsed, creds, meta) {
       const { project, repo } = this.split(parsed);
       const id = creds ? this.auth(creds.username, creds.password) : null;
-      if (!id) return { ok: false, error: `unauthorized: unauthorized to access repository: ${project}/${repo}, action: push: unauthorized to access repository: ${project}/${repo}, action: push\n\nℹ 先に docker login ${this.host} を実行してください。` };
-      if (!this.projects[project]) return { ok: false, error: `unknown: project ${project} not found: project ${project} not found\n\nℹ Harbor ではプロジェクトを先に作成する必要があります（harbor project create ${project}）。` };
+      if (!id) return { ok: false, error: IG.t(`unauthorized: unauthorized to access repository: {0}/{1}, action: push: unauthorized to access repository: {2}/{3}, action: push\n\nℹ 先に docker login {4} を実行してください。`, { 0: project, 1: repo, 2: project, 3: repo, 4: this.host }) };
+      if (!this.projects[project]) return { ok: false, error: IG.t(`unknown: project {0} not found: project {1} not found\n\nℹ Harbor ではプロジェクトを先に作成する必要があります（harbor project create {2}）。`, { 0: project, 1: project, 2: project }) };
       if (!this.can(id, project, 'push')) return { ok: false, error: `unauthorized: unauthorized to access repository: ${project}/${repo}, action: push` };
       const a = this.addArtifact(project, repo, parsed.tag, meta, { pushed: this.world.now(), scan: this.projects[project].autoScan ? undefined : false });
       return { ok: true, digest: a.digest, mounted: !!meta.base };
@@ -91,7 +91,7 @@
           const [pkg, ver] = pk.split(' ');
           rows.push([`CVE-SIM-${2021 + (i % 4)}-${String(1000 + (U.hash(art.digest + s + i) % 8999)).padStart(4, '0')}`, cap(s), pkg, ver, s === 'low' ? '' : bump(ver)]);
         }
-        if (n > 3 && (s === 'medium' || s === 'low')) rows.push(['…', cap(s), `(他 ${n - 3} 件)`, '', '']);
+        if (n > 3 && (s === 'medium' || s === 'low')) rows.push(['…', cap(s), IG.t(`(他 {0} 件)`, { 0: n - 3 }), '', '']);
       }
       return rows;
     }
@@ -119,7 +119,7 @@
       const d = w.docker && w.docker.logins[H.host];
       return d ? H.auth(d.username, d.password) : null;
     };
-    const needLogin = () => fail(`Error: unauthorized: authentication required\n\nℹ harbor login ${H.host} -u <user> -p <password> でログインしてください（docker login 済みならその認証情報も使われます）。`);
+    const needLogin = () => fail(IG.t(`Error: unauthorized: authentication required\n\nℹ harbor login {0} -u <user> -p <password> でログインしてください（docker login 済みならその認証情報も使われます）。`, { 0: H.host }));
     if (!group || group === 'help' || a.flags.help) {
       return ok(`harbor - Harbor registry CLI (simulated subset)\n\nUsage:\n  harbor login <host> -u <user> -p <password>\n  harbor project list | create <name> [--public] [--prevent-vul critical|high] | view <name>\n  harbor repo list <project>\n  harbor artifact list <project>/<repo>\n  harbor artifact scan <project>/<repo>:<tag>\n  harbor artifact vulnerabilities <project>/<repo>:<tag>\n  harbor robot create <name> --project <project> [--permissions pull,push] | list`);
     }
@@ -127,7 +127,7 @@
       const host = action;
       const u = U.first(a.flags.u || a.flags.username), p = U.first(a.flags.p || a.flags.password);
       if (host && host.replace(/^https?:\/\//, '') !== H.host) return fail(`Error: Get "https://${host}/api/v2.0/users/current": dial tcp: lookup ${host}: no such host`);
-      if (!u || !p) return fail('ℹ harbor login <host> -u <user> -p <password> の形式で指定してください。');
+      if (!u || !p) return fail(IG.t('ℹ harbor login <host> -u <user> -p <password> の形式で指定してください。'));
       if (!H.auth(u, p)) return fail('Error: login failed: 401 Unauthorized (invalid username or password)');
       H.session = { username: u, password: p };
       return ok(`Login successful for ${u} at https://${H.host}`);
@@ -208,7 +208,7 @@
           const secret = H.robotSecret(project, target);
           H.robots[name] = { name, project, perms, secret };
           w.emit(`Harbor robot ${name} created (${perms.join(',')})`);
-          return ok(`Robot account created.\n  Name:    ${name}\n  Secret:  ${secret}\n  Scope:   project/${project} (${perms.join(', ')})\n\n⚠ Secret はこの一度しか表示されません。必要ならコピーして安全に保管してください。`);
+          return ok(IG.t(`Robot account created.\n  Name:    {0}\n  Secret:  {1}\n  Scope:   project/{2} ({3})\n\n⚠ Secret はこの一度しか表示されません。必要ならコピーして安全に保管してください。`, { 0: name, 1: secret, 2: project, 3: perms.join(', ') }));
         }
         return fail(`Error: unknown command "${action}" for "harbor robot" (create, list)`);
       }

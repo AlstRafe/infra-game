@@ -354,7 +354,7 @@
       return ok(`No resources found${expanded.every(t => ['nodes', 'namespaces', 'projects'].includes(t.type)) ? '' : nsTxt}.`);
     }
     let text = out.join('\n\n');
-    if (a.flags.w || a.flags.watch) text += '\n\nℹ ウォッチ（-w）は未対応です。状態の変化はもう一度 get して確認してください。';
+    if (a.flags.w || a.flags.watch) text += IG.t('\n\nℹ ウォッチ（-w）は未対応です。状態の変化はもう一度 get して確認してください。');
     if (errs.length) return { out: [text, ...errs].filter(Boolean).join('\n'), code: 1, err: !text };
     return ok(text);
   }
@@ -518,7 +518,7 @@
     if (!first) return { error: 'error: required resource not specified' };
     let type, name;
     if (first.includes('/')) [type, name] = first.split('/'); else { type = first; name = second; }
-    if (TYPE_OF[type] !== 'deployments') return { error: `error: ${type} "${name}" is not a deployment (このシミュレータでは Deployment のみ対応)` };
+    if (TYPE_OF[type] !== 'deployments') return { error: IG.t(`error: {0} "{1}" is not a deployment (このシミュレータでは Deployment のみ対応)`, { 0: type, 1: name }) };
     const d = cl.get('Deployment', ns, name);
     if (!d) return { error: `Error from server (NotFound): deployments.apps "${name}" not found` };
     return { d: U.clone(d), name };
@@ -585,7 +585,7 @@
           const cfg = { auths: { [server]: { username, password, auth: U.b64(username + ':' + password) } } };
           return emit({ apiVersion: 'v1', kind: 'Secret', metadata: { name: sname, namespace: ns }, type: 'kubernetes.io/dockerconfigjson', data: { '.dockerconfigjson': U.b64(JSON.stringify(cfg)) } });
         }
-        if (kind === 'tls') return fail('ℹ TLS Secret の作成はこのシミュレータでは未対応です。');
+        if (kind === 'tls') return fail(IG.t('ℹ TLS Secret の作成はこのシミュレータでは未対応です。'));
         return fail('error: Please specify the secret type: generic, docker-registry or tls');
       }
       case 'services': {
@@ -625,7 +625,7 @@
         try { docs = parseDocs(src.text, src.file); } catch (e) { out.push(e.message); code = 1; continue; }
         if (!docs.length) { out.push(`error: no objects passed to ${create ? 'create' : 'apply'}`); code = 1; }
         for (const d of docs) {
-          if (cl.openshift && d && d.kind === 'Namespace' && !(cl.users[user] || {}).admin) { out.push(`Error from server (Forbidden): namespaces is forbidden: User "${user}" cannot create resource "namespaces" (oc new-project を使ってください)`); code = 1; continue; }
+          if (cl.openshift && d && d.kind === 'Namespace' && !(cl.users[user] || {}).admin) { out.push(IG.t(`Error from server (Forbidden): namespaces is forbidden: User "{0}" cannot create resource "namespaces" (oc new-project を使ってください)`, { 0: user })); code = 1; continue; }
           const targetNs = (d && d.metadata && d.metadata.namespace) || ns;
           const denied = d && d.kind !== 'Namespace' ? canAccess(cl, user, KINDS[d.kind] ? KINDS[d.kind].plural : 'resources', targetNs) : null;
           if (denied) { out.push(denied); code = 1; continue; }
@@ -672,7 +672,7 @@
           out.push(`pod "${n}" deleted`);
           continue;
         }
-        if (t.type === 'nodes') { out.push('ℹ ノードの削除はこのシミュレータでは無効化されています。'); continue; }
+        if (t.type === 'nodes') { out.push(IG.t('ℹ ノードの削除はこのシミュレータでは無効化されています。')); continue; }
         const kind = KIND_OF[t.type];
         if (!kind) { out.push(`error: deleting ${t.type} is not supported in this simulator`); code = 1; continue; }
         if (cl.remove(kind, ns, n)) { out.push(`${t.type === 'projects' ? 'project.project.openshift.io' : KINDS[kind].display} "${n}" deleted`); ctx.world.emit(`${KINDS[kind].display}/${n} deleted (${cl.name})`, 'WARN'); }
@@ -778,7 +778,7 @@
         let text = logs.text;
         const tail = U.first(a.flags.tail);
         if (tail && Number(tail) >= 0) text = text.split('\n').slice(-Number(tail)).join('\n');
-        return ok((r.note ? r.note + '\n' : '') + text + (a.flags.f || a.flags.follow ? '\nℹ -f（フォロー）は未対応のため現在までのログを表示しました。' : ''));
+        return ok((r.note ? r.note + '\n' : '') + text + (a.flags.f || a.flags.follow ? IG.t('\nℹ -f（フォロー）は未対応のため現在までのログを表示しました。') : ''));
       }
       case 'exec': {
         const target = a.pos[1];
@@ -1001,7 +1001,7 @@
         return denied ? { out: 'no', code: 1 } : ok('yes');
       }
       case 'port-forward':
-        return fail('ℹ port-forward はこのシミュレータでは未対応です。クラスタ内からの確認は `kubectl exec <pod> -- curl http://<service>:<port>` を使ってください。');
+        return fail(IG.t('ℹ port-forward はこのシミュレータでは未対応です。クラスタ内からの確認は `kubectl exec <pod> -- curl http://<service>:<port>` を使ってください。'));
       default:
         return fail(`error: unknown command "${verb}" for "${flavor}"\n\nDid you mean this?\n\t${['get', 'describe', 'logs', 'apply', 'delete', 'scale', 'rollout', 'exec', 'edit', 'create'].find(x => x[0] === verb[0]) || 'get'}`);
     }
@@ -1010,7 +1010,7 @@
   function podExec(ctx, cl, pod, cmd, interactive) {
     const st = cl.podStatus(pod);
     if (st.display !== 'Running') return fail(`error: unable to upgrade connection: container not found ("${pod.spec.containers[0].name}")`);
-    if (/^(\/bin\/)?(ba)?sh$/.test(cmd[0]) && cmd.length === 1) return fail(`ℹ 対話シェル${interactive ? '（-it）' : ''}はこのシミュレータでは未対応です。\n  例: kubectl exec ${pod.owner ? 'deploy/' + pod.owner : pod.name} -- curl -s http://<service>:<port>/health`);
+    if (/^(\/bin\/)?(ba)?sh$/.test(cmd[0]) && cmd.length === 1) return fail(IG.t(`ℹ 対話シェル{0}はこのシミュレータでは未対応です。\n  例: kubectl exec {1} -- curl -s http://<service>:<port>/health`, { 0: interactive ? '（-it）' : '', 1: pod.owner ? 'deploy/' + pod.owner : pod.name }));
     let argv = cmd;
     if (/^(\/bin\/)?(ba)?sh$/.test(cmd[0]) && cmd[1] === '-c') return ctx.shell.exec(cmd.slice(2).join(' '), { pod: podCtx(cl, pod, st) });
     return ctx.shell.runArgv(argv, { pod: podCtx(cl, pod, st) });
@@ -1054,9 +1054,9 @@
     'pod.spec.imagepullsecrets': 'FIELD:    imagePullSecrets <[]LocalObjectReference>\n\nDESCRIPTION:\n     ImagePullSecrets is an optional list of references to secrets in the same\n     namespace to use for pulling any of the images used by this PodSpec.',
   };
   function explain(p) {
-    if (!p) return 'You must specify the type of resource to explain. 例: kubectl explain deployment.spec.replicas';
+    if (!p) return IG.t('You must specify the type of resource to explain. 例: kubectl explain deployment.spec.replicas');
     const key = p.toLowerCase().replace(/^deployments?/, 'deployment').replace(/^svc|^services?/, 'service').replace(/^pods?/, 'pod').replace(/\.template\.spec/, '');
-    return EXPLAIN[key] || EXPLAIN[key.split('.').slice(0, 2).join('.')] || `ℹ このシミュレータに "${p}" の説明は収録されていません。実環境では kubectl explain ${p} で API スキーマを確認できます。`;
+    return EXPLAIN[key] || EXPLAIN[key.split('.').slice(0, 2).join('.')] || IG.t(`ℹ このシミュレータに "{0}" の説明は収録されていません。実環境では kubectl explain {1} で API スキーマを確認できます。`, { 0: p, 1: p });
   }
 
   function helpText(flavor) {
@@ -1127,7 +1127,7 @@ Global flags: -n NAMESPACE, -A, -o wide|yaml|json|name|jsonpath=..., -l key=valu
         let user = null;
         if (token) user = Object.entries(target.users).find(([, x]) => x.token === token)?.[0];
         else if (u) user = target.users[u] && target.users[u].password === p ? u : null;
-        else return fail('ℹ ユーザー名とパスワードを指定してください: oc login ' + target.server + ' -u <user> -p <password>');
+        else return fail(IG.t('ℹ ユーザー名とパスワードを指定してください: oc login ') + target.server + ' -u <user> -p <password>');
         if (!user) return fail('Login failed (401 Unauthorized)\nVerify you have provided the correct credentials.');
         const projects = [...(target.projectsOf[user] || [])].sort();
         const isAdmin = target.users[user].admin;
@@ -1232,10 +1232,10 @@ Global flags: -n NAMESPACE, -A, -o wide|yaml|json|name|jsonpath=..., -l key=valu
           if (scc === 'anyuid' || scc === 'privileged') cl.anyuid.add(ns + '/' + sa);
           return ok(`clusterrole.rbac.authorization.k8s.io/system:openshift:scc:${scc} added: "${sa}"`);
         }
-        return fail('ℹ このシミュレータの oc adm は "policy add-scc-to-user" のみ対応しています。');
+        return fail(IG.t('ℹ このシミュレータの oc adm は "policy add-scc-to-user" のみ対応しています。'));
       }
       case 'rsh': case 'debug':
-        return fail(`ℹ oc ${verb} の対話シェルは未対応です。oc exec <pod> -- <command> を使ってください。`);
+        return fail(IG.t(`ℹ oc {0} の対話シェルは未対応です。oc exec <pod> -- <command> を使ってください。`, { 0: verb }));
       case 'get':
         if (['projects', 'project'].includes(a.pos[1]) && cl) {
           const ps = (cl.users[context.user] || {}).admin ? cl.list('Namespace').map(n => n.metadata.name) : [...(cl.projectsOf[context.user] || [])].sort();
@@ -1243,7 +1243,7 @@ Global flags: -n NAMESPACE, -A, -o wide|yaml|json|name|jsonpath=..., -l key=valu
         }
         break;
     }
-    if (!cl && !['version', 'config', 'help', 'explain', 'api-resources', undefined].includes(verb) && !a.flags.help) return fail('error: You must be logged in to the server (Unauthorized)\n\nℹ まず oc login <server> -u <user> -p <password> でログインしてください。');
+    if (!cl && !['version', 'config', 'help', 'explain', 'api-resources', undefined].includes(verb) && !a.flags.help) return fail(IG.t('error: You must be logged in to the server (Unauthorized)\n\nℹ まず oc login <server> -u <user> -p <password> でログインしてください。'));
     return kubectl(argv, ctx, 'oc');
   }
 

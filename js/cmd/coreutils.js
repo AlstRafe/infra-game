@@ -707,7 +707,7 @@
       o.o(join(sel));
     });
     r.errs.forEach(e => o.e(cmd === 'head' ? e.replace(/^head: (.*): (No such file or directory|Permission denied|Is a directory)$/, "head: cannot open '$1' for reading: $2") : e.replace(/^tail: (.*): (No such file or directory|Permission denied)$/, "tail: cannot open '$1' for reading: $2")));
-    if (o.followed && cmd === 'tail') o.e('ℹ -f（追従）はシミュレーションでは実行し続けられないため、現在の内容を表示しました。新しいログはもう一度 tail で確認してください。', o.code);
+    if (o.followed && cmd === 'tail') o.e(IG.t('ℹ -f（追従）はシミュレーションでは実行し続けられないため、現在の内容を表示しました。新しいログはもう一度 tail で確認してください。'), o.code);
     return o.r();
   }
   C.head = (a, ctx) => headTail(a, ctx, 'head');
@@ -715,7 +715,7 @@
   C.less = (argv, ctx) => {
     const files = argv.filter(a => !a.startsWith('-') && !a.startsWith('+'));
     const r = C.cat(files, ctx);
-    if (tty(ctx) && !r.code) r.stderr = (r.stderr || '') + '(END) ℹ ページャ操作は再現していないため全文を表示しました\n';
+    if (tty(ctx) && !r.code) r.stderr = (r.stderr || '') + IG.t('(END) ℹ ページャ操作は再現していないため全文を表示しました\n');
     return r;
   };
   C.more = C.less;
@@ -862,7 +862,7 @@
     const { f, pos } = opts(argv, 'ds', ['date', 'set', 'iso-8601', 'rfc-3339']);
     const o = out();
     let t = ctx.world.now();
-    if (f.s || f.set) { if (ctx.user !== 'root') { o.e(`date: cannot set date: Operation not permitted`); } else o.e('ℹ 訓練環境では時刻の変更は反映されません（timedatectl / chrony が管理）。', 0); }
+    if (f.s || f.set) { if (ctx.user !== 'root') { o.e(`date: cannot set date: Operation not permitted`); } else o.e(IG.t('ℹ 訓練環境では時刻の変更は反映されません（timedatectl / chrony が管理）。'), 0); }
     if (f.d || f.date) { t = parseDate(f.d || f.date, t); if (isNaN(t)) { o.e(`date: invalid date ‘${f.d || f.date}’`); return o.r(); } }
     if (f.r) { const n = ctx.vfs.node(ctx.resolve(f.r)); if (n) t = n.mtime; }
     const fmt = pos.find(x => x.startsWith('+'));
@@ -899,7 +899,7 @@
     if (argv.includes('-f') || argv.includes('--fqdn')) return h.name + '.lab.local';
     if (argv.includes('-s')) return h.name;
     const pos = argv.filter(a => !a.startsWith('-'));
-    if (pos.length) return ctx.user === 'root' ? { stdout: '', stderr: 'ℹ ホスト名の変更は hostnamectl set-hostname を使ってください（一時変更は再起動で消えます）。\n', code: 0 } : { stdout: '', stderr: 'hostname: you must be root to change the host name\n', code: 1 };
+    if (pos.length) return ctx.user === 'root' ? { stdout: '', stderr: IG.t('ℹ ホスト名の変更は hostnamectl set-hostname を使ってください（一時変更は再起動で消えます）。\n'), code: 0 } : { stdout: '', stderr: 'hostname: you must be root to change the host name\n', code: 1 };
     return h.name;
   };
   C.uname = (argv, ctx) => {
@@ -953,12 +953,12 @@
   function editor(argv, ctx, readonly) {
     const fname = argv.find(x => !x.startsWith('-') && !x.startsWith('+'));
     if (ctx.pod || ctx.container) return { stdout: '', stderr: `sh: ${ctx.name}: not found\n`, code: 127 };
-    if (!fname) return { stdout: '', stderr: 'ℹ 編集するファイル名を指定してください（例: vi deployment.yaml）\n', code: 1 };
+    if (!fname) return { stdout: '', stderr: IG.t('ℹ 編集するファイル名を指定してください（例: vi deployment.yaml）\n'), code: 1 };
     const p = ctx.resolve(fname);
     const fs = ctx.vfs;
     if (fs.isDir(p)) return { stdout: '', stderr: `"${fname}" is a directory\n`, code: 1 };
-    if (!fs.isDir(VFS.parent(fs.real(p) || p))) return { stdout: '', stderr: `"${fname}" E212: Can't open file for writing (親ディレクトリが存在しません)\n`, code: 1 };
-    if (fs.exists(p) && !ctx.shell.canRead(p)) return { stdout: '', stderr: `"${fname}" [Permission Denied]\nℹ 読み取り権限がありません。sudo vi ${fname} を試してください。\n`, code: 1 };
+    if (!fs.isDir(VFS.parent(fs.real(p) || p))) return { stdout: '', stderr: IG.t(`"{0}" E212: Can't open file for writing (親ディレクトリが存在しません)\n`, { 0: fname }), code: 1 };
+    if (fs.exists(p) && !ctx.shell.canRead(p)) return { stdout: '', stderr: IG.t(`"{0}" [Permission Denied]\nℹ 読み取り権限がありません。sudo vi {1} を試してください。\n`, { 0: fname, 1: fname }), code: 1 };
     const ro = readonly || argv.includes('-R') || !ctx.shell.canWrite(fs.real(p) || p);
     ctx.editor({ path: fs.real(p) || p, host: ctx.host.name, readonly: ro, owner: ctx.user, group: ctx.host.primaryGroup(ctx.user), umask: umask(ctx), kind: ctx.name === 'nano' ? 'nano' : 'vi' });
     return '';

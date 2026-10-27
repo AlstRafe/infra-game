@@ -192,7 +192,7 @@
       } catch (e) {
         if (e instanceof B.Flow) {
           if (e.kind === 'exit') { code = e.code; this.logoutFrame(); }
-          else if (e.kind === 'abort') { this.chunks.push({ text: 'ℹ 実行ステップ数か出力量の上限に達したため中断しました（無限ループの可能性）。\n', stream: 'err' }); code = 130; }
+          else if (e.kind === 'abort') { this.chunks.push({ text: IG.t('ℹ 実行ステップ数か出力量の上限に達したため中断しました（無限ループの可能性）。\n'), stream: 'err' }); code = 130; }
           else if (e.kind === 'return') code = e.code;
           else code = 0;
         } else { this.chunks.push({ text: `bash: ${e.message}\n`, stream: 'err' }); if (typeof console !== 'undefined' && !(e instanceof B.BashSyntax)) console.error(e); code = 1; }
@@ -244,7 +244,7 @@
         const f = this.stack.pop();
         const back = this.frame;
         this.chunks.push({ text: f.host !== back.host ? `logout\nConnection to ${f.host} closed.\n` : 'logout\n', stream: 'out' });
-      } else this.chunks.push({ text: 'ℹ 踏み台（bastion）からはログアウトできません。\n', stream: 'err' });
+      } else this.chunks.push({ text: IG.t('ℹ 踏み台（bastion）からはログアウトできません。\n'), stream: 'err' });
     }
     // child=true models a new process (bash script / bash -c): only exported variables survive,
     // functions and aliases are not inherited. child=false is a ( ) / $( ) subshell.
@@ -329,7 +329,7 @@
       const selfHelp = ['kubectl', 'k', 'oc', 'docker', 'docker-compose', 'aws', 'harbor', 'bash', 'sh'];
       if (args.includes('--help') && !selfHelp.includes(name) && IG.manpages) {
         const help = IG.manpages.help(name);
-        this.writeTo(io, 1, (help || `Usage: ${name} [OPTION]... [ARG]...\nℹ このシミュレータには ${name} の詳しいヘルプを収録していません。`) + '\n');
+        this.writeTo(io, 1, (help || IG.t(`Usage: {0} [OPTION]... [ARG]...\nℹ このシミュレータには {1} の詳しいヘルプを収録していません。`, { 0: name, 1: name })) + '\n');
         return 0;
       }
       if (args.includes('--version') && ['ls', 'cat', 'cp', 'mv', 'rm', 'grep', 'sed', 'awk', 'sort', 'tar', 'curl', 'ssh', 'systemctl', 'find', 'gzip', 'date'].includes(name)) {
@@ -403,7 +403,7 @@
       const first = (text.split('\n')[0] || '');
       if (/^#!/.test(first) && !/\b(ba)?sh\b/.test(first)) {
         const interp = first.replace(/^#!\s*/, '').replace(/^\/usr\/bin\/env\s+/, '').split(/\s+/)[0];
-        this.writeTo(io, 2, `ℹ ${VFS.base(interp)} スクリプトの実行はこのシミュレータでは未対応です（bash / sh スクリプトのみ実行できます）。\n`);
+        this.writeTo(io, 2, IG.t(`ℹ {0} スクリプトの実行はこのシミュレータでは未対応です（bash / sh スクリプトのみ実行できます）。\n`, { 0: VFS.base(interp) }));
         return 126;
       }
       let ast;
@@ -833,7 +833,7 @@
       const s = io.stdin;
       if (!s || (s.tty && s.pos >= s.data.length)) {
         if (prompt) sh.writeTo(io, 2, prompt);
-        return er(sh, io, '\nℹ 対話的な入力待ちは再現できません。パイプ・ヒアドキュメント・<<< で値を渡してください（例: read x <<< "value"）。');
+        return er(sh, io, IG.t('\nℹ 対話的な入力待ちは再現できません。パイプ・ヒアドキュメント・<<< で値を渡してください（例: read x <<< "value"）。'));
       }
       if (s.pos >= s.data.length) return 1;
       let end = nchars ? Math.min(s.pos + nchars, s.data.length) : s.data.indexOf(delim, s.pos);

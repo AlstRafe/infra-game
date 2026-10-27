@@ -24,6 +24,7 @@
 html, body { margin: 0; height: 100%; }
 /* no-repeat: body is one screen tall, so a repeating glow would start again on every screen of a long page */
 body { background: radial-gradient(1200px 600px at 70% -10%, #13263a 0%, transparent 60%) no-repeat, var(--bg); color: var(--text); font: 14px/1.6 var(--font); -webkit-font-smoothing: antialiased; }
+html:lang(ko) body { word-break: keep-all; overflow-wrap: anywhere; }   /* Korean wraps between words, not inside them */
 a { color: var(--accent); text-decoration: none; }
 button { font: inherit; color: inherit; }
 code, kbd { font-family: var(--mono); font-size: .92em; }
@@ -454,6 +455,20 @@ kbd { border: 1px solid var(--line2); border-bottom-width: 2px; border-radius: 4
 .search-btn > span:first-child { font-size: 17px; line-height: 1; }
 .search-btn kbd { font-size: 10.5px; color: var(--dim); }
 .search-btn + .profile { margin-left: 0; }
+
+/* ------------------------------------------------ language menu (the same on every site of the front page: a globe, the language in its own words, four choices) */
+.lang { position: relative; flex: none; }
+.lang summary { display: flex; align-items: center; gap: 6px; min-height: 34px; padding: 0 10px; border: 1px solid var(--line2); border-radius: 9px; background: var(--panel); color: var(--muted); cursor: pointer; font-size: 13px; list-style: none; white-space: nowrap; }
+.lang summary::-webkit-details-marker { display: none; }
+.lang summary:hover, .lang[open] summary { color: var(--text); border-color: var(--accent); }
+.lang summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.lang svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.6; }
+.lang ul { position: absolute; right: 0; top: calc(100% + 6px); z-index: 40; min-width: 180px; margin: 0; padding: 6px; list-style: none; border: 1px solid var(--line2); border-radius: 10px; background: var(--panel); box-shadow: 0 14px 34px rgba(0, 0, 0, .45); }
+.lang a { display: flex; justify-content: space-between; gap: 16px; padding: 8px 10px; border-radius: 7px; color: var(--text); font-size: 13.5px; }
+.lang a:hover { background: var(--panel2); }
+.lang a[aria-current] { color: var(--accent); font-weight: 700; }
+.lang a[aria-current]::after { content: "✓"; }
+@media (max-width: 1000px) { .lang summary span { display: none; } .lang summary { padding: 0 8px; } }
 .ref { --pad: 0px; }
 .ref-search { display: flex; align-items: center; gap: 8px; border: 1px solid var(--line2); border-radius: 12px; background: var(--bg2); padding: 0 8px 0 14px; }
 .ref-search:focus-within { border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 20%, transparent); }

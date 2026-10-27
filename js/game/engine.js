@@ -6,38 +6,38 @@
 
   // name: track title · short: tight spaces · label: the product name (filters, dictionary)
   IG.tracks = [
-    { id: 'basics', name: 'Linux 基礎', short: 'Linux', label: 'Linux', color: '#8fa3b8', icon: '❯_', blurb: '端末操作・ログ調査・ファイル編集' },
-    { id: 'docker', name: 'Docker', short: 'Docker', label: 'Docker', color: '#2496ed', icon: '🐳', blurb: 'コンテナの起動・ビルド・Compose' },
-    { id: 'harbor', name: 'Harbor', short: 'Harbor', label: 'Harbor', color: '#4cae4c', icon: '⚓', blurb: 'レジストリ・脆弱性スキャン・pull 認証' },
-    { id: 'k8s', name: 'Kubernetes', short: 'K8s', label: 'Kubernetes', color: '#4f7cf0', icon: '☸', blurb: 'Pod・Service・ロールアウト・ノード障害' },
-    { id: 'ocp', name: 'OpenShift', short: 'OCP', label: 'OpenShift', color: '#e5484d', icon: '⛭', blurb: 'プロジェクト・Route・SCC' },
-    { id: 'aws', name: 'AWS', short: 'AWS', label: 'AWS', color: '#f5a524', icon: '☁', blurb: 'EKS 接続・セキュリティグループ・S3' },
+    { id: 'basics', name: IG.t('Linux 基礎'), short: 'Linux', label: 'Linux', color: '#8fa3b8', icon: '❯_', blurb: IG.t('端末操作・ログ調査・ファイル編集') },
+    { id: 'docker', name: 'Docker', short: 'Docker', label: 'Docker', color: '#2496ed', icon: '🐳', blurb: IG.t('コンテナの起動・ビルド・Compose') },
+    { id: 'harbor', name: 'Harbor', short: 'Harbor', label: 'Harbor', color: '#4cae4c', icon: '⚓', blurb: IG.t('レジストリ・脆弱性スキャン・pull 認証') },
+    { id: 'k8s', name: 'Kubernetes', short: 'K8s', label: 'Kubernetes', color: '#4f7cf0', icon: '☸', blurb: IG.t('Pod・Service・ロールアウト・ノード障害') },
+    { id: 'ocp', name: 'OpenShift', short: 'OCP', label: 'OpenShift', color: '#e5484d', icon: '⛭', blurb: IG.t('プロジェクト・Route・SCC') },
+    { id: 'aws', name: 'AWS', short: 'AWS', label: 'AWS', color: '#f5a524', icon: '☁', blurb: IG.t('EKS 接続・セキュリティグループ・S3') },
   ];
   IG.ranks = [
-    { xp: 0, name: '見習いオペレーター', en: 'Trainee' },
-    { xp: 300, name: 'ジュニアオペレーター', en: 'Junior Operator' },
-    { xp: 900, name: 'オペレーター', en: 'Operator' },
+    { xp: 0, name: IG.t('見習いオペレーター'), en: 'Trainee' },
+    { xp: 300, name: IG.t('ジュニアオペレーター'), en: 'Junior Operator' },
+    { xp: 900, name: IG.t('オペレーター'), en: 'Operator' },
     { xp: 1800, name: 'SRE', en: 'Site Reliability Engineer' },
-    { xp: 3000, name: 'シニア SRE', en: 'Senior SRE' },
-    { xp: 4500, name: 'プラットフォームアーキテクト', en: 'Platform Architect' },
-    { xp: 6500, name: 'インフラレジェンド', en: 'Infra Legend' },
+    { xp: 3000, name: IG.t('シニア SRE'), en: 'Senior SRE' },
+    { xp: 4500, name: IG.t('プラットフォームアーキテクト'), en: 'Platform Architect' },
+    { xp: 6500, name: IG.t('インフラレジェンド'), en: 'Infra Legend' },
   ];
   IG.badges = {
-    first: { name: '初出動', icon: '🚨', desc: '最初のミッションをクリア' },
-    flawless: { name: 'ノーヒント', icon: '🎯', desc: 'ヒントなしで ★3 クリア' },
-    speed: { name: '神速対応', icon: '⚡', desc: '目標時間の半分以内でクリア' },
-    basics: { name: 'ターミナル使い', icon: '❯_', desc: 'Linux 基礎トラックを完走' },
-    docker: { name: 'コンテナ職人', icon: '🐳', desc: 'Docker トラックを完走' },
-    harbor: { name: 'ハーバーマスター', icon: '⚓', desc: 'Harbor トラックを完走' },
-    k8s: { name: 'クラスタの航海士', icon: '☸', desc: 'Kubernetes トラックを完走' },
-    ocp: { name: 'OpenShift パイロット', icon: '⛭', desc: 'OpenShift トラックを完走' },
-    aws: { name: 'クラウドレンジャー', icon: '☁', desc: 'AWS トラックを完走' },
-    all: { name: 'データセンター完成', icon: '🏆', desc: '全ミッションをクリア' },
+    first: { name: IG.t('初出動'), icon: '🚨', desc: IG.t('最初のミッションをクリア') },
+    flawless: { name: IG.t('ノーヒント'), icon: '🎯', desc: IG.t('ヒントなしで ★3 クリア') },
+    speed: { name: IG.t('神速対応'), icon: '⚡', desc: IG.t('目標時間の半分以内でクリア') },
+    basics: { name: IG.t('ターミナル使い'), icon: '❯_', desc: IG.t('Linux 基礎トラックを完走') },
+    docker: { name: IG.t('コンテナ職人'), icon: '🐳', desc: IG.t('Docker トラックを完走') },
+    harbor: { name: IG.t('ハーバーマスター'), icon: '⚓', desc: IG.t('Harbor トラックを完走') },
+    k8s: { name: IG.t('クラスタの航海士'), icon: '☸', desc: IG.t('Kubernetes トラックを完走') },
+    ocp: { name: IG.t('OpenShift パイロット'), icon: '⛭', desc: IG.t('OpenShift トラックを完走') },
+    aws: { name: IG.t('クラウドレンジャー'), icon: '☁', desc: IG.t('AWS トラックを完走') },
+    all: { name: IG.t('データセンター完成'), icon: '🏆', desc: IG.t('全ミッションをクリア') },
   };
   IG.missions = [];
   IG.registerMission = m => {
     const defaults = { difficulty: 1, par: 300, xp: 100, objectives: [], debrief: { points: [], commands: [] } };
-    IG.missions.push(Object.assign({}, defaults, m));
+    IG.missions.push(Object.assign({}, defaults, IG.i18n.deep(m)));
   };
   IG.missionsOf = track => IG.missions.filter(m => m.track === track).sort((a, b) => a.order - b.order);
   IG.mission = id => IG.missions.find(m => m.id === id);

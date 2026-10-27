@@ -15,7 +15,7 @@
     cwd: HOME,
     setup(w, B) {
       w.features.add('docker');
-      B.files(w, { [HOME + '/tickets/REQ-101.txt']: '依頼: 検証用 Web ページの公開\n- イメージ: nginx:1.27\n- コンテナ名: web\n- 公開ポート: ホストの 8080 → コンテナの 80\n- 完了確認: curl http://localhost:8080 で "Welcome to nginx!" が見えること\n' });
+      B.files(w, { [HOME + '/tickets/REQ-101.txt']: IG.t('依頼: 検証用 Web ページの公開\n- イメージ: nginx:1.27\n- コンテナ名: web\n- 公開ポート: ホストの 8080 → コンテナの 80\n- 完了確認: curl http://localhost:8080 で "Welcome to nginx!" が見えること\n') });
     },
     objectives: [
       { title: 'web コンテナを起動する', detail: 'nginx:1.27 を名前 web、ホスト 8080 → コンテナ 80 で起動',
@@ -53,7 +53,7 @@
       w.docker.addLocal('shop-api:0.9', { kind: 'app', app: 'shop-api', port: 5000, requiresEnv: ['DB_HOST'], hostEnv: ['DB_HOST'], version: '0.9.0', cmd: ['python', 'app.py'], entry: 'app.py', size: '131MB', vulns: { critical: 0, high: 0, medium: 3, low: 21 } }, w.now() - 6 * 86400e3);
       B.files(w, {
         [HOME + '/shop/compose.yaml']: 'services:\n  db:\n    image: postgres:16\n    environment:\n      POSTGRES_PASSWORD: example-only\n\n  api:\n    image: shop-api:0.9\n    ports:\n      - "5000:5000"\n    environment:\n      DB_NAME: shop\n    depends_on:\n      - db\n\n  web:\n    image: nginx:1.27\n    ports:\n      - "8080:80"\n    depends_on:\n      - api\n',
-        [HOME + '/shop/README.md']: '# shop 検証環境\n\n起動: docker compose up -d\n状態: docker compose ps -a\nログ: docker compose logs <service>\n\n## api の環境変数\n- DB_HOST : 接続先 DB のホスト名（必須）。Compose ではサービス名で名前解決できる\n- DB_NAME : DB 名（既定: shop）\n',
+        [HOME + '/shop/README.md']: IG.t('# shop 検証環境\n\n起動: docker compose up -d\n状態: docker compose ps -a\nログ: docker compose logs <service>\n\n## api の環境変数\n- DB_HOST : 接続先 DB のホスト名（必須）。Compose ではサービス名で名前解決できる\n- DB_NAME : DB 名（既定: shop）\n'),
       });
       B.sh(w, 'docker compose up -d', HOME + '/shop');
     },

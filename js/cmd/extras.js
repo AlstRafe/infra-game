@@ -461,7 +461,7 @@
     if (verb === 'set-locale') {
       if (!root(ctx)) return fail('Failed to issue method call: Access denied');
       const kv = rest.map(a => (a.includes('=') ? a : 'LANG=' + a));
-      for (const a of kv) { const l = a.split('=')[1]; if (!hasLoc(h, l)) return fail(`Failed to issue method call: Locale ${l} not installed, refusing.${h.os === 'rhel' ? '\nℹ RHEL は sudo dnf install glibc-langpack-ja で日本語ロケールを追加します。' : '\nℹ Ubuntu は sudo locale-gen ja_JP.UTF-8 で生成してから設定します。'}`); }
+      for (const a of kv) { const l = a.split('=')[1]; if (!hasLoc(h, l)) return fail(`Failed to issue method call: Locale ${l} not installed, refusing.${h.os === 'rhel' ? IG.t('\nℹ RHEL は sudo dnf install glibc-langpack-ja で日本語ロケールを追加します。') : IG.t('\nℹ Ubuntu は sudo locale-gen ja_JP.UTF-8 で生成してから設定します。')}`); }
       ctx.vfs.write(h.os === 'rhel' ? '/etc/locale.conf' : '/etc/default/locale', kv.join('\n') + '\n');
       return '';
     }
@@ -537,7 +537,7 @@
       return '';
     }
     if (verb === 'show-user' || verb === 'user-status') return `${arg || ctx.user} (${uid(arg || ctx.user)})\n           Since: ${IG.strftime('%a %F %T UTC', h.bootAt)}\n           State: active\n        Sessions: *3\n          Linger: ${h.vfs.exists('/var/lib/systemd/linger/' + (arg || ctx.user)) ? 'yes' : 'no'}\n            Unit: user-${uid(arg || ctx.user)}.slice\n`;
-    return hint(`loginctl ${verb} はこのシミュレータでは未対応です（list-sessions / list-users / enable-linger に対応）。`);
+    return hint(IG.t(`loginctl {0} はこのシミュレータでは未対応です（list-sessions / list-users / enable-linger に対応）。`, { 0: verb }));
   };
 
   /* ================================================================ at */
@@ -567,10 +567,10 @@
     const t = atTime(words.join(' '), now(ctx));
     if (t === null) return fail('syntax error. Last token seen: ' + words[words.length - 1] + '\nGarbled time');
     const cmd = file ? ctx.vfs.read(ctx.resolve(file)) : ctx.hasStdin ? ctx.stdin : null;
-    if (cmd === null || cmd === undefined) return hint(file ? `${file}: No such file or directory` : "at の対話入力（at> プロンプト）は再現できません。echo 'コマンド' | at now + 5 minutes のようにパイプで渡してください。");
+    if (cmd === null || cmd === undefined) return hint(file ? `${file}: No such file or directory` : IG.t("at の対話入力（at> プロンプト）は再現できません。echo 'コマンド' | at now + 5 minutes のようにパイプで渡してください。"));
     const j = { id: ++atJobs(h).seq, t, user: ctx.user, cmd: String(cmd).trim(), cwd: ctx.cwd, queue: 'a' };
     atJobs(h).list.push(j);
-    return { stdout: '', stderr: `warning: commands will be executed using /bin/sh\njob ${j.id} at ${IG.strftime('%a %b %e %T %Y', t)}\nℹ シミュレータ内では時刻が来てもジョブは実行されません（atq / atrm で管理の練習ができます）。\n`, code: 0 };
+    return { stdout: '', stderr: IG.t(`warning: commands will be executed using /bin/sh\njob {0} at {1}\nℹ シミュレータ内では時刻が来てもジョブは実行されません（atq / atrm で管理の練習ができます）。\n`, { 0: j.id, 1: IG.strftime('%a %b %e %T %Y', t) }), code: 0 };
   };
   C.batch = (argv, ctx) => C.at(['now'].concat(argv), ctx);
   C.atq = (argv, ctx) => join(atJobs(ctx.host).list.filter(j => root(ctx) || j.user === ctx.user).map(j => `${j.id}\t${IG.strftime('%a %b %e %T %Y', j.t)} ${j.queue} ${j.user}`));
@@ -589,8 +589,8 @@
     const user = pos[0] || ctx.user;
     if (!h.users[user]) return fail(`chsh: user '${user}' does not exist`);
     const sh = f.s || f.shell;
-    if (!sh) return hint('chsh の対話入力は再現できません。chsh -s /bin/bash のように -s でシェルを指定してください。');
-    if (!root(ctx)) return user !== ctx.user ? fail(`chsh: you may not change the shell for '${user}'.`) : hint('一般ユーザーの chsh はパスワード入力が必要なため再現できません。sudo chsh -s <シェル> <ユーザー> を使ってください。');
+    if (!sh) return hint(IG.t('chsh の対話入力は再現できません。chsh -s /bin/bash のように -s でシェルを指定してください。'));
+    if (!root(ctx)) return user !== ctx.user ? fail(`chsh: you may not change the shell for '${user}'.`) : hint(IG.t('一般ユーザーの chsh はパスワード入力が必要なため再現できません。sudo chsh -s <シェル> <ユーザー> を使ってください。'));
     const shells = (ctx.vfs.read('/etc/shells') || '').split('\n');
     if (!ctx.vfs.exists(sh)) return fail(`chsh: ${sh} does not exist`);
     if (!shells.includes(sh)) return fail(`chsh: ${sh} is an invalid shell`);
@@ -603,9 +603,9 @@
     const { f, pos } = opts(argv, 'frwh', ['full-name']);
     const user = pos[0] || ctx.user;
     if (!h.users[user]) return fail(`chfn: user '${user}' does not exist`);
-    if (!root(ctx)) return hint('一般ユーザーの chfn はパスワード入力が必要なため再現できません。sudo chfn -f "氏名" <ユーザー> を使ってください。');
+    if (!root(ctx)) return hint(IG.t('一般ユーザーの chfn はパスワード入力が必要なため再現できません。sudo chfn -f "氏名" <ユーザー> を使ってください。'));
     const name = f.f || f['full-name'];
-    if (name === undefined) return hint('chfn の対話入力は再現できません。-f "氏名" で指定してください。');
+    if (name === undefined) return hint(IG.t('chfn の対話入力は再現できません。-f "氏名" で指定してください。'));
     const g = (h.users[user].gecos || '').split(',');
     g[0] = name;
     h.users[user].gecos = g.join(',').replace(/,+$/, '') + (g.length > 1 ? '' : ',,,');
@@ -671,12 +671,12 @@
   };
   C.taskset = (argv, ctx) => {
     if (argv.includes('-p') || argv.includes('-cp')) { const pid = argv[argv.length - 1]; const p = procOf(ctx, pid); if (!p) return fail(`taskset: failed to get pid ${pid}'s affinity: No such process`); return argv.includes('-cp') ? `pid ${pid}'s current affinity list: 0-${ctx.host.cpus - 1}\n` : `pid ${pid}'s current affinity mask: ${((1 << ctx.host.cpus) - 1).toString(16)}\n`; }
-    return hint('taskset によるコマンドの起動は、このシミュレータでは CPU 割り当てを反映せずにそのまま実行した扱いになります。taskset -p <PID> で確認できます。');
+    return hint(IG.t('taskset によるコマンドの起動は、このシミュレータでは CPU 割り当てを反映せずにそのまま実行した扱いになります。taskset -p <PID> で確認できます。'));
   };
   C.chrt = (argv, ctx) => {
     if (argv.includes('-p')) { const pid = argv[argv.length - 1]; const p = procOf(ctx, pid); if (!p) return fail(`chrt: failed to get pid ${pid}'s policy: No such process`); return `pid ${pid}'s current scheduling policy: SCHED_OTHER\npid ${pid}'s current scheduling priority: 0\n`; }
     if (argv.includes('-m')) return 'SCHED_OTHER min/max priority\t: 0/0\nSCHED_FIFO min/max priority\t: 1/99\nSCHED_RR min/max priority\t: 1/99\nSCHED_BATCH min/max priority\t: 0/0\nSCHED_IDLE min/max priority\t: 0/0\nSCHED_DEADLINE min/max priority\t: 0/0\n';
-    return root(ctx) ? hint('chrt によるリアルタイム優先度での起動は再現していません（chrt -p <PID> で確認できます）。') : fail('chrt: failed to set pid 0\'s policy: Operation not permitted');
+    return root(ctx) ? hint(IG.t('chrt によるリアルタイム優先度での起動は再現していません（chrt -p <PID> で確認できます）。')) : fail('chrt: failed to set pid 0\'s policy: Operation not permitted');
   };
 
   /* ================================================================ terminal */
@@ -699,8 +699,8 @@
     return `\nBroadcast message from ${ctx.user}@${ctx.host.hostname} (pts/0) (${IG.strftime('%a %b %e %T %Y', now(ctx))}):\n\n${String(msg).replace(/\n$/, '')}\n\n`;
   };
   C.mesg = argv => (argv[0] === 'n' || argv[0] === 'y' ? '' : 'is y\n');
-  C.write = () => hint('write は他のユーザーの端末にメッセージを送るコマンドです。ログインしている他の利用者がいないため再現していません（全員への通知は wall）。');
-  C.script = () => hint('script（端末操作の記録）はこのシミュレータでは未対応です。history コマンドで履歴を確認できます。');
+  C.write = () => hint(IG.t('write は他のユーザーの端末にメッセージを送るコマンドです。ログインしている他の利用者がいないため再現していません（全員への通知は wall）。'));
+  C.script = () => hint(IG.t('script（端末操作の記録）はこのシミュレータでは未対応です。history コマンドで履歴を確認できます。'));
 
   /* ================================================================ ssh helpers */
   const KEYTYPE = { 'ssh-ed25519': 'AAAAC3NzaC1lZDI1NTE5AAAAI', 'ecdsa-sha2-nistp256': 'AAAAE2VjZHNhLXNoYTItbmlzdHAyNTYAAAAIbmlzdHAyNTYAAABBB', 'ssh-rsa': 'AAAAB3NzaC1yc2EAAAADAQABAAABgQ' };
@@ -746,7 +746,7 @@
     }
     return o.r();
   };
-  C.sftp = () => hint('sftp の対話モードは再現していません。ファイル転送には scp または rsync を使ってください。');
+  C.sftp = () => hint(IG.t('sftp の対話モードは再現していません。ファイル転送には scp または rsync を使ってください。'));
 
   /* ================================================================ network tools */
   C.ethtool = (argv, ctx) => {
@@ -767,7 +767,7 @@
     const ip = r.ip || target;
     const hops = ip === ctx.host.ip || /^127\./.test(ip) ? [[ip, 0.1]] : /^10\./.test(ip) ? [[ip, 0.4]] : [['10.0.1.1', 0.3], ['???', null]];
     const rep = `Start: ${IG.strftime('%FT%T+0000', now(ctx))}\nHOST: ${ctx.host.hostname.padEnd(26)}Loss%   Snt   Last   Avg  Best  Wrst StDev\n${hops.map(([h2, ms], i) => `  ${i + 1}.|-- ${h2.padEnd(25)}${ms === null ? '100.0' : '  0.0'}%    10 ${ms === null ? '   0.0   0.0   0.0   0.0   0.0' : `${ms.toFixed(1).padStart(6)}${(ms * 1.1).toFixed(1).padStart(6)}${(ms * 0.8).toFixed(1).padStart(6)}${(ms * 1.6).toFixed(1).padStart(6)}${(ms * 0.2).toFixed(1).padStart(6)}`}`).join('\n')}\n`;
-    return argv.some(a => /^(-r|--report|-rw|-c)$/.test(a)) ? rep : { stdout: rep, stderr: 'ℹ mtr の対話画面の代わりに --report 相当の結果を表示しました。\n', code: 0 };
+    return argv.some(a => /^(-r|--report|-rw|-c)$/.test(a)) ? rep : { stdout: rep, stderr: IG.t('ℹ mtr の対話画面の代わりに --report 相当の結果を表示しました。\n'), code: 0 };
   };
   C.arping = (argv, ctx) => {
     if (!root(ctx)) return fail('arping: socket: Operation not permitted');
@@ -780,7 +780,7 @@
     if (!h2) return fail(`ARPING ${ip} from ${ctx.host.ip} eth0\nSent ${c} probes (${c} broadcast(s))\nReceived 0 response(s)`, 1, '');
     return `ARPING ${ip} from ${ctx.host.ip} eth0\n${Array.from({ length: c }, () => `Unicast reply from ${ip} [${h2.mac.toUpperCase()}]  0.6${U.hash(ip) % 9}ms`).join('\n')}\nSent ${c} probes (1 broadcast(s))\nReceived ${c} response(s)\n`;
   };
-  C.whois = (argv, ctx) => fail(`whois: getaddrinfo(whois.iana.org): Temporary failure in name resolution\nℹ 訓練環境はインターネットに出られないため whois は使えません。`, 2);
+  C.whois = (argv, ctx) => fail(IG.t(`whois: getaddrinfo(whois.iana.org): Temporary failure in name resolution\nℹ 訓練環境はインターネットに出られないため whois は使えません。`), 2);
 
   /* nmcli (NetworkManager) — read-only views plus persistent-property edits that don't move the address */
   function nm(h) {
@@ -802,7 +802,7 @@
     if (o1 === 'device') {
       if (!verb || verb === 'status') return 'DEVICE  TYPE      STATE                   CONNECTION  \neth0    ethernet  connected               System eth0 \nlo      loopback  connected (externally)  lo          \n';
       if (verb === 'show') return `GENERAL.DEVICE:                         eth0\nGENERAL.TYPE:                           ethernet\nGENERAL.HWADDR:                         ${h.mac.toUpperCase()}\nGENERAL.MTU:                            9001\nGENERAL.STATE:                          100 (connected)\nGENERAL.CONNECTION:                     ${N.name}\nIP4.ADDRESS[1]:                         ${addr}\nIP4.GATEWAY:                            10.0.1.1\nIP4.ROUTE[1]:                           dst = 0.0.0.0/0, nh = 10.0.1.1, mt = 100\nIP4.DNS[1]:                             10.0.0.2\nIP4.DOMAIN[1]:                          lab.local\n`;
-      return hint(`nmcli device ${verb} はこのシミュレータでは未対応です。`);
+      return hint(IG.t(`nmcli device {0} はこのシミュレータでは未対応です。`, { 0: verb }));
     }
     if (o1 === 'connection') {
       if (!verb || verb === 'show' && !rest.length) return `NAME         UUID                                  TYPE      DEVICE \n${N.name}  ${N.uuid}  ethernet  eth0   \nlo           ${U.hex('lo', 8)}-${U.hex('lo1', 4)}-${U.hex('lo2', 4)}-${U.hex('lo3', 4)}-${U.hex('lo4', 12)}  loopback  lo     \n`;
@@ -826,10 +826,10 @@
       if (verb === 'up' || verb === 'reload') {
         if (!root(ctx)) return fail('Error: Connection activation failed: Not authorized to control networking.', 4);
         const changed = N.props['ipv4.addresses'] !== '--' && !N.props['ipv4.addresses'].startsWith(h.ip + '/');
-        return verb === 'reload' ? '' : { stdout: `Connection successfully activated (D-Bus active path: /org/freedesktop/NetworkManager/ActiveConnection/2)\n`, stderr: changed ? 'ℹ IP アドレスの変更は他のホストとの通信に影響するため、このシミュレータでは実際のアドレスは変えません（設定値は保存されます）。\n' : '', code: 0 };
+        return verb === 'reload' ? '' : { stdout: `Connection successfully activated (D-Bus active path: /org/freedesktop/NetworkManager/ActiveConnection/2)\n`, stderr: changed ? IG.t('ℹ IP アドレスの変更は他のホストとの通信に影響するため、このシミュレータでは実際のアドレスは変えません（設定値は保存されます）。\n') : '', code: 0 };
       }
-      if (verb === 'down') return root(ctx) ? hint('eth0 を停止すると SSH 接続が切れて操作できなくなるため、訓練環境では実行しません。') : fail('Error: Not authorized to deactivate connections.', 4);
-      return hint(`nmcli connection ${verb} はこのシミュレータでは未対応です（show / modify / up に対応）。`);
+      if (verb === 'down') return root(ctx) ? hint(IG.t('eth0 を停止すると SSH 接続が切れて操作できなくなるため、訓練環境では実行しません。')) : fail('Error: Not authorized to deactivate connections.', 4);
+      return hint(IG.t(`nmcli connection {0} はこのシミュレータでは未対応です（show / modify / up に対応）。`, { 0: verb }));
     }
     return fail(`Error: argument '${obj}' not understood. Try passing --help instead.`, 2);
   };
@@ -871,15 +871,15 @@
       return files.map(p => ctx.host.vfs.read(p).replace(/^#.*\n/gm, '')).join('');
     }
     if (verb === 'status') return `     Online state: online\n    DNS Addresses: 127.0.0.53 (stub)\n       DNS Search: lab.local\n\n●  2: eth0 ethernet UP (networkd: eth0)\n      MAC Address: ${ctx.host.mac} (Amazon.com, Inc.)\n        Addresses: ${ctx.host.ip}/24 (dhcp)\n    DNS Addresses: 10.0.0.2\n       DNS Search: lab.local\n           Routes: default via 10.0.1.1 from ${ctx.host.ip} metric 100 (dhcp)\n                   10.0.1.0/24 from ${ctx.host.ip} metric 100 (link)\n\n1 inactive interfaces hidden. Use "--all" to show all.\n`;
-    if (!/^(apply|generate|try)$/.test(verb)) return hint(`netplan ${verb} はこのシミュレータでは未対応です（get / generate / try / apply / status に対応）。`);
+    if (!/^(apply|generate|try)$/.test(verb)) return hint(IG.t(`netplan {0} はこのシミュレータでは未対応です（get / generate / try / apply / status に対応）。`, { 0: verb }));
     if (!root(ctx)) return fail(verb === 'generate' ? `PermissionError: [Errno 13] Permission denied: '/run/systemd/network'` : 'Permission denied (try with sudo)');
     const r = netplanCheck(ctx);
     const o = out();
     if (r.warn.length) o.e(r.warn.join('\n'), 0);
     if (r.errs.length) { o.e(r.errs.join('\n'), 1); return o.r(); }
-    if (verb === 'try') { o.o("Do you want to keep these settings?\n\n\nPress ENTER before the timeout to accept the new configuration\n\n\nChanges will revert in 120 seconds\nConfiguration accepted.\n"); o.e('ℹ 確認待ちのタイムアウトは再現せず、そのまま受け入れた扱いにしました。', 0); }
+    if (verb === 'try') { o.o("Do you want to keep these settings?\n\n\nPress ENTER before the timeout to accept the new configuration\n\n\nChanges will revert in 120 seconds\nConfiguration accepted.\n"); o.e(IG.t('ℹ 確認待ちのタイムアウトは再現せず、そのまま受け入れた扱いにしました。'), 0); }
     const addrs = r.files.flatMap(p => { try { return Object.values(((IG.yaml.parse(ctx.host.vfs.read(p)) || {}).network || {}).ethernets || {}).flatMap(c => (c && c.addresses) || []); } catch (e) { return []; } });
-    if (verb !== 'generate' && addrs.length && !addrs.some(a => String(a).startsWith(ctx.host.ip + '/'))) o.e('ℹ 静的 IP の変更は他のホストとの通信に影響するため、このシミュレータでは実際のアドレスは変えません（設定の検証のみ行いました）。', 0);
+    if (verb !== 'generate' && addrs.length && !addrs.some(a => String(a).startsWith(ctx.host.ip + '/'))) o.e(IG.t('ℹ 静的 IP の変更は他のホストとの通信に影響するため、このシミュレータでは実際のアドレスは変えません（設定の検証のみ行いました）。'), 0);
     return o.r();
   };
   C.resolvectl = (argv, ctx) => {
@@ -894,13 +894,13 @@
       if (!ip) return fail(`${name}: resolve call failed: '${name}' not found`);
       return `${name}: ${ip}                          -- link: eth0\n\n-- Information acquired via protocol DNS in 1.2ms.\n-- Data is authenticated: no; Data was acquired via local or encrypted transport: no\n-- Data from: network\n`;
     }
-    return hint(`resolvectl ${verb} はこのシミュレータでは未対応です。`);
+    return hint(IG.t(`resolvectl {0} はこのシミュレータでは未対応です。`, { 0: verb }));
   };
   C.networkctl = (argv, ctx) => {
     const verb = argv.filter(a => !a.startsWith('-'))[0] || 'list';
     if (verb === 'list') return 'IDX LINK TYPE     OPERATIONAL SETUP     \n  1 lo   loopback carrier     unmanaged\n  2 eth0 ether    routable    configured\n\n2 links listed.\n';
     if (verb === 'status') return `●        State: routable\n  Online state: online\n       Address: ${ctx.host.ip} on eth0\n                fe80::${U.hex(ctx.host.name, 4)}:${U.hex(ctx.host.name + 1, 4)} on eth0\n       Gateway: 10.0.1.1 on eth0\n           DNS: 10.0.0.2\n Search Domains: lab.local\n`;
-    return hint(`networkctl ${verb} はこのシミュレータでは未対応です。`);
+    return hint(IG.t(`networkctl {0} はこのシミュレータでは未対応です。`, { 0: verb }));
   };
 
   /* ================================================================ openssl */
@@ -934,7 +934,7 @@
       const alg = a.includes('-6') ? '6' : a.includes('-5') ? '5' : a.includes('-1') ? '1' : a.includes('-apr1') ? 'apr1' : '6';
       const salt = val('-salt') || U.hex(String(now(ctx) + Math.random()), 16).slice(0, 16);
       const pw = a.filter(x => !x.startsWith('-') && x !== salt).pop() || (a.includes('-stdin') ? ctx.stdin.trim() : null);
-      if (pw === null) return hint('パスワードの対話入力は再現できません。openssl passwd -6 "パスワード" のように引数で渡してください。');
+      if (pw === null) return hint(IG.t('パスワードの対話入力は再現できません。openssl passwd -6 "パスワード" のように引数で渡してください。'));
       return `$${alg}$${salt}$${U.b64(IG.hash.sha512(salt + pw)).replace(/[+=]/g, '.').slice(0, alg === '6' ? 86 : 43)}\n`;
     }
     if (sub === 'genrsa' || sub === 'genpkey') {
@@ -948,11 +948,11 @@
       if (!a.includes('-x509')) {
         const file = val('-out');
         const csr = pem('CERTIFICATE REQUEST', b64('SIMCSR' + JSON.stringify({ subject: subj(val('-subj')) }) + U.hex(String(now(ctx)), 200)));
-        if (!val('-subj')) return hint('証明書情報の対話入力は再現できません。-subj "/C=JP/O=Example/CN=www.example.com" を付けてください。');
+        if (!val('-subj')) return hint(IG.t('証明書情報の対話入力は再現できません。-subj "/C=JP/O=Example/CN=www.example.com" を付けてください。'));
         if (a.includes('-newkey') && val('-keyout')) writeOut(val('-keyout'), pem('PRIVATE KEY', b64('SIMKEY' + U.hex(String(now(ctx) + 1), 800))), 0o600);
         return file ? (writeOut(file, csr) ? '' : fail(`Can't open "${file}" for writing, Permission denied`)) : csr;
       }
-      if (!val('-subj')) return hint('証明書情報の対話入力は再現できません。-subj "/CN=www.example.com" を付けてください。');
+      if (!val('-subj')) return hint(IG.t('証明書情報の対話入力は再現できません。-subj "/CN=www.example.com" を付けてください。'));
       const days = Number(val('-days') || 30);
       const meta = { subject: subj(val('-subj')), issuer: subj(val('-subj')), notBefore: now(ctx), notAfter: now(ctx) + days * 86400e3, serial: U.hex(String(now(ctx)) + val('-subj'), 40), san: (a.find(x => /^subjectAltName=/.test(x)) || '').replace(/^subjectAltName=/, '') || null };
       const cert = pem('CERTIFICATE', b64('SIMCERT' + JSON.stringify(meta) + U.hex(meta.serial, 400)));
@@ -968,7 +968,7 @@
       const c = readCert(text);
       if (!c) return fail(`Could not read certificate from ${file || '<stdin>'}\nUnable to load certificate`);
       const o = out();
-      if (c.opaque) o.e('ℹ このシミュレータで作成していない証明書のため、内容の一部は表示できません。', 0);
+      if (c.opaque) o.e(IG.t('ℹ このシミュレータで作成していない証明書のため、内容の一部は表示できません。'), 0);
       if (a.includes('-subject')) o.o(`subject=${c.subject}\n`);
       if (a.includes('-issuer')) o.o(`issuer=${c.issuer}\n`);
       if (a.includes('-serial')) o.o(`serial=${c.serial.toUpperCase()}\n`);
@@ -991,7 +991,7 @@
     }
     if (sub === 'dgst') { const t = a.filter(x => !x.startsWith('-')).pop(); const c = t ? ctx.vfs.read(ctx.resolve(t)) : ctx.stdin; const alg = a.includes('-md5') ? 'md5' : a.includes('-sha1') ? 'sha1' : a.includes('-sha512') ? 'sha512' : 'sha256'; return `${alg.toUpperCase().replace('SHA', 'SHA2-').replace('SHA2-1', 'SHA1').replace('MD5', 'MD5')}(${t || 'stdin'})= ${IG.hash[alg](c || '')}\n`; }
     if (sub === 'base64' || sub === 'enc' && a.includes('-base64')) return C.base64(a.includes('-d') ? ['-d'] : [], ctx);
-    return hint(`openssl ${sub} はこのシミュレータでは未対応です（version / rand / passwd / genrsa / req / x509 / s_client / dgst に対応）。`);
+    return hint(IG.t(`openssl {0} はこのシミュレータでは未対応です（version / rand / passwd / genrsa / req / x509 / s_client / dgst に対応）。`, { 0: sub }));
   };
 
   /* ================================================================ service clients */
@@ -1016,7 +1016,7 @@
       const ext = kind === 'site' || kind === 'conf' ? '.conf' : '.load';
       const o = out();
       const names = argv.filter(a => !a.startsWith('-'));
-      if (!names.length) { o.e(`Which ${kind === 'mod' ? 'module(s)' : kind === 'site' ? 'site(s)' : 'conf(s)'} do you want to ${enable ? 'enable' : 'disable'} (wildcards ok)?\nℹ 対話入力は再現できません。a2en${kind} <名前> の形で指定してください。`); return o.r(); }
+      if (!names.length) { o.e(IG.t(`Which {0} do you want to {1} (wildcards ok)?\nℹ 対話入力は再現できません。a2en{2} <名前> の形で指定してください。`, { 0: kind === 'mod' ? 'module(s)' : kind === 'site' ? 'site(s)' : 'conf(s)', 1: enable ? 'enable' : 'disable', 2: kind })); return o.r(); }
       if (!root(ctx)) { o.e(`ERROR: ${names[0]}: Permission denied`); return o.r(); }
       for (const raw of names) {
         const n = raw.replace(new RegExp(ext.replace('.', '\\.') + '$'), '');
@@ -1044,7 +1044,7 @@
     if (argv.includes('-v')) return 'Server version: Apache/2.4.57 (Red Hat Enterprise Linux)\nServer built:   Aug  5 2024 00:00:00\n';
     if (argv.includes('-t')) { const sn = /^\s*ServerName\s+\S/m.test(h.vfs.read('/etc/httpd/conf/httpd.conf') || ''); return { stdout: '', stderr: (sn ? '' : `AH00558: httpd: Could not reliably determine the server's fully qualified domain name, using ${h.hostname}. Set the 'ServerName' directive globally to suppress this message\n`) + 'Syntax OK\n', code: 0 }; }
     if (argv.includes('-M')) return 'Loaded Modules:\n core_module (static)\n so_module (static)\n http_module (static)\n access_compat_module (shared)\n alias_module (shared)\n authz_core_module (shared)\n dir_module (shared)\n mime_module (shared)\n mpm_event_module (shared)\n systemd_module (shared)\n';
-    return hint('httpd を直接起動する代わりに sudo systemctl start httpd を使ってください。');
+    return hint(IG.t('httpd を直接起動する代わりに sudo systemctl start httpd を使ってください。'));
   };
   C.chronyc = (argv, ctx) => {
     const verb = argv.filter(a => !a.startsWith('-'))[0] || '';
@@ -1053,7 +1053,7 @@
     if (verb === 'sources') return `MS Name/IP address         Stratum Poll Reach LastRx Last sample               \n===============================================================================\n^* 169.254.169.123               3   6   377    38   +1105ns[+1302ns] +/-  171us\n${argv.includes('-v') ? '' : ''}`;
     if (verb === 'sourcestats') return 'Name/IP Address            NP  NR  Span  Frequency  Freq Skew  Offset  Std Dev\n==============================================================================\n169.254.169.123            21  11  1290     -0.001      0.006    -12ns  3612ns\n';
     if (verb === 'makestep') return root(ctx) ? '200 OK\n' : fail('501 Not authorised');
-    return hint(`chronyc ${verb || '（対話モード）'} はこのシミュレータでは未対応です（tracking / sources / sourcestats / makestep に対応）。`);
+    return hint(IG.t(`chronyc {0} はこのシミュレータでは未対応です（tracking / sources / sourcestats / makestep に対応）。`, { 0: verb || IG.t('（対話モード）') }));
   };
   C['redis-cli'] = (argv, ctx) => {
     const h = ctx.host;
@@ -1062,7 +1062,7 @@
     const cmd = argv.filter((a, i) => !/^-[hpan]$/.test(a) && !/^-[hpan]$/.test(argv[i - 1]));
     const target = hostArg === '127.0.0.1' || hostArg === 'localhost' ? h : Object.values(ctx.world.hosts).find(x => x.name === hostArg || x.ip === hostArg);
     if (!target || !svcActive(target, 'redis-server')) return fail(`Could not connect to Redis at ${hostArg}:${port}: Connection refused`);
-    if (!cmd.length) return hint('redis-cli の対話モードは再現していません。redis-cli ping や redis-cli set key value のようにコマンドを続けて指定してください。');
+    if (!cmd.length) return hint(IG.t('redis-cli の対話モードは再現していません。redis-cli ping や redis-cli set key value のようにコマンドを続けて指定してください。'));
     const db = (target.redis = target.redis || {});
     const [c0, k, ...v] = cmd;
     switch (c0.toLowerCase()) {
@@ -1081,13 +1081,13 @@
     const h = ctx.host;
     const user = argv.includes('-U') ? argv[argv.indexOf('-U') + 1] : ctx.user;
     if (!svcActive(h, 'postgresql')) return fail('psql: error: connection to server on socket "/var/run/postgresql/.s.PGSQL.5432" failed: No such file or directory\n\tIs the server running locally and accepting connections on that socket?', 2);
-    if (user !== 'postgres') return fail(`psql: error: connection to server on socket "/var/run/postgresql/.s.PGSQL.5432" failed: FATAL:  role "${user}" does not exist${user === ctx.user ? '\nℹ 初期状態では sudo -u postgres psql で接続します。' : ''}`, 2);
+    if (user !== 'postgres') return fail(`psql: error: connection to server on socket "/var/run/postgresql/.s.PGSQL.5432" failed: FATAL:  role "${user}" does not exist${user === ctx.user ? IG.t('\nℹ 初期状態では sudo -u postgres psql で接続します。') : ''}`, 2);
     if (argv.includes('-l')) return '                                                   List of databases\n   Name    |  Owner   | Encoding | Collate |  Ctype  | ICU Locale | Locale Provider |   Access privileges   \n-----------+----------+----------+---------+---------+------------+-----------------+-----------------------\n postgres  | postgres | UTF8     | C.UTF-8 | C.UTF-8 |            | libc            | \n template0 | postgres | UTF8     | C.UTF-8 | C.UTF-8 |            | libc            | =c/postgres          +\n           |          |          |         |         |            |                 | postgres=CTc/postgres\n template1 | postgres | UTF8     | C.UTF-8 | C.UTF-8 |            | libc            | =c/postgres          +\n           |          |          |         |         |            |                 | postgres=CTc/postgres\n(3 rows)\n\n';
     const c = argv.includes('-c') ? argv[argv.indexOf('-c') + 1] : null;
     if (c && /select\s+version\(\)/i.test(c)) return '                                                              version                                                              \n-----------------------------------------------------------------------------------------------------------------------------------\n PostgreSQL 16.4 (Ubuntu 16.4-0ubuntu0.24.04.2) on x86_64-pc-linux-gnu, compiled by gcc (Ubuntu 13.2.0-23ubuntu4) 13.2.0, 64-bit\n(1 row)\n\n';
-    return hint('psql の対話操作や任意の SQL は再現していません（psql -l と psql -c "SELECT version();" に対応）。');
+    return hint(IG.t('psql の対話操作や任意の SQL は再現していません（psql -l と psql -c "SELECT version();" に対応）。'));
   };
-  C.mysql = (argv, ctx) => (svcActive(ctx.host, 'mysql') || svcActive(ctx.host, 'mariadb') ? hint('MySQL クライアントの対話操作や SQL の実行は再現していません。') : fail("ERROR 2002 (HY000): Can't connect to local MySQL server through socket '/var/run/mysqld/mysqld.sock' (2)"));
+  C.mysql = (argv, ctx) => (svcActive(ctx.host, 'mysql') || svcActive(ctx.host, 'mariadb') ? hint(IG.t('MySQL クライアントの対話操作や SQL の実行は再現していません。')) : fail("ERROR 2002 (HY000): Can't connect to local MySQL server through socket '/var/run/mysqld/mysqld.sock' (2)"));
 
   /* ================================================================ systemd odds and ends */
   C.coredumpctl = (argv, ctx) => (root(ctx) || ctx.host.inGroup(ctx.user, 'adm') || ctx.host.inGroup(ctx.user, 'wheel') ? fail('No coredumps found.') : fail('No coredumps found.\nHint: You are currently not seeing messages from other users and the system.'));
@@ -1096,22 +1096,22 @@
     if (verb === 'settle' || verb === 'control') return '';
     if (verb === 'trigger') return root(ctx) ? '' : fail('Failed to write \'change\' to \'/sys/devices/virtual/net/lo/uevent\': Permission denied');
     if (verb === 'info') { const dev = argv.find(a => a.startsWith('/dev/')) || (argv.includes('-n') ? '/dev/' + argv[argv.indexOf('-n') + 1] : ''); if (!dev) return fail('Bad Argument'); return `P: /devices/pci0000:00/0000:00:1f.0/nvme/nvme1/${dev.replace('/dev/', '')}\nN: ${dev.replace('/dev/', '')}\nL: 0\nS: disk/by-id/nvme-Amazon_Elastic_Block_Store_vol0${U.hex(dev, 15)}\nE: DEVNAME=${dev}\nE: DEVTYPE=disk\nE: SUBSYSTEM=block\nE: ID_MODEL=Amazon Elastic Block Store\n`; }
-    return hint(`udevadm ${verb || ''} はこのシミュレータでは未対応です（info / settle / trigger に対応）。`);
+    return hint(IG.t(`udevadm {0} はこのシミュレータでは未対応です（info / settle / trigger に対応）。`, { 0: verb || '' }));
   };
   C['systemd-run'] = (argv, ctx) => {
     if (!root(ctx) && !argv.includes('--user')) return fail('Failed to start transient service unit: Access denied');
     const id = 'run-u' + (100 + (U.hash(String(now(ctx))) % 900));
     const timer = argv.some(a => /^--on-(active|calendar|boot)/.test(a));
-    return { stdout: '', stderr: timer ? `Running timer as unit: ${id}.timer\nWill run service as unit: ${id}.service\nℹ シミュレータ内ではタイマーの時刻になってもコマンドは実行されません。\n` : `Running as unit: ${id}.service\n`, code: 0 };
+    return { stdout: '', stderr: timer ? IG.t(`Running timer as unit: {0}.timer\nWill run service as unit: {1}.service\nℹ シミュレータ内ではタイマーの時刻になってもコマンドは実行されません。\n`, { 0: id, 1: id }) : `Running as unit: ${id}.service\n`, code: 0 };
   };
   C['systemd-tmpfiles'] = (argv, ctx) => (root(ctx) ? '' : fail('Failed to open \'/run/tmpfiles.d\': Permission denied'));
-  C['systemd-cgls'] = () => hint('cgroup ツリーの表示は再現していません。systemctl status <サービス> で CGroup 欄を確認できます。');
-  C.nsenter = () => hint('Linux 名前空間（nsenter / unshare）はこのシミュレータでは再現していません。コンテナ内の操作は docker exec / kubectl exec を使ってください。');
+  C['systemd-cgls'] = () => hint(IG.t('cgroup ツリーの表示は再現していません。systemctl status <サービス> で CGroup 欄を確認できます。'));
+  C.nsenter = () => hint(IG.t('Linux 名前空間（nsenter / unshare）はこのシミュレータでは再現していません。コンテナ内の操作は docker exec / kubectl exec を使ってください。'));
   C.unshare = C.nsenter;
-  C.gcc = () => hint('C/C++ のコンパイルはこのシミュレータでは未対応です。');
+  C.gcc = () => hint(IG.t('C/C++ のコンパイルはこのシミュレータでは未対応です。'));
   C.cc = C.gcc; C['g++'] = C.gcc;
-  C.make = () => hint('make によるビルドはこのシミュレータでは未対応です。');
-  C.cpio = () => hint('cpio はこのシミュレータでは未対応です。アーカイブには tar を使ってください。');
-  C.iperf3 = () => hint('iperf3 による帯域測定は、訓練環境に測定相手のサーバーがないため再現していません。');
-  C.socat = () => hint('socat はこのシミュレータでは未対応です。接続確認は nc -zv <ホスト> <ポート> を使ってください。');
+  C.make = () => hint(IG.t('make によるビルドはこのシミュレータでは未対応です。'));
+  C.cpio = () => hint(IG.t('cpio はこのシミュレータでは未対応です。アーカイブには tar を使ってください。'));
+  C.iperf3 = () => hint(IG.t('iperf3 による帯域測定は、訓練環境に測定相手のサーバーがないため再現していません。'));
+  C.socat = () => hint(IG.t('socat はこのシミュレータでは未対応です。接続確認は nc -zv <ホスト> <ポート> を使ってください。'));
 })(globalThis.IG = globalThis.IG || {});

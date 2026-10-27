@@ -5,11 +5,11 @@
   'use strict';
 
   IG.levels = [
-    { n: 1, name: '入門', en: 'Intro', desc: 'はじめて触る。用語と全体像をつかむ' },
-    { n: 2, name: '基礎', en: 'Basics', desc: '日常の操作を自分でできる' },
-    { n: 3, name: '実務', en: 'Practitioner', desc: '障害を調べて直せる' },
-    { n: 4, name: '応用', en: 'Advanced', desc: '設計・セキュリティ・運用改善' },
-    { n: 5, name: 'エキスパート', en: 'Expert', desc: '内部動作と上位資格レベル' },
+    { n: 1, name: IG.t('入門'), en: 'Intro', desc: IG.t('はじめて触る。用語と全体像をつかむ') },
+    { n: 2, name: IG.t('基礎'), en: 'Basics', desc: IG.t('日常の操作を自分でできる') },
+    { n: 3, name: IG.t('実務'), en: 'Practitioner', desc: IG.t('障害を調べて直せる') },
+    { n: 4, name: IG.t('応用'), en: 'Advanced', desc: IG.t('設計・セキュリティ・運用改善') },
+    { n: 5, name: IG.t('エキスパート'), en: 'Expert', desc: IG.t('内部動作と上位資格レベル') },
   ];
   IG.DRILL_PASS = 0.8;
   IG.EXAM_PASS = 0.72;      // close to the pass mark of most vendor exams
@@ -18,10 +18,10 @@
   IG.examXp = 150;
 
   Object.assign(IG.badges, {
-    study: { name: '予習派', icon: '📘', desc: 'ラーニングのドリルに初めて合格' },
-    expert: { name: 'その道のプロ', icon: '🎓', desc: 'いずれかの分野でエキスパート（Lv5）に合格' },
-    exam: { name: '試験合格', icon: '📝', desc: '資格の模擬試験に合格' },
-    sage: { name: '全分野制覇', icon: '📚', desc: 'すべての分野・レベルのドリルに合格' },
+    study: { name: IG.t('予習派'), icon: '📘', desc: IG.t('ラーニングのドリルに初めて合格') },
+    expert: { name: IG.t('その道のプロ'), icon: '🎓', desc: IG.t('いずれかの分野でエキスパート（Lv5）に合格') },
+    exam: { name: IG.t('試験合格'), icon: '📝', desc: IG.t('資格の模擬試験に合格') },
+    sage: { name: IG.t('全分野制覇'), icon: '📚', desc: IG.t('すべての分野・レベルのドリルに合格') },
   });
 
   /* ------------------------------------------------------------ drill data
@@ -34,11 +34,12 @@
    *   { q, code?, a: '模範解答', ok: [RegExp…], x, r }
    * A unit is addressed as "<topic>:<n>" (level) or "<topic>:#<id>" (extra pack). */
   IG.drills = {};
-  IG.registerDrills = d => { IG.drills[d.topic] = d; };
+  IG.registerDrills = d => { IG.drills[d.topic] = IG.i18n.deep(d); };
   // Extra packs live in their own files (js/game/drills/extra-*.js) and add to a topic registered above.
   IG.addExtras = d => {
     const t = IG.drills[d.topic];
     if (!t) throw new Error(`no drills for ${d.topic}`);
+    IG.i18n.deep(d);
     Object.assign(t.refs, d.refs || {});
     t.extras = (t.extras || []).concat(d.extras || []);
   };
@@ -70,12 +71,13 @@
   IG.certs = [];
   IG.certNotes = {};
   IG.registerCerts = d => {
+    IG.i18n.deep(d);
     if (d.note) IG.certNotes[d.topic] = d.note;
     for (const c of d.certs) IG.certs.push(Object.assign({ topic: d.topic }, c));
   };
   IG.certsOf = topic => IG.certs.filter(c => c.topic === topic);
   IG.cert = id => IG.certs.find(c => c.id === id);
-  IG.certLevels = { foundational: '入門', associate: '標準', professional: '上級', specialty: '専門' };
+  IG.certLevels = { foundational: IG.t('入門'), associate: IG.t('標準'), professional: IG.t('上級'), specialty: IG.t('専門') };
 
   // Units of a domain that actually exist and have questions.
   function domainUnits(domain) {
@@ -177,7 +179,7 @@
     };
     for (const p of pools) take(p, Math.max(1, Math.round((p.d.weight / weight) * size)));
     for (const p of pools) if (picked.length < size) take(p, size - picked.length);   // pad from whatever is left
-    return new Run(shuffle(picked, rnd).slice(0, size), { kind: 'exam', key: 'exam:' + cert.id, cert, title: `${cert.name} 模擬試験`, pass: IG.EXAM_PASS });
+    return new Run(shuffle(picked, rnd).slice(0, size), { kind: 'exam', key: 'exam:' + cert.id, cert, title: IG.t(`{0} 模擬試験`, { 0: cert.name }), pass: IG.EXAM_PASS });
   };
 
   /* ------------------------------------------------------------ progress */

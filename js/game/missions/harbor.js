@@ -4,7 +4,7 @@
   const HOME = '/home/operator';
   const HOST = 'harbor.lab.local';
   const APP_PY = 'import os\nfrom flask import Flask, jsonify\n\napp = Flask(__name__)\nPORT = int(os.environ.get("PORT", "8000"))\n\n@app.get("/health")\ndef health():\n    return jsonify(status="ok")\n\nif __name__ == "__main__":\n    app.run(host="0.0.0.0", port=PORT)\n';
-  const RUNBOOK = `# 社内レジストリ（Harbor）利用手順\n\n- URL       : https://${HOST}\n- ユーザー  : dev01\n- パスワード: Training2026   ※訓練用の架空の値\n- 命名規則  : ${HOST}/<プロジェクト>/<リポジトリ>:<タグ>\n- プロジェクトは先に作成が必要（既定は private）\n- push 時に自動で脆弱性スキャン（Trivy）が走る\n\n## よく使うコマンド\n- docker login ${HOST} -u <user> -p <password>\n- harbor project list / harbor project create <name>\n- harbor artifact list <project>/<repo>\n- harbor artifact vulnerabilities <project>/<repo>:<tag>\n`;
+  const RUNBOOK = IG.t(`# 社内レジストリ（Harbor）利用手順\n\n- URL       : https://{0}\n- ユーザー  : dev01\n- パスワード: Training2026   ※訓練用の架空の値\n- 命名規則  : {1}/<プロジェクト>/<リポジトリ>:<タグ>\n- プロジェクトは先に作成が必要（既定は private）\n- push 時に自動で脆弱性スキャン（Trivy）が走る\n\n## よく使うコマンド\n- docker login {2} -u <user> -p <password>\n- harbor project list / harbor project create <name>\n- harbor artifact list <project>/<repo>\n- harbor artifact vulnerabilities <project>/<repo>:<tag>\n`, { 0: HOST, 1: HOST, 2: HOST });
   function harbor(w, extra = {}) {
     w.features.add('harbor');
     w.harbor = new IG.Harbor(w, { host: HOST, users: Object.assign({ admin: { password: 'not-for-training', admin: true }, dev01: { password: 'Training2026' } }, extra) });
@@ -116,7 +116,7 @@
       const dep = B.deploy('gateway', 'payments', { image: `${HOST}/payments/gateway:2.1`, port: 8080, replicas: 2 });
       B.apply(cl, dep, B.svc('gateway', 'payments', { port: 80, targetPort: 8080 }));
       B.files(w, {
-        [HOME + '/runbook/harbor.md']: RUNBOOK + '\n## クラスタから private プロジェクトを pull するには\n- プロジェクト単位の robot アカウント（pull 権限のみ）を作る: harbor robot create <name> --project <project>\n- その認証情報で docker-registry 型の Secret を作り、Pod の imagePullSecrets に指定する\n- 注意: robot 名には $ が含まれるのでシェルではシングルクォートで囲む\n',
+        [HOME + '/runbook/harbor.md']: RUNBOOK + IG.t('\n## クラスタから private プロジェクトを pull するには\n- プロジェクト単位の robot アカウント（pull 権限のみ）を作る: harbor robot create <name> --project <project>\n- その認証情報で docker-registry 型の Secret を作り、Pod の imagePullSecrets に指定する\n- 注意: robot 名には $ が含まれるのでシェルではシングルクォートで囲む\n'),
         [HOME + '/manifests/gateway.yaml']: B.yaml(dep),
       });
     },

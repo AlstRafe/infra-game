@@ -39,7 +39,7 @@
     const me = ctx.user;
     if (me !== 'root' && !h.isSudoer(me)) {
       h.authLog(`sudo: ${me} : user NOT in sudoers ; TTY=pts/0 ; PWD=${ctx.cwd} ; USER=root ; COMMAND=${argv.slice(i).join(' ')}`);
-      return { stdout: '', stderr: `[sudo] password for ${me}: \n${me} is not in the sudoers file.  This incident will be reported.\nℹ このユーザーは sudo グループ（RHEL では wheel）に入っていません。\n`, code: 1 };
+      return { stdout: '', stderr: IG.t(`[sudo] password for {0}: \n{1} is not in the sudoers file.  This incident will be reported.\nℹ このユーザーは sudo グループ（RHEL では wheel）に入っていません。\n`, { 0: me, 1: me }), code: 1 };
     }
     if (list) return `Matching Defaults entries for ${me} on ${h.hostname}:\n    env_reset, mail_badpass, secure_path=/usr/local/sbin\\:/usr/local/bin\\:/usr/sbin\\:/usr/bin\\:/sbin\\:/bin\\:/snap/bin, use_pty\n\nUser ${me} may run the following commands on ${h.hostname}:\n    (ALL : ALL) ALL\n    (ALL) NOPASSWD: ALL`;
     if (!h.users[target]) return { stdout: '', stderr: `sudo: unknown user ${target}\nsudo: error initializing audit plugin sudoers_audit\n`, code: 1 };
@@ -53,7 +53,7 @@
     }
     if (!rest.length) return { stdout: '', stderr: 'usage: sudo -h | -K | -k | -V\nusage: sudo -v [-ABknS] [-g group] [-h host] [-p prompt] [-u user]\nusage: sudo -l [-ABknS] [-g group] [-h host] [-p prompt] [-U user] [-u user] [command]\nusage: sudo [-ABbEHknPS] [-C num] [-D directory] [-g group] [-h host] [-p prompt] [-R directory] [-T timeout] [-u user] [VAR=value] [-i|-s] [<command>]\n', code: 1 };
     const builtin = IG.shellBuiltins[rest[0]] && !['echo', 'printf', 'test', '[', 'pwd', 'true', 'false', 'kill'].includes(rest[0]);
-    if (builtin) return { stdout: '', stderr: `sudo: ${rest[0]}: command not found\nℹ ${rest[0]} はシェルの組み込みコマンドなので sudo では実行できません（sudo -i で root シェルに入るか、sudo bash -c '...' を使います）。\n`, code: 1 };
+    if (builtin) return { stdout: '', stderr: IG.t(`sudo: {0}: command not found\nℹ {1} はシェルの組み込みコマンドなので sudo では実行できません（sudo -i で root シェルに入るか、sudo bash -c '...' を使います）。\n`, { 0: rest[0], 1: rest[0] }), code: 1 };
     h.authLog(`sudo: ${me} : TTY=pts/0 ; PWD=${ctx.cwd} ; USER=${target} ; COMMAND=${(sh.which(rest[0]) || { path: rest[0] }).path} ${rest.slice(1).join(' ')}`.trimEnd());
     return runAs(ctx, target, rest);
   };
@@ -77,7 +77,7 @@
     }
     if (pos[0]) target = pos[0];
     if (!h.users[target]) return { stdout: '', stderr: `su: user ${target} does not exist or the user entry does not contain all the required fields\n`, code: 1 };
-    if (ctx.user !== 'root') return { stdout: '', stderr: `Password: \nsu: Authentication failure\nℹ パスワード入力は再現できません。sudo su - ${target === 'root' ? '' : target} または sudo -iu ${target} を使ってください。\n`, code: 1 };
+    if (ctx.user !== 'root') return { stdout: '', stderr: IG.t(`Password: \nsu: Authentication failure\nℹ パスワード入力は再現できません。sudo su - {0} または sudo -iu {1} を使ってください。\n`, { 0: target === 'root' ? '' : target, 1: target }), code: 1 };
     const u = h.users[target];
     if (/nologin|false/.test(u.shell)) return { stdout: '', stderr: 'This account is currently not available.\n', code: 1 };
     if (cmd) return runAs(ctx, target, ['bash', '-c', cmd]);
@@ -89,7 +89,7 @@
     if (!root(ctx)) return { stdout: '', stderr: 'visudo: /etc/sudoers: Permission denied\n', code: 1 };
     const file = argv[argv.indexOf('-f') + 1] && argv.includes('-f') ? argv[argv.indexOf('-f') + 1] : '/etc/sudoers';
     if (argv.includes('-c')) return `${file}: parsed OK\n/etc/sudoers.d/90-cloud-init-users: parsed OK`;
-    ctx.editor({ path: ctx.resolve(file), host: ctx.host.name, readonly: false, onSave: text => { const bad = text.split('\n').findIndex(l => l.trim() && !l.trim().startsWith('#') && !/^(Defaults|@include|%|\w|Cmnd_Alias|User_Alias|Host_Alias|Runas_Alias)/.test(l.trim())); return bad >= 0 ? { out: `>>> ${file}: syntax error near line ${bad + 1} <<<\nℹ 実際の visudo は保存前に構文を検査し、誤りがあると反映しません。`, err: true } : { out: '' }; } });
+    ctx.editor({ path: ctx.resolve(file), host: ctx.host.name, readonly: false, onSave: text => { const bad = text.split('\n').findIndex(l => l.trim() && !l.trim().startsWith('#') && !/^(Defaults|@include|%|\w|Cmnd_Alias|User_Alias|Host_Alias|Runas_Alias)/.test(l.trim())); return bad >= 0 ? { out: IG.t(`>>> {0}: syntax error near line {1} <<<\nℹ 実際の visudo は保存前に構文を検査し、誤りがあると反映しません。`, { 0: file, 1: bad + 1 }), err: true } : { out: '' }; } });
     return '';
   };
 
@@ -121,7 +121,7 @@
     const r = C.useradd(['-m', '-s', '/bin/bash', name], ctx);
     if (r && r.code) return r;
     const u = ctx.host.users[name];
-    return `Adding user \`${name}' ...\nAdding new group \`${name}' (${u.gid}) ...\nAdding new user \`${name}' (${u.uid}) with group \`${name}' ...\nCreating home directory \`${u.home}' ...\nCopying files from \`/etc/skel' ...\nℹ パスワード入力は再現できないため未設定のままです（echo '${name}:password' | sudo chpasswd で設定できます）。`;
+    return IG.t(`Adding user \`{0}' ...\nAdding new group \`{1}' ({2}) ...\nAdding new user \`{3}' ({4}) with group \`{5}' ...\nCreating home directory \`{6}' ...\nCopying files from \`/etc/skel' ...\nℹ パスワード入力は再現できないため未設定のままです（echo '{7}:password' | sudo chpasswd で設定できます）。`, { 0: name, 1: name, 2: u.gid, 3: name, 4: u.uid, 5: name, 6: u.home, 7: name });
   };
   C.usermod = (argv, ctx) => {
     if (!root(ctx)) return { stdout: '', stderr: NO_ROOT('usermod') + '\n', code: 1 };
@@ -201,7 +201,7 @@
     if (f.u || f.unlock) { if (!root(ctx)) return { stdout: '', stderr: 'passwd: Permission denied.\n', code: 1 }; u.locked = false; h.syncAccounts(); return `passwd: password changed.`; }
     if (f.e || f.expire) { if (!root(ctx)) return { stdout: '', stderr: 'passwd: Permission denied.\n', code: 1 }; u.expired = true; return 'passwd: password expiry information changed.'; }
     if (ctx.hasStdin && f.stdin) { u.password = '$6$' + U.hex(ctx.stdin, 16) + '$'; h.syncAccounts(); return 'passwd: password updated successfully'; }
-    return { stdout: '', stderr: `New password: \nℹ 対話的なパスワード入力は再現できません。echo '${target}:新しいパスワード' | sudo chpasswd を使ってください。\npasswd: Authentication token manipulation error\npasswd: password unchanged\n`, code: 10 };
+    return { stdout: '', stderr: IG.t(`New password: \nℹ 対話的なパスワード入力は再現できません。echo '{0}:新しいパスワード' | sudo chpasswd を使ってください。\npasswd: Authentication token manipulation error\npasswd: password unchanged\n`, { 0: target }), code: 10 };
   };
   C.chpasswd = (argv, ctx) => {
     if (!root(ctx)) return { stdout: '', stderr: 'chpasswd: (user operator) pam_chauthtok() failed, error:\nAuthentication token manipulation error\nchpasswd: (line 1, user operator) password not changed\n', code: 1 };
@@ -333,10 +333,10 @@
     const up = ctx.world.now() - h.bootAt;
     const head = `top - ${IG.strftime('%T', ctx.world.now())} up ${Math.floor(up / 86400e3)} days, ${String(Math.floor((up % 86400e3) / 3600e3)).padStart(2)}:${String(Math.floor((up % 3600e3) / 60e3)).padStart(2, '0')},  1 user,  load average: ${load.map(x => x.toFixed(2)).join(', ')}\nTasks: ${procs.length + 96} total,   1 running, ${procs.length + 95} sleeping,   0 stopped,   0 zombie\n%Cpu(s):  ${cpuSum.toFixed(1)} us,  0.3 sy,  0.0 ni, ${(99.5 - cpuSum).toFixed(1)} id,  0.1 wa,  0.0 hi,  0.0 si,  0.1 st\nMiB Mem :   ${(m.total / 1024).toFixed(1)} total,   ${(m.free / 1024).toFixed(1)} free,   ${(m.used / 1024).toFixed(1)} used,   ${(m.buff / 1024).toFixed(1)} buff/cache\nMiB Swap: ${((IG.swapKiB ? IG.swapKiB(h) : 0) / 1024).toFixed(1).padStart(8)} total, ${((IG.swapKiB ? IG.swapKiB(h) : 0) / 1024).toFixed(1).padStart(8)} free,      0.0 used.   ${(m.avail / 1024).toFixed(1)} avail Mem\n\n    PID USER      PR  NI    VIRT    RES    SHR S  %CPU  %MEM     TIME+ COMMAND\n`;
     const rows = procs.slice(0, argv.includes('-b') ? procs.length : 20).map(p => `${String(p.pid).padStart(7)} ${p.user.slice(0, 8).padEnd(8)}  20   0 ${String(p.vsz).padStart(7)} ${String(p.rss).padStart(6)} ${String(Math.round(p.rss / 3)).padStart(6)} ${p.stat[0]} ${p.cpu.toFixed(1).padStart(5)} ${p.mem.toFixed(1).padStart(5)} ${('  ' + p.time + '.12').slice(-9)} ${p.cmd.replace(/^-/, '').split(/\s/)[0].split('/').pop().replace(/:$/, '')}`);
-    const note = argv.includes('-b') ? '' : 'ℹ top は対話型のため、1 回分のスナップショットを表示しました（q で終了する操作は不要です）。\n';
+    const note = argv.includes('-b') ? '' : IG.t('ℹ top は対話型のため、1 回分のスナップショットを表示しました（q で終了する操作は不要です）。\n');
     return { stdout: head + rows.join('\n') + '\n', stderr: note, code: 0 };
   };
-  C.htop = (argv, ctx) => { const r = C.top(['-b'], ctx); r.stderr = 'ℹ htop は対話型のため、top -b 相当のスナップショットを表示しました。\n'; return r; };
+  C.htop = (argv, ctx) => { const r = C.top(['-b'], ctx); r.stderr = IG.t('ℹ htop は対話型のため、top -b 相当のスナップショットを表示しました。\n'); return r; };
   const SIGS = ['HUP', 'INT', 'QUIT', 'ILL', 'TRAP', 'ABRT', 'BUS', 'FPE', 'KILL', 'USR1', 'SEGV', 'USR2', 'PIPE', 'ALRM', 'TERM', 'STKFLT', 'CHLD', 'CONT', 'STOP', 'TSTP', 'TTIN', 'TTOU', 'URG', 'XCPU', 'XFSZ', 'VTALRM', 'PROF', 'WINCH', 'POLL', 'PWR', 'SYS'];
   function signal(ctx, pid, sig) {
     const h = ctx.host;
@@ -483,7 +483,7 @@
     const cmd = argv.slice(i).join(' ');
     if (!cmd) return { stdout: '', stderr: 'Usage:\n watch [options] command\n', code: 1 };
     const r = ctx.shell.exec(cmd, ctx.pod ? { pod: ctx.pod } : null);
-    return { stdout: `Every ${n}s: ${cmd}${' '.repeat(Math.max(1, 60 - cmd.length))}${ctx.host.hostname}: ${IG.strftime('%a %b %e %T %Y', ctx.world.now())}\n\n${r.out}\n`, stderr: 'ℹ watch は画面を更新し続けるコマンドです。シミュレータでは 1 回分を表示しました（もう一度実行すると最新状態になります）。\n', code: 0 };
+    return { stdout: `Every ${n}s: ${cmd}${' '.repeat(Math.max(1, 60 - cmd.length))}${ctx.host.hostname}: ${IG.strftime('%a %b %e %T %Y', ctx.world.now())}\n\n${r.out}\n`, stderr: IG.t('ℹ watch は画面を更新し続けるコマンドです。シミュレータでは 1 回分を表示しました（もう一度実行すると最新状態になります）。\n'), code: 0 };
   };
   C.time = (argv, ctx) => {
     const code = argv.length ? ctx.shell.invoke(argv, ctx.io) : 0;
@@ -702,7 +702,7 @@
         continue;
       }
       if (!(s in h.services) && s !== 'docker' && s !== 'containerd') { h.services[s] = 'inactive'; h.enabled[s] = false; }
-      const authFail = () => o.e(`Failed to ${verb} ${s}.service: Interactive authentication required.\nSee system logs and 'systemctl status ${s}.service' for details.\nℹ サービスの操作には sudo が必要です。`);
+      const authFail = () => o.e(IG.t(`Failed to {0} {1}.service: Interactive authentication required.\nSee system logs and 'systemctl status {2}.service' for details.\nℹ サービスの操作には sudo が必要です。`, { 0: verb, 1: s, 2: s }));
       switch (verb) {
         case 'status': { const r = svcStatus(ctx, h, s); o.o(r.text); o.code = Math.max(o.code, r.code); break; }
         case 'is-active': o.o((h.svcState(s) === 'active' ? 'active' : h.svcState(s) === 'failed' ? 'failed' : 'inactive') + '\n'); if (h.svcState(s) !== 'active') o.code = 3; break;
@@ -743,7 +743,7 @@
         }
         case 'mask': if (!root(ctx)) { authFail(); break; } h.masked.add(s); o.e(`Created symlink /etc/systemd/system/${s}.service → /dev/null.`, 0); break;
         case 'unmask': if (!root(ctx)) { authFail(); break; } h.masked.delete(s); o.e(`Removed "/etc/systemd/system/${s}.service".`, 0); break;
-        case 'edit': o.e('ℹ systemctl edit の代わりに sudo vi /etc/systemd/system/<name>.service.d/override.conf を作成し、sudo systemctl daemon-reload を実行してください。'); break;
+        case 'edit': o.e(IG.t('ℹ systemctl edit の代わりに sudo vi /etc/systemd/system/<name>.service.d/override.conf を作成し、sudo systemctl daemon-reload を実行してください。')); break;
         default: o.e(`Unknown command verb '${verb}'.`);
       }
     }
@@ -781,7 +781,7 @@
     if (f.e && n === undefined) ls = ls.slice(-1000);
     if (f.x) ls = ls.concat(ls.some(l => /Failed|failed/.test(l)) ? [`░░ Subject: A start job for unit ${units[0] || 'unit'}.service has failed`, '░░ Defined-By: systemd', '░░ Support: http://www.ubuntu.com/support', '░░', `░░ A start job for unit ${units[0] || 'unit'}.service has finished with a failure.`, '░░', "░░ The job identifier is 1924 and the job result is failed."] : []);
     const text = ls.length ? join(ls) : '-- No entries --\n';
-    return { stdout: text, stderr: f.f || f.follow ? 'ℹ -f（追従）は継続表示できないため、現在までのログを表示しました。\n' : '', code: 0 };
+    return { stdout: text, stderr: f.f || f.follow ? IG.t('ℹ -f（追従）は継続表示できないため、現在までのログを表示しました。\n') : '', code: 0 };
   };
   C.logger = (argv, ctx) => {
     const { f, pos } = opts(argv, 'tp', ['tag', 'priority']);
@@ -824,7 +824,7 @@
   C.reboot = (argv, ctx) => {
     const h = ctx.host;
     if (!root(ctx)) return { stdout: '', stderr: 'Failed to set wall message, ignoring: Interactive authentication required.\nCall to Reboot failed: Interactive authentication required.\n', code: 1 };
-    if (h.name === 'bastion') return { stdout: '', stderr: 'ℹ 踏み台（作業端末）の再起動は訓練環境では行いません。\n', code: 1 };
+    if (h.name === 'bastion') return { stdout: '', stderr: IG.t('ℹ 踏み台（作業端末）の再起動は訓練環境では行いません。\n'), code: 1 };
     h.bootAt = ctx.world.now();
     for (const s of Object.keys(h.services)) h.setSvc(s, h.enabled[s] === false || h.masked.has(s) ? 'inactive' : 'active');
     for (const s of Object.keys(h.services)) if (h.services[s] === 'active') { const err = h.checks[s] ? h.checks[s](h) : s === 'nginx' && !h.web ? nginxCheck(h) : null; if (err) h.setSvc(s, 'failed'); }
@@ -834,10 +834,10 @@
     while (sh.stack.length > 1 && sh.frame.host === h.name) sh.stack.pop();
     ctx.world.reconcile();
     ctx.world.emit(`${h.hostname} rebooted`, 'WARN');
-    const warn = bad.length ? `ℹ /etc/fstab の次の行をマウントできませんでした: ${bad.join(', ')}\n  実機では nofail の無い行が失敗すると emergency mode で起動が止まり、SSH できなくなります（EC2 ならボリュームを別インスタンスに付け替えて修復）。\n  sudo findmnt --verify で事前に確認し、追加ディスクには nofail を付けましょう。\n` : '';
+    const warn = bad.length ? IG.t(`ℹ /etc/fstab の次の行をマウントできませんでした: {0}\n  実機では nofail の無い行が失敗すると emergency mode で起動が止まり、SSH できなくなります（EC2 ならボリュームを別インスタンスに付け替えて修復）。\n  sudo findmnt --verify で事前に確認し、追加ディスクには nofail を付けましょう。\n`, { 0: bad.join(', ') }) : '';
     return { stdout: `Connection to ${h.name} closed by remote host.\nConnection to ${h.name} closed.\n`, stderr: warn, code: 0 };
   };
-  C.shutdown = (argv, ctx) => (argv.includes('-r') ? C.reboot(argv, ctx) : { stdout: '', stderr: root(ctx) ? 'ℹ 停止（shutdown -h / poweroff）は訓練環境では実行しません。再起動は shutdown -r now / reboot です。\n' : 'Failed to set wall message, ignoring: Interactive authentication required.\nFailed to call ScheduleShutdown in logind, proceeding with immediate shutdown: Interactive authentication required.\n', code: 1 });
+  C.shutdown = (argv, ctx) => (argv.includes('-r') ? C.reboot(argv, ctx) : { stdout: '', stderr: root(ctx) ? IG.t('ℹ 停止（shutdown -h / poweroff）は訓練環境では実行しません。再起動は shutdown -r now / reboot です。\n') : 'Failed to set wall message, ignoring: Interactive authentication required.\nFailed to call ScheduleShutdown in logind, proceeding with immediate shutdown: Interactive authentication required.\n', code: 1 });
   C.poweroff = C.shutdown; C.halt = C.shutdown;
 
   /* ================================================================ cron */
@@ -873,7 +873,7 @@
     if (flags.includes('-e')) {
       const tmp = `/tmp/crontab.${U.hex(String(ctx.world.now()), 6)}/crontab`;
       fs.write(tmp, fs.read(path) || '# Edit this file to introduce tasks to be run by cron.\n#\n# m h  dom mon dow   command\n', { mkdirs: true, owner: ctx.user, mode: 0o600 });
-      ctx.editor({ path: tmp, host: h.name, readonly: false, onSave: text => { const r = install(text); return r.code ? { out: r.stderr.trim() + '\nℹ 誤りのため反映されていません。crontab -e で修正してください。', err: true } : { out: 'crontab: installing new crontab' }; } });
+      ctx.editor({ path: tmp, host: h.name, readonly: false, onSave: text => { const r = install(text); return r.code ? { out: r.stderr.trim() + IG.t('\nℹ 誤りのため反映されていません。crontab -e で修正してください。'), err: true } : { out: 'crontab: installing new crontab' }; } });
       return { stdout: '', stderr: h.os === 'ubuntu' && !fs.exists(path) ? 'no crontab for ' + user + ' - using an empty one\n' : '', code: 0 };
     }
     if (file) { const t = file === '-' ? ctx.stdin : fs.read(ctx.resolve(file)); if (t === undefined) return { stdout: '', stderr: `${file}: No such file or directory\n`, code: 1 }; return install(t); }
@@ -901,7 +901,7 @@
       const deps = fresh.flatMap(n => DEPS[n] || []);
       const all = deps.concat(fresh);
       o.o(`Reading package lists... Done\nBuilding dependency tree... Done\nReading state information... Done\n${deps.length ? `The following additional packages will be installed:\n  ${deps.join(' ')}\n` : ''}The following NEW packages will be installed:\n  ${all.join(' ')}\n0 upgraded, ${all.length} newly installed, 0 to remove and 14 not upgraded.\nNeed to get ${(all.reduce((t, n) => t + 100 + (U.hash(n) % 900), 0) / 1000).toFixed(1)} MB of archives.\nAfter this operation, ${(all.length * 1.2).toFixed(1)} MB of additional disk space will be used.\n`);
-      if (deps.length && !yes) { o.o('Do you want to continue? [Y/n] '); const ans = ctx.stdin.trim(); if (ans && !/^y/i.test(ans) || !ans && !ctx.hasStdin) { o.o('Abort.\n'); o.code = 1; if (!ctx.hasStdin) o.e('ℹ 確認プロンプトに応答できないため中断しました。apt install -y で自動承認できます。', 1); return o.r(); } }
+      if (deps.length && !yes) { o.o('Do you want to continue? [Y/n] '); const ans = ctx.stdin.trim(); if (ans && !/^y/i.test(ans) || !ans && !ctx.hasStdin) { o.o('Abort.\n'); o.code = 1; if (!ctx.hasStdin) o.e(IG.t('ℹ 確認プロンプトに応答できないため中断しました。apt install -y で自動承認できます。'), 1); return o.r(); } }
       o.o(all.map((n, i) => `Get:${i + 1} http://ap-northeast-1.ec2.archive.ubuntu.com/ubuntu jammy-updates/main amd64 ${n} amd64 ${L.PKG_VER[n] || '1.0-1ubuntu1'} [${100 + (U.hash(n) % 900)} kB]`).join('\n') + `\nFetched ${(all.reduce((t, n) => t + 100 + (U.hash(n) % 900), 0) / 1000).toFixed(1)} MB in 1s (2,418 kB/s)\n` + all.map(n => `Selecting previously unselected package ${n}.\nPreparing to unpack .../${n}_${L.PKG_VER[n] || '1.0-1ubuntu1'}_amd64.deb ...\nUnpacking ${n} (${L.PKG_VER[n] || '1.0-1ubuntu1'}) ...`).join('\n') + '\n' + all.map(n => `Setting up ${n} (${L.PKG_VER[n] || '1.0-1ubuntu1'}) ...`).join('\n') + '\nProcessing triggers for man-db (2.10.2-1) ...\n');
     }
     for (const n of fresh) {
@@ -945,7 +945,7 @@
   }
   C.apt = (argv, ctx) => {
     const h = ctx.host;
-    if (h.os === 'rhel') return { stdout: '', stderr: 'bash: apt: command not found\nℹ RHEL 系では dnf（または yum）を使います。\n', code: 127 };
+    if (h.os === 'rhel') return { stdout: '', stderr: IG.t('bash: apt: command not found\nℹ RHEL 系では dnf（または yum）を使います。\n'), code: 127 };
     const { f, pos } = opts(argv, 'o', []);
     const [verb, ...pkgs] = pos;
     const lockErr = { stdout: '', stderr: `E: Could not open lock file /var/lib/dpkg/lock-frontend - open (13: Permission denied)\nE: Unable to acquire the dpkg frontend lock (/var/lib/dpkg/lock-frontend), are you root?\n`, code: 100 };
@@ -958,7 +958,7 @@
         return `Hit:1 http://ap-northeast-1.ec2.archive.ubuntu.com/ubuntu jammy InRelease\nGet:2 http://ap-northeast-1.ec2.archive.ubuntu.com/ubuntu jammy-updates InRelease [128 kB]\nHit:3 http://ap-northeast-1.ec2.archive.ubuntu.com/ubuntu jammy-backports InRelease\nGet:4 http://security.ubuntu.com/ubuntu jammy-security InRelease [129 kB]\nFetched 257 kB in 1s (285 kB/s)\nReading package lists... Done\nBuilding dependency tree... Done\nReading state information... Done\n14 packages can be upgraded. Run 'apt list --upgradable' to see them.`;
       case 'upgrade': case 'full-upgrade': case 'dist-upgrade':
         if (!root(ctx)) return lockErr;
-        return `Reading package lists... Done\nBuilding dependency tree... Done\nReading state information... Done\nCalculating upgrade... Done\nThe following packages will be upgraded:\n  curl libcurl4 openssl libssl3 ...\n14 upgraded, 0 newly installed, 0 to remove and 0 not upgraded.\n${yes ? 'ℹ シミュレータではパッケージの実バージョンは変化しません。' : 'Do you want to continue? [Y/n] Abort.'}`;
+        return `Reading package lists... Done\nBuilding dependency tree... Done\nReading state information... Done\nCalculating upgrade... Done\nThe following packages will be upgraded:\n  curl libcurl4 openssl libssl3 ...\n14 upgraded, 0 newly installed, 0 to remove and 0 not upgraded.\n${yes ? IG.t('ℹ シミュレータではパッケージの実バージョンは変化しません。') : 'Do you want to continue? [Y/n] Abort.'}`;
       case 'install': case 'reinstall':
         if (!pkgs.length) return '0 upgraded, 0 newly installed, 0 to remove and 14 not upgraded.';
         if (!root(ctx)) return lockErr;
@@ -998,12 +998,12 @@
     if (a === '-L') { const n = argv[1]; if (!h.pkgs.has(n)) return { stdout: '', stderr: `dpkg-query: package '${n}' is not installed\n`, code: 1 }; return join(['/.', '/usr', '/usr/bin'].concat((L.PKG[n] || '').split(' ').map(c => '/usr/bin/' + c), [`/usr/share/doc/${n}`, `/usr/share/doc/${n}/copyright`])); }
     if (a === '-S') { const c = VFS.base(argv[1] || ''); const p = L.CMD_PKG[c]; return p && h.pkgs.has(p) ? `${p}: /usr/bin/${c}` : { stdout: '', stderr: `dpkg-query: no path found matching pattern ${argv[1]}\n`, code: 1 }; }
     if (a === '-s' || a === '--status') { const n = argv[1]; return h.pkgs.has(n) ? `Package: ${n}\nStatus: install ok installed\nVersion: ${L.PKG_VER[n] || '1.0-1ubuntu1'}` : { stdout: '', stderr: `dpkg-query: package '${n}' is not installed and no information is available\n`, code: 1 }; }
-    if (a === '-i') return need(ctx, 'dpkg: error: requested operation requires superuser privilege') || { stdout: '', stderr: 'ℹ .deb ファイルの直接インストールは未対応です。apt install <パッケージ名> を使ってください。\n', code: 1 };
+    if (a === '-i') return need(ctx, 'dpkg: error: requested operation requires superuser privilege') || { stdout: '', stderr: IG.t('ℹ .deb ファイルの直接インストールは未対応です。apt install <パッケージ名> を使ってください。\n'), code: 1 };
     return { stdout: '', stderr: 'dpkg: need an action option\n\nType dpkg --help for help about installing and deinstalling packages [*];\nUse \'apt\' or \'aptitude\' for user-friendly package management;\n', code: 2 };
   };
   C.dnf = (argv, ctx) => {
     const h = ctx.host;
-    if (h.os !== 'rhel') return { stdout: '', stderr: `Command 'dnf' not found, but can be installed with:\nsudo apt install dnf\nℹ Ubuntu では apt を使います。\n`, code: 127 };
+    if (h.os !== 'rhel') return { stdout: '', stderr: IG.t(`Command 'dnf' not found, but can be installed with:\nsudo apt install dnf\nℹ Ubuntu では apt を使います。\n`), code: 127 };
     const { f, pos } = opts(argv);
     const [verb, ...pkgs] = pos;
     const nonroot = { stdout: '', stderr: 'Error: This command has to be run with superuser privileges (under the root user on most systems).\n', code: 1 };
@@ -1029,7 +1029,7 @@
     if (a === '-qf') { const p = L.CMD_PKG[VFS.base(argv[1] || '')]; return p && h.pkgs.has(p) ? `${p}-1.0-1.el9.x86_64` : { stdout: `file ${argv[1]} is not owned by any package\n`, stderr: '', code: 1 }; }
     if (a === '-ql') return h.pkgs.has(argv[1]) ? join((L.PKG[argv[1]] || '').split(' ').map(c => '/usr/bin/' + c)) : { stdout: `package ${argv[1]} is not installed\n`, stderr: '', code: 1 };
     if (a === '-qi') return h.pkgs.has(argv[1]) ? `Name        : ${argv[1]}\nVersion     : ${L.PKG_VER[argv[1]] || '1.0'}\nRelease     : 1.el9\nArchitecture: x86_64\nInstall Date: ${IG.strftime('%a %d %b %Y %T %p UTC', h.bootAt)}\nSummary     : provides ${L.PKG[argv[1]]}` : { stdout: `package ${argv[1]} is not installed\n`, stderr: '', code: 1 };
-    return { stdout: '', stderr: 'RPM version 4.16.1.3\nℹ rpm -qa / -q / -qf / -ql / -qi に対応しています。\n', code: 1 };
+    return { stdout: '', stderr: IG.t('RPM version 4.16.1.3\nℹ rpm -qa / -q / -qf / -ql / -qi に対応しています。\n'), code: 1 };
   };
 
   /* ================================================================ archives */
@@ -1224,17 +1224,17 @@
   /* ================================================================ misc tools / honest stubs */
   C.python3 = (argv, ctx) => {
     if (argv[0] === '--version' || argv[0] === '-V') return ctx.host.os === 'rhel' ? 'Python 3.9.18' : 'Python 3.10.12';
-    if (argv[0] === '-m' && argv[1] === 'http.server') return { stdout: '', stderr: 'ℹ python3 -m http.server はシミュレーションしていません。Web サーバーは nginx / apache2 をインストールして試せます。\n', code: 1 };
-    return { stdout: '', stderr: 'ℹ Python の実行はこのシミュレータでは未対応です（bash スクリプトは実行できます）。\n', code: 1 };
+    if (argv[0] === '-m' && argv[1] === 'http.server') return { stdout: '', stderr: IG.t('ℹ python3 -m http.server はシミュレーションしていません。Web サーバーは nginx / apache2 をインストールして試せます。\n'), code: 1 };
+    return { stdout: '', stderr: IG.t('ℹ Python の実行はこのシミュレータでは未対応です（bash スクリプトは実行できます）。\n'), code: 1 };
   };
   C.python = (argv, ctx) => ({ stdout: '', stderr: ctx.host.os === 'ubuntu' ? "Command 'python' not found, did you mean:\n  command 'python3' from deb python3\n  command 'python' from deb python-is-python3\n" : 'bash: python: command not found\n', code: 127 });
-  C.perl = argv => (argv[0] === '-v' || argv[0] === '--version' ? '\nThis is perl 5, version 34, subversion 0 (v5.34.0) built for x86_64-linux-gnu-thread-multi\n' : { stdout: '', stderr: 'ℹ Perl の実行はこのシミュレータでは未対応です（bash スクリプトや sed / awk は実行できます）。\n', code: 1 });
-  C.node = argv => (argv[0] === '-v' || argv[0] === '--version' ? 'v18.19.1\n' : { stdout: '', stderr: 'ℹ Node.js の実行はこのシミュレータでは未対応です。\n', code: 1 });
+  C.perl = argv => (argv[0] === '-v' || argv[0] === '--version' ? '\nThis is perl 5, version 34, subversion 0 (v5.34.0) built for x86_64-linux-gnu-thread-multi\n' : { stdout: '', stderr: IG.t('ℹ Perl の実行はこのシミュレータでは未対応です（bash スクリプトや sed / awk は実行できます）。\n'), code: 1 });
+  C.node = argv => (argv[0] === '-v' || argv[0] === '--version' ? 'v18.19.1\n' : { stdout: '', stderr: IG.t('ℹ Node.js の実行はこのシミュレータでは未対応です。\n'), code: 1 });
   C.nodejs = C.node;
-  C.git = argv => (argv[0] === '--version' ? 'git version 2.34.1' : { stdout: '', stderr: 'ℹ git の操作はこのシミュレータでは未対応です。\n', code: 1 });
-  C.tmux = () => ({ stdout: '', stderr: 'ℹ tmux / screen のような端末多重化はブラウザのシミュレータでは再現できません。\n', code: 1 });
+  C.git = argv => (argv[0] === '--version' ? 'git version 2.34.1' : { stdout: '', stderr: IG.t('ℹ git の操作はこのシミュレータでは未対応です。\n'), code: 1 });
+  C.tmux = () => ({ stdout: '', stderr: IG.t('ℹ tmux / screen のような端末多重化はブラウザのシミュレータでは再現できません。\n'), code: 1 });
   C.screen = C.tmux;
-  C.strace = () => ({ stdout: '', stderr: 'ℹ strace（システムコールのトレース）は未対応です。\n', code: 1 });
+  C.strace = () => ({ stdout: '', stderr: IG.t('ℹ strace（システムコールのトレース）は未対応です。\n'), code: 1 });
   C.crictl = (argv, ctx) => {
     const h = ctx.host;
     const cl = Object.values(ctx.world.clusters).find(c => c.nodes.some(n => n.host === h.name));
@@ -1252,13 +1252,13 @@
     if (argv.includes('-V')) return { stdout: '', stderr: 'nginx version: nginx/1.24.0 (Ubuntu)\nbuilt with OpenSSL 3.0.13 30 Jan 2024\nTLS SNI support enabled\nconfigure arguments: --with-cc-opt=\'-g -O2\' --prefix=/usr/share/nginx --conf-path=/etc/nginx/nginx.conf --http-log-path=/var/log/nginx/access.log --error-log-path=stderr --lock-path=/var/lock/nginx.lock --pid-path=/run/nginx.pid\n', code: 0 };
     const err = h.checks.nginx ? h.checks.nginx(h) : nginxCheck(h);
     if (argv.includes('-t') || argv.includes('-T')) {
-      if (!root(ctx)) return { stdout: '', stderr: '2026/10/24 01:20:11 [warn] 2412#2412: the "user" directive makes sense only if the master process runs with super-user privileges, ignored in /etc/nginx/nginx.conf:1\nnginx: [alert] could not open error log file: open() "/var/log/nginx/error.log" failed (13: Permission denied)\nnginx: the configuration file /etc/nginx/nginx.conf syntax is ok\n2026/10/24 01:20:11 [emerg] 2412#2412: open() "/run/nginx.pid" failed (13: Permission denied)\nnginx: configuration file /etc/nginx/nginx.conf test failed\nℹ sudo nginx -t で実行してください。\n', code: 1 };
+      if (!root(ctx)) return { stdout: '', stderr: IG.t('2026/10/24 01:20:11 [warn] 2412#2412: the "user" directive makes sense only if the master process runs with super-user privileges, ignored in /etc/nginx/nginx.conf:1\nnginx: [alert] could not open error log file: open() "/var/log/nginx/error.log" failed (13: Permission denied)\nnginx: the configuration file /etc/nginx/nginx.conf syntax is ok\n2026/10/24 01:20:11 [emerg] 2412#2412: open() "/run/nginx.pid" failed (13: Permission denied)\nnginx: configuration file /etc/nginx/nginx.conf test failed\nℹ sudo nginx -t で実行してください。\n'), code: 1 };
       if (err) return { stdout: '', stderr: err.join('\n') + '\nnginx: configuration file /etc/nginx/nginx.conf test failed\n', code: 1 };
       const dump = argv.includes('-T') ? ['/etc/nginx/nginx.conf', ...ctx.vfs.walk('/etc/nginx/sites-enabled'), ...ctx.vfs.walk('/etc/nginx/conf.d')].filter(p => ctx.vfs.isFile(p)).map(p => `# configuration file ${p}:\n${ctx.vfs.read(p)}`).join('\n') : '';
       return { stdout: dump, stderr: 'nginx: the configuration file /etc/nginx/nginx.conf syntax is ok\nnginx: configuration file /etc/nginx/nginx.conf test is successful\n', code: 0 };
     }
     if (argv.includes('-s')) { const sig = argv[argv.indexOf('-s') + 1]; if (!root(ctx)) return { stdout: '', stderr: 'nginx: [alert] kill(813, 1) failed (1: Operation not permitted)\n', code: 1 }; if (h.svcState('nginx') !== 'active') return { stdout: '', stderr: 'nginx: [error] invalid PID number "" in "/run/nginx.pid"\n', code: 1 }; if (sig === 'reload' && err) return { stdout: '', stderr: err.join('\n') + '\n', code: 1 }; if (sig === 'stop' || sig === 'quit') h.setSvc('nginx', 'inactive'); return ''; }
-    return { stdout: '', stderr: 'ℹ nginx は systemctl で操作します（sudo systemctl restart nginx）。設定テストは sudo nginx -t です。\n', code: 1 };
+    return { stdout: '', stderr: IG.t('ℹ nginx は systemctl で操作します（sudo systemctl restart nginx）。設定テストは sudo nginx -t です。\n'), code: 1 };
   };
   C.logrotate = (argv, ctx) => {
     const conf = argv.filter(a => !a.startsWith('-'))[0] || '/etc/logrotate.conf';
@@ -1291,7 +1291,7 @@
     const name = argv.filter(a => !a.startsWith('-') && !/^\d[a-z]?$/.test(a))[0];   // `man 5 crontab`
     if (!name) return { stdout: '', stderr: 'What manual page do you want?\nFor example, try \'man man\'.\n', code: 1 };
     const page = IG.manpages && IG.manpages.man(name);
-    if (!page) return { stdout: '', stderr: `No manual entry for ${name}\nℹ 名前が分からないときは apropos <やりたいこと> で探せます（例: apropos ディスク 空き）。\n`, code: 16 };
+    if (!page) return { stdout: '', stderr: IG.t(`No manual entry for {0}\nℹ 名前が分からないときは apropos <やりたいこと> で探せます（例: apropos ディスク 空き）。\n`, { 0: name }), code: 16 };
     return page;
   };
   C.info = C.man;
@@ -1301,15 +1301,15 @@
     const found = names.filter(n => IG.manpages.has(n));
     return { stdout: join(found.map(n => IG.manpages.line(n))), stderr: join(names.filter(n => !found.includes(n)).map(n => `${n}: nothing appropriate.`)), code: found.length === names.length ? 0 : 16 };
   };
-  // Real apropos searches names and NAME lines; this one also takes Japanese 「やりたいこと」 and adds the matching recipes.
+  // Real apropos searches names and NAME lines; this one also takes 「やりたいこと」 in plain words and adds the matching recipes.
   C.apropos = (argv) => {
     const words = argv.filter(a => !a.startsWith('-'));
-    if (!words.length) return { stdout: '', stderr: 'apropos what?\nℹ 例: apropos socket / apropos ポート 使用中\n', code: 1 };
+    if (!words.length) return { stdout: '', stderr: IG.t('apropos what?\nℹ 例: apropos socket / apropos ポート 使用中\n'), code: 1 };
     const r = IG.cmdref.apropos(words);
     if (!r.cmds.length && !r.tasks.length) return { stdout: '', stderr: `${words.join(' ')}: nothing appropriate.\n`, code: 16 };
-    const out = r.cmds.map(e => IG.manpages.line(e.name, r.ja ? IG.cmdref.lead(e.ja) : e.en));
+    const out = r.cmds.map(e => IG.manpages.line(e.name, r.plain ? IG.cmdref.lead(e.ja) : e.en));
     if (r.tasks.length) {
-      out.push('', 'ℹ やりたいこと別のレシピ（コマンド辞典より）:');
+      out.push('', IG.t('ℹ やりたいこと別のレシピ（コマンド辞典より）:'));
       for (const t of r.tasks) out.push(`  ■ ${t.q}`, ...t.do.slice(0, 3).map(([c, n]) => `      $ ${c}    # ${n}`));
     }
     return join(out);
@@ -1338,7 +1338,7 @@
       return { stdout: '', stderr: '', code: sh.runScript(n.content, [argv[i], ...argv.slice(i + 1)], ctx.io, { xtrace, noexec }) };
     }
     if (ctx.hasStdin) return { stdout: '', stderr: '', code: sh.runScript(ctx.stdin, [ctx.name], ctx.io, { xtrace }) };
-    return { stdout: '', stderr: 'ℹ 入れ子の対話シェルは開けません。bash -c "コマンド" か bash スクリプト.sh の形で使ってください。\n', code: 1 };
+    return { stdout: '', stderr: IG.t('ℹ 入れ子の対話シェルは開けません。bash -c "コマンド" か bash スクリプト.sh の形で使ってください。\n'), code: 1 };
   };
   C.sh = C.bash;
 })(globalThis.IG = globalThis.IG || {});

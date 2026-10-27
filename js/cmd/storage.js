@@ -51,7 +51,7 @@
     return vols(h).find(v => v.dev === dev || v.mapper === dev || '/dev/' + v.kname === dev || (u && v.o.uuid && v.o.uuid.toLowerCase() === u[1].toLowerCase()) || (l && v.o.label === l[1])) || null;
   }
   const protectedDev = d => /^\/dev\/(nvme0n1|xvda|sda)/.test(d) || /^\/dev\/(mapper\/rhel-|rhel\/|dm-[01]$)/.test(d) || /^(UUID=7b1a3a2e|LABEL=(cloudimg-rootfs|UEFI))/i.test(d);
-  const PROTECTED = d => `ℹ ルートディスク（${d}）の変更は訓練環境では禁止しています。練習には追加ディスク（lsblk で確認）を使ってください。`;
+  const PROTECTED = d => IG.t(`ℹ ルートディスク（{0}）の変更は訓練環境では禁止しています。練習には追加ディスク（lsblk で確認）を使ってください。`, { 0: d });
   const pvOf = (h, v) => st(h).pvs[v.dev];
   // why a device can't be formatted / wiped right now
   function inUse(h, v) {
@@ -304,12 +304,12 @@
       return o.r();
     }
     const devTok = args.find(a => a.startsWith('/dev/'));
-    if (!devTok) return fail(argv.length ? `Error: Could not stat device ${args[0]} - No such file or directory.` : 'ℹ parted の対話モードは再現していません。parted -s /dev/nvme1n1 mklabel gpt mkpart primary ext4 0% 100% のように 1 行で指定してください（一覧は parted -l）。');
+    if (!devTok) return fail(argv.length ? `Error: Could not stat device ${args[0]} - No such file or directory.` : IG.t('ℹ parted の対話モードは再現していません。parted -s /dev/nvme1n1 mklabel gpt mkpart primary ext4 0% 100% のように 1 行で指定してください（一覧は parted -l）。'));
     if (protectedDev(devTok)) { const cmds0 = args.slice(args.indexOf(devTok) + 1); if (!cmds0.length || cmds0.every(c => c === 'print' || c === 'unit' || /^(s|b|kb|mb|gb|kib|mib|gib|compact|%)$/i.test(c))) return C.parted(['-l'], ctx); return fail(PROTECTED(devTok)); }
     const d = h.disks.find(x => '/dev/' + x.name === devTok);
     if (!d) { const v = findVol(h, devTok); return fail(v ? `Error: ${devTok}: unrecognised disk label` : `Error: Could not stat device ${devTok} - No such file or directory.`); }
     const cmds = args.slice(args.indexOf(devTok) + 1);
-    if (!cmds.length) return fail(script ? '' : `GNU Parted 3.4\nUsing /dev/${d.name}\nℹ parted の対話モードは再現していません。parted -s /dev/${d.name} mklabel gpt mkpart primary ext4 0% 100% のようにコマンドを続けて指定してください。`);
+    if (!cmds.length) return fail(script ? '' : IG.t(`GNU Parted 3.4\nUsing /dev/{0}\nℹ parted の対話モードは再現していません。parted -s /dev/{1} mklabel gpt mkpart primary ext4 0% 100% のようにコマンドを続けて指定してください。`, { 0: d.name, 1: d.name }));
     let unit = null;
     for (let i = 0; i < cmds.length; i++) {
       const c = cmds[i].toLowerCase();
@@ -394,7 +394,7 @@
     for (;;) {
       o.o('\nCommand (m for help): ');
       const c = ask();
-      if (c === null) { o.o('\n'); restore(); o.e('ℹ w（書き込み）が無いまま入力が終わったため、変更は破棄されました。', 0); return o.r(); }
+      if (c === null) { o.o('\n'); restore(); o.e(IG.t('ℹ w（書き込み）が無いまま入力が終わったため、変更は破棄されました。'), 0); return o.r(); }
       if (c === 'w') { o.o('The partition table has been altered.\nCalling ioctl() to re-read partition table.\nSyncing disks.\n'); return o.r(); }
       if (c === 'q') { restore(); o.o('\n'); return o.r(); }
       if (c === 'p') { o.o(fdiskDisk('/dev/' + d.name, d.mib, true, d) + '\n'); continue; }
@@ -402,7 +402,7 @@
       if (c === 'n') {
         const gpt = d.pt === 'gpt';
         const free = (gpt ? 128 : 4) - d.parts.length;
-        if (!gpt) { o.o(`Partition type\n   p   primary (${d.parts.length} primary, 0 extended, ${free} free)\n   e   extended (container for logical partitions)\nSelect (default p): `); const t = ask(); if (t && t !== 'p') { o.o('\nℹ 拡張パーティション（e）は未対応です。\n'); continue; } }
+        if (!gpt) { o.o(`Partition type\n   p   primary (${d.parts.length} primary, 0 extended, ${free} free)\n   e   extended (container for logical partitions)\nSelect (default p): `); const t = ask(); if (t && t !== 'p') { o.o(IG.t('\nℹ 拡張パーティション（e）は未対応です。\n')); continue; } }
         let def = 1; while (d.parts.some(p => p.num === def)) def++;
         o.o(`Partition number (${def}-${gpt ? 128 : 4}, default ${def}): `); const num = Number(ask() || def) || def;
         const lastEnd = d.parts.length ? Math.max(...d.parts.map(p => Math.round(p.end * 2048))) : 2048;
@@ -440,13 +440,13 @@
       for (const v of vols(h).filter(x => x.kind === 'lvm')) blocks.push(fdiskDisk(v.mapper, v.mib, false));
       return blocks.join('\n\n\n') + '\n';
     }
-    if (!dev) return fail("Usage:\n fdisk [options] <disk>         change partition table\n fdisk [options] -l [<disk>...] list partition table(s)\n\nℹ 一覧は sudo fdisk -l です。", 1);
+    if (!dev) return fail(IG.t("Usage:\n fdisk [options] <disk>         change partition table\n fdisk [options] -l [<disk>...] list partition table(s)\n\nℹ 一覧は sudo fdisk -l です。"), 1);
     if (protectedDev(dev)) return fail(PROTECTED(dev));
     const d = h.disks.find(x => '/dev/' + x.name === dev);
     if (!d) return fail(findVol(h, dev) ? `fdisk: cannot open ${dev}: Inappropriate ioctl for device` : `fdisk: cannot open ${dev}: No such file or directory`);
     const text = ctx.hasStdin ? String(ctx.stdin) : '';
     if (text.trim()) return fdiskScript(h, ctx, d, text);
-    return fail(`ℹ fdisk の対話操作は再現していません。次のどちらかで指定してください:\n  sudo parted -s ${dev} mklabel gpt mkpart primary ext4 0% 100%\n  printf 'g\\nn\\n\\n\\n\\nw\\n' | sudo fdisk ${dev}`);
+    return fail(IG.t(`ℹ fdisk の対話操作は再現していません。次のどちらかで指定してください:\n  sudo parted -s {0} mklabel gpt mkpart primary ext4 0% 100%\n  printf 'g\\nn\\n\\n\\n\\nw\\n' | sudo fdisk {1}`, { 0: dev, 1: dev }));
   };
 
   /* ---------------------------------------------------------------- mkfs / mkswap / labels */
@@ -474,7 +474,7 @@
         if (!yes) {
           if (xfs) return fail(sig === 'gpt' || sig === 'msdos' ? `mkfs.xfs: ${dev} appears to contain a partition table (${sig === 'msdos' ? 'dos' : sig}).\nmkfs.xfs: Use the -f option to force overwrite.` : `mkfs.xfs: ${dev} appears to contain an existing filesystem (${sig}).\nmkfs.xfs: Use the -f option to force overwrite.`);
           const what = sig === 'gpt' || sig === 'msdos' ? `Found a ${sig === 'msdos' ? 'dos' : sig} partition table in ${dev}` : `${dev} contains a ${sig} file system${v.o.label ? ` labelled '${v.o.label}'` : ''}${v.o.created ? `\n\tcreated on ${new Date(v.o.created).toUTCString().replace(/ GMT$/, '').replace(/^(\w+), (\d+) (\w+) (\d+) (.+)$/, '$1 $3 $2 $5 $4')}` : ''}`;
-          return { stdout: `${head}${what}\nProceed anyway? (y,N) \n`, stderr: `ℹ 確認プロンプトへの入力は再現できません。上書きする場合は -F を付けるか、echo y | sudo mkfs.${type} ${dev} としてください。\n`, code: 1 };
+          return { stdout: `${head}${what}\nProceed anyway? (y,N) \n`, stderr: IG.t(`ℹ 確認プロンプトへの入力は再現できません。上書きする場合は -F を付けるか、echo y | sudo mkfs.{0} {1} としてください。\n`, { 0: type, 1: dev }), code: 1 };
         }
       }
       if (v.kind === 'disk') { v.o.parts = []; v.o.pt = null; }
@@ -586,7 +586,7 @@
     const v = protectedDev(dev) ? null : findVol(h, dev);
     if (protectedDev(dev)) return fail(`${head}${dev} is mounted.\ne2fsck: Cannot continue, aborting.\n`, 8);
     if (!v) return fail(`${head}e2fsck: No such file or directory while trying to open ${dev}\nPossibly non-existent device?`, 8);
-    if (!/^ext/.test(v.o.fs || '')) return fail(`${head}ext2fs_open2: Bad magic number in super-block\ne2fsck: Superblock invalid, trying backup blocks....\ne2fsck: Bad magic number in super-block while trying to open ${dev}\n\nThe superblock could not be read or does not describe a valid ext2/ext3/ext4\nfilesystem.${v.o.fs === 'xfs' ? '\nℹ XFS の検査は xfs_repair を使います。' : ''}`, 8);
+    if (!/^ext/.test(v.o.fs || '')) return fail(`${head}ext2fs_open2: Bad magic number in super-block\ne2fsck: Superblock invalid, trying backup blocks....\ne2fsck: Bad magic number in super-block while trying to open ${dev}\n\nThe superblock could not be read or does not describe a valid ext2/ext3/ext4\nfilesystem.${v.o.fs === 'xfs' ? IG.t('\nℹ XFS の検査は xfs_repair を使います。') : ''}`, 8);
     if (v.o.mount) return fail(`${head}${dev} is mounted.\ne2fsck: Cannot continue, aborting.\n`, 8);
     const used = Math.round(blocks4k(v.o.fsMiB) * 0.025), files = 11 + [...h.vfs.nodes.keys()].length % 7;
     if (v.o.broken) return { stdout: head, stderr: `The filesystem size (according to the superblock) is ${blocks4k(v.o.fsMiB)} blocks\nThe physical size of the device is ${blocks4k(v.mib)} blocks\nEither the superblock or the partition table is likely to be corrupt!\nAbort? yes\n\n`, code: 8 };
@@ -638,7 +638,7 @@
     if (protectedDev(dev)) return `${head}The filesystem is already ${blocks4k(h.diskGiB * 1024 - 111)} (4k) blocks long.  Nothing to do!\n\n`;
     const v = findVol(h, dev);
     if (!v) return fail(`${head}open: No such file or directory while opening ${dev}`);
-    if (!/^ext/.test(v.o.fs || '')) return fail(`${head}resize2fs: Bad magic number in super-block while trying to open ${dev}\nCouldn't find valid filesystem superblock.${v.o.fs === 'xfs' ? '\nℹ XFS の拡張は xfs_growfs <マウントポイント> を使います。' : ''}`);
+    if (!/^ext/.test(v.o.fs || '')) return fail(`${head}resize2fs: Bad magic number in super-block while trying to open ${dev}\nCouldn't find valid filesystem superblock.${v.o.fs === 'xfs' ? IG.t('\nℹ XFS の拡張は xfs_growfs <マウントポイント> を使います。') : ''}`);
     let mib = v.mib;
     if (pos[1]) { const z = lsize(pos[1], 'k'); if (!z || !/[kmgts]$/i.test(pos[1])) { if (/^\d+$/.test(pos[1])) mib = Number(pos[1]) / 256; else return fail(`${head}resize2fs: Invalid new size: ${pos[1]}\n`); } else mib = z.mib; }
     const r = ext4Resize(h, v, dev, mib);
@@ -659,7 +659,7 @@
     const meta = xfsMeta(v.mapper || v.dev, v.o.fsMiB);
     if (!root(ctx)) return fail('xfs_growfs: XFS_IOC_FSGROWFSDATA xfsctl failed: Operation not permitted', 1, meta);
     const target = f.D ? Number(f.D) / 256 : v.mib;
-    if (target < v.o.fsMiB) return fail('xfs_growfs: XFS_IOC_FSGROWFSDATA xfsctl failed: Invalid argument\nℹ XFS は縮小できません（拡張のみ）。', 1, meta);
+    if (target < v.o.fsMiB) return fail(IG.t('xfs_growfs: XFS_IOC_FSGROWFSDATA xfsctl failed: Invalid argument\nℹ XFS は縮小できません（拡張のみ）。'), 1, meta);
     if (target === v.o.fsMiB) return meta;
     const from = blocks4k(v.o.fsMiB);
     v.o.fsMiB = target;
@@ -711,7 +711,7 @@
     }
     if (!root(ctx)) return fail('mount: only root can do that');
     const o = out();
-    if (f.bind || f.B || f.rbind) { o.e('ℹ bind マウントはこのシミュレータでは未対応です。'); return o.r(); }
+    if (f.bind || f.B || f.rbind) { o.e(IG.t('ℹ bind マウントはこのシミュレータでは未対応です。')); return o.r(); }
     if (f.a || f.all) {
       for (const e of fstab(h)) {
         if (e.type === 'swap' || ['/', '/boot', '/boot/efi', 'none'].includes(e.target) || /\bnoauto\b/.test(e.opts)) continue;
@@ -844,7 +844,7 @@
     const o = out();
     if (f.a || f.all) { for (const v of vols(h)) if (v.o.swapOn && !v.sys) v.o.swapOn = false; for (const sf of Object.values(st(h).swapFiles)) sf.on = false; return o.r(); }
     for (const t of pos) {
-      if (protectedDev(t) || t === '/dev/dm-1') { o.e('ℹ システムのスワップ（rhel-swap）は訓練環境では無効化しません。', 1); continue; }
+      if (protectedDev(t) || t === '/dev/dm-1') { o.e(IG.t('ℹ システムのスワップ（rhel-swap）は訓練環境では無効化しません。'), 1); continue; }
       const p = t.startsWith('/dev/') ? null : ctx.resolve(t);
       const sf = p && st(h).swapFiles[p];
       const v = !p && findVol(h, t);
@@ -949,7 +949,7 @@
     if (sig) {
       const off = { ext4: 1080, xfs: 0, swap: 4086, gpt: 512, msdos: 510 }[sig] ?? 0;
       const yes = f.y || f.yes || (f.f && f.f !== true) || f.ff || (ctx.hasStdin && /^y/i.test(String(ctx.stdin).trim()));
-      if (!yes) { o.o(`WARNING: ${sig === 'msdos' ? 'dos' : sig} signature detected on ${dev} at offset ${off}. Wipe it? [y/n]: [n]\n`); o.e(`  Aborted wiping of ${sig === 'msdos' ? 'dos' : sig}.\n  1 existing signature left on the device.\nℹ 既存の署名を消して続けるには -y を付けてください（例: sudo pvcreate -y ${dev}）。`, 5); return false; }
+      if (!yes) { o.o(`WARNING: ${sig === 'msdos' ? 'dos' : sig} signature detected on ${dev} at offset ${off}. Wipe it? [y/n]: [n]\n`); o.e(IG.t(`  Aborted wiping of {0}.\n  1 existing signature left on the device.\nℹ 既存の署名を消して続けるには -y を付けてください（例: sudo pvcreate -y {1}）。`, { 0: sig === 'msdos' ? 'dos' : sig, 1: dev }), 5); return false; }
       o.o(`  Wiping ${sig === 'msdos' ? 'dos' : sig} signature on ${dev}.\n`);
       Object.assign(v.o, { fs: null, uuid: null, label: null, pt: null });
     }
@@ -1036,7 +1036,7 @@
       if (g.sys) { o.e(PROTECTED('/dev/' + name), 5); continue; }
       const busy = g.lvs.find(l => l.mount || l.swapOn);
       if (busy) { o.e(`  Logical volume ${name}/${busy.name} contains a filesystem in use.`, 5); continue; }
-      if (g.lvs.length && !(f.f || f.force || f.y || f.yes)) { o.o(`Do you really want to remove volume group "${name}" containing ${g.lvs.length} logical volumes? [y/n]: `); if (!(ctx.hasStdin && /^y/i.test(String(ctx.stdin).trim()))) { o.o('\n'); o.e(`  Volume group "${name}" not removed\nℹ 確認プロンプトへの入力は再現できません。-y（または -f）を付けてください。`, 5); continue; } o.o('\n'); }
+      if (g.lvs.length && !(f.f || f.force || f.y || f.yes)) { o.o(`Do you really want to remove volume group "${name}" containing ${g.lvs.length} logical volumes? [y/n]: `); if (!(ctx.hasStdin && /^y/i.test(String(ctx.stdin).trim()))) { o.o('\n'); o.e(IG.t(`  Volume group "{0}" not removed\nℹ 確認プロンプトへの入力は再現できません。-y（または -f）を付けてください。`, { 0: name }), 5); continue; } o.o('\n'); }
       for (const l of g.lvs) o.o(`  Logical volume "${l.name}" successfully removed.\n`);
       for (const d of Object.keys(s.pvs)) if (s.pvs[d].vg === name) s.pvs[d].vg = null;
       delete s.vgs[name];
@@ -1056,7 +1056,7 @@
     if (!root(ctx)) return LVM_DENY;
     const h = ctx.host, s = st(h);
     const { f, pos } = opts(argv, 'LlnTsi', ['size', 'extents', 'name', 'type', 'snapshot']);
-    if (f.T || f.thin || f.s || f.snapshot || f.type) return fail('ℹ スナップショット・シンプロビジョニング・RAID の LV はこのシミュレータでは未対応です（通常の linear LV のみ）。', 3);
+    if (f.T || f.thin || f.s || f.snapshot || f.type) return fail(IG.t('ℹ スナップショット・シンプロビジョニング・RAID の LV はこのシミュレータでは未対応です（通常の linear LV のみ）。'), 3);
     const vgn = String(pos[0] || '').replace(/^\/dev\//, '').split('/')[0];
     if (!vgn) return fail('  Please specify a volume group name.\n  Run `lvcreate --help\' for more information.', 3);
     if (!s.vgs[vgn]) return fail(`  Volume group "${vgn}" not found\n  Cannot process volume group ${vgn}`, 5);
@@ -1107,15 +1107,15 @@
       } else {
         if (lv.sys) return fail(PROTECTED(`/dev/${vg}/${lv.name}`), 5);
         if (lv.fs && lv.fs !== 'swap' && (f.r || f.resizefs)) {
-          if (lv.fs === 'xfs') return fail(`  File system xfs found on ${vg}/${lv.name}.\n  File system size (${lsz(lv.fsMiB, true)}) is larger than the requested size (${lsz(want * PE, true)}).\n  File system reduce is required and not supported (xfs).\nℹ XFS は縮小できません。データを退避して作り直す必要があります。`, 5, o.so);
-          if (lv.mount) return fail(`  File system ext4 found on ${vg}/${lv.name} mounted at ${lv.mount}.\n  File system size (${lsz(lv.fsMiB, true)}) is larger than the requested size (${lsz(want * PE, true)}).\n  File system reduce is required and not supported while mounted.\nℹ ext4 の縮小はアンマウントしてから行います（sudo umount ${lv.mount}）。`, 5, o.so);
+          if (lv.fs === 'xfs') return fail(IG.t(`  File system xfs found on {0}/{1}.\n  File system size ({2}) is larger than the requested size ({3}).\n  File system reduce is required and not supported (xfs).\nℹ XFS は縮小できません。データを退避して作り直す必要があります。`, { 0: vg, 1: lv.name, 2: lsz(lv.fsMiB, true), 3: lsz(want * PE, true) }), 5, o.so);
+          if (lv.mount) return fail(IG.t(`  File system ext4 found on {0}/{1} mounted at {2}.\n  File system size ({3}) is larger than the requested size ({4}).\n  File system reduce is required and not supported while mounted.\nℹ ext4 の縮小はアンマウントしてから行います（sudo umount {5}）。`, { 0: vg, 1: lv.name, 2: lv.mount, 3: lsz(lv.fsMiB, true), 4: lsz(want * PE, true), 5: lv.mount }), 5, o.so);
           lv.fsckOk = true;
           const rr = ext4Resize(h, v, shown, want * PE);
           if (rr.err) return fail(rr.err, 5, o.so);
           fsOut = `fsck from util-linux 2.37.2\n${shown}: clean\nresize2fs 1.46.5 (30-Dec-2021)\n${rr.text}`;
         } else if (lv.fs && lv.fsMiB > want * PE + 1e-6) {
           o.o(`  WARNING: Reducing active${lv.mount ? ' and open' : ''} logical volume to ${lsz(want * PE, true)}.\n  THIS MAY DESTROY YOUR DATA (filesystem etc.)\n`);
-          if (!(f.f || f.force || f.y || f.yes || (ctx.hasStdin && /^y/i.test(String(ctx.stdin).trim())))) { o.o(`Do you really want to reduce ${vg}/${lv.name}? [y/n]: \n`); o.e(`  Logical volume ${vg}/${lv.name} NOT reduced.\nℹ ファイルシステムごと縮小するには -r（--resizefs）を付けます。-f で強行するとファイルシステムが壊れます。`, 5); return o.r(); }
+          if (!(f.f || f.force || f.y || f.yes || (ctx.hasStdin && /^y/i.test(String(ctx.stdin).trim())))) { o.o(`Do you really want to reduce ${vg}/${lv.name}? [y/n]: \n`); o.e(IG.t(`  Logical volume {0}/{1} NOT reduced.\nℹ ファイルシステムごと縮小するには -r（--resizefs）を付けます。-f で強行するとファイルシステムが壊れます。`, { 0: vg, 1: lv.name }), 5); return o.r(); }
           lv.broken = true;
         }
       }
@@ -1148,7 +1148,7 @@
         if (r.missing) { o.e(`  Failed to find logical volume "${r.vg}/${r.missing}"`, 5); continue; }
         if (r.lv.sys) { o.e(PROTECTED(`/dev/${r.vg}/${r.lv.name}`), 5); continue; }
         if (r.lv.mount || r.lv.swapOn) { o.e(`  Logical volume ${r.vg}/${r.lv.name} contains a filesystem in use.`, 5); continue; }
-        if (!yes) { o.o(`Do you really want to remove active logical volume ${r.vg}/${r.lv.name}? [y/n]: \n`); o.e(`  Logical volume "${r.lv.name}" not removed.\nℹ 確認プロンプトへの入力は再現できません。-y を付けるか echo y | sudo lvremove ... としてください。`, 5); continue; }
+        if (!yes) { o.o(`Do you really want to remove active logical volume ${r.vg}/${r.lv.name}? [y/n]: \n`); o.e(IG.t(`  Logical volume "{0}" not removed.\nℹ 確認プロンプトへの入力は再現できません。-y を付けるか echo y | sudo lvremove ... としてください。`, { 0: r.lv.name }), 5); continue; }
         s.vgs[r.vg].lvs = s.vgs[r.vg].lvs.filter(x => x !== r.lv);
         o.o(`  Logical volume "${r.lv.name}" successfully removed.\n`);
       }
