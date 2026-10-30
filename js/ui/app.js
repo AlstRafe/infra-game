@@ -1272,6 +1272,7 @@
   document.addEventListener("click", (e) => {
     if (!e.target.closest("#langMenu")) $("langMenu").open = false;
   });
+  IG.theme.button($("themeBtn"));
   // Served under a sub-path of a site list (e.g. /infra/ on this PC's front page)? Then offer the way back to it.
   if (/^https?:$/.test(location.protocol) && !/^\/(index\.html)?$/.test(location.pathname))
     $("portalLink").hidden = false;

@@ -71,10 +71,11 @@ AI・機械学習や言語フレームワークなど、このゲームの範囲
 
 ```
 index.html            画面構造（スクリプトの読み込み順もここが正）
-css/app.css           テーマ・レイアウト・レスポンシブ
+css/app.css           ダーク/ライトの配色（色は先頭の変数だけで指定）・レイアウト・レスポンシブ
 js/core/util.js       共通処理・YAML パーサ/シリアライザ・仮想ファイルシステム
 js/core/i18n.js       言語の選択と翻訳（IG.t・IG.i18n.deep・言語メニュー。下の「言語」を参照）
 js/core/early.js      最初の表示の前に再訪問者を見分ける（「はじめての方へ」を出してから消してページがずれないように）
+js/core/theme.js      ダーク/ライトの切り替え（自動→オフ→オン。localStorage "theme" は Home Page の全サイト共通）
 js/i18n/<言語>/*.js   翻訳（ko / en-GB / zh-TW。ui・sim・missions・learn・ref の 5 ファイル）
 js/sim/               シミュレーションモデル（DOM 非依存）
   images.js           イメージカタログとコンテナ起動判定
