@@ -1,8 +1,37 @@
 {
-  "title": {"ja": "すぐ遊べるミッション", "ko": "바로 해 볼 수 있는 미션", "en-GB": "Missions to play right away", "zh-TW": "馬上就能玩的任務"},
+  "title": {
+    "ja": "すぐ遊べるミッション",
+    "ko": "바로 해 볼 수 있는 미션",
+    "en-GB": "Missions to play right away",
+    "zh-TW": "馬上就能玩的任務"
+  },
   "items": [
-    [{"ja": "初日の当番（Linux 基礎）", "ko": "첫날 당번 (Linux 기초)", "en-GB": "First day on call (Linux basics)", "zh-TW": "第一天值班（Linux 基礎）"}, "/#/play/basics-01"],
-    [{"ja": "はじめてのコンテナ（Docker）", "ko": "처음 만나는 컨테이너 (Docker)", "en-GB": "Your first container (Docker)", "zh-TW": "第一個容器（Docker）"}, "/#/play/docker-01"],
-    [{"ja": "キャパシティを復旧せよ（Kubernetes）", "ko": "용량을 복구하라 (Kubernetes)", "en-GB": "Restore the capacity (Kubernetes)", "zh-TW": "恢復容量（Kubernetes）"}, "/#/play/k8s-01"]
+    [
+      {
+        "ja": "初日の当番（Linux 基礎）",
+        "ko": "첫날 당번 (Linux 기초)",
+        "en-GB": "First day on call (Linux basics)",
+        "zh-TW": "第一天值班（Linux 基礎）"
+      },
+      "/#/play/basics-01"
+    ],
+    [
+      {
+        "ja": "はじめてのコンテナ（Docker）",
+        "ko": "처음 만나는 컨테이너 (Docker)",
+        "en-GB": "Your first container (Docker)",
+        "zh-TW": "第一個容器（Docker）"
+      },
+      "/#/play/docker-01"
+    ],
+    [
+      {
+        "ja": "キャパシティを復旧せよ（Kubernetes）",
+        "ko": "용량을 복구하라 (Kubernetes)",
+        "en-GB": "Restore the capacity (Kubernetes)",
+        "zh-TW": "恢復容量（Kubernetes）"
+      },
+      "/#/play/k8s-01"
+    ]
   ]
 }

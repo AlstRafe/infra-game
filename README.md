@@ -21,14 +21,14 @@ python -m http.server 8123
 
 ## ミッション（19 本 + フリーラボ）
 
-| トラック | ミッション |
-| --- | --- |
-| Linux 基礎 | 初日の当番（grep/パイプ）・Web サーバーが起動しない（ssh/systemctl/journalctl/nginx -t） |
-| Docker | はじめてのコンテナ・Compose が立ち上がらない・イメージをビルドせよ |
-| Harbor | 社内レジストリへ push・脆弱性ポリシーに止められた・private イメージを pull せよ（robot + imagePullSecret） |
+| トラック   | ミッション                                                                                                                   |
+| ---------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| Linux 基礎 | 初日の当番（grep/パイプ）・Web サーバーが起動しない（ssh/systemctl/journalctl/nginx -t）                                     |
+| Docker     | はじめてのコンテナ・Compose が立ち上がらない・イメージをビルドせよ                                                           |
+| Harbor     | 社内レジストリへ push・脆弱性ポリシーに止められた・private イメージを pull せよ（robot + imagePullSecret）                   |
 | Kubernetes | キャパシティ復旧・Service に繋がらない・悪いリリースを戻せ・設定が足りない Pod・Pending から抜け出せ・ノードのディスクが満杯 |
-| OpenShift | はじめての OpenShift（login/new-project/new-app/Route）・root で動かないコンテナ（SCC） |
-| AWS | EKS クラスタにつなげ・HTTPS が届かない（SG）・S3 公開事故を止めろ |
+| OpenShift  | はじめての OpenShift（login/new-project/new-app/Route）・root で動かないコンテナ（SCC）                                      |
+| AWS        | EKS クラスタにつなげ・HTTPS が届かない（SG）・S3 公開事故を止めろ                                                            |
 
 各トラックは順番に解放されます。★3 = ヒントなし＆目標時間内。
 
@@ -154,16 +154,21 @@ c('ss', 'net', 8, 'another utility to investigate sockets',          // 名前�
 
 ```js
 IG.addExtras({
-  topic: 'k8s',
-  refs: { helm: ['Helm Docs', 'https://helm.sh/docs/'] },   // 出典（公式ドキュメント）
-  extras: [{
-    id: 'workloads', title: 'ワークロードとパッケージ', goal: '到達目標',
-    refs: ['helm'], points: ['要点…'],
-    qs: [
-      { q: '設問', c: ['正解', '誤り1', '誤り2'], x: '解説', r: 'helm' },        // 選択式（c[0] が正解）
-      { q: '設問', a: 'helm rollback web', ok: [/^helm rollback web$/], x: '解説', r: 'helm' },  // 記述式
-    ],
-  }],
+  topic: "k8s",
+  refs: { helm: ["Helm Docs", "https://helm.sh/docs/"] }, // 出典（公式ドキュメント）
+  extras: [
+    {
+      id: "workloads",
+      title: "ワークロードとパッケージ",
+      goal: "到達目標",
+      refs: ["helm"],
+      points: ["要点…"],
+      qs: [
+        { q: "設問", c: ["正解", "誤り1", "誤り2"], x: "解説", r: "helm" }, // 選択式（c[0] が正解）
+        { q: "設問", a: "helm rollback web", ok: [/^helm rollback web$/], x: "解説", r: "helm" }, // 記述式
+      ],
+    },
+  ],
 });
 ```
 
@@ -175,21 +180,32 @@ IG.addExtras({
 
 ```js
 IG.registerMission({
-  id: 'k8s-07', track: 'k8s', order: 7, difficulty: 2, par: 420, xp: 180,
-  title: 'タイトル', summary: '一覧に出る一行説明',
-  story: ['ブリーフィング本文…'],
-  setup(w, B) {                       // w = IG.World, B = IG.build ヘルパー
-    const cl = B.cluster(w, { name: 'training-cluster', namespaces: ['demo'], ns: 'demo' });
-    w.addImage('registry.lab.local/demo/app:1.0', { kind: 'app', app: 'app', port: 8080 });
-    B.apply(cl, B.deploy('app', 'demo', { image: 'registry.lab.local/demo/app:1.0', port: 8080, replicas: 2 }));
-    B.files(w, { '/home/operator/manifests/app.yaml': '...' });
+  id: "k8s-07",
+  track: "k8s",
+  order: 7,
+  difficulty: 2,
+  par: 420,
+  xp: 180,
+  title: "タイトル",
+  summary: "一覧に出る一行説明",
+  story: ["ブリーフィング本文…"],
+  setup(w, B) {
+    // w = IG.World, B = IG.build ヘルパー
+    const cl = B.cluster(w, { name: "training-cluster", namespaces: ["demo"], ns: "demo" });
+    w.addImage("registry.lab.local/demo/app:1.0", { kind: "app", app: "app", port: 8080 });
+    B.apply(cl, B.deploy("app", "demo", { image: "registry.lab.local/demo/app:1.0", port: 8080, replicas: 2 }));
+    B.files(w, { "/home/operator/manifests/app.yaml": "..." });
   },
   objectives: [
-    { title: '目標', detail: '説明', hints: ['ヒント1', 'ヒント2 `コマンド`'],
-      check: (w, c) => c.cluster().healthy('demo', 'app', 2) },  // c.ran(/re/), c.http(fn), c.file(path) など
+    {
+      title: "目標",
+      detail: "説明",
+      hints: ["ヒント1", "ヒント2 `コマンド`"],
+      check: (w, c) => c.cluster().healthy("demo", "app", 2),
+    }, // c.ran(/re/), c.http(fn), c.file(path) など
   ],
-  solution: ['kubectl get pods', '...'],   // テストで自動実行される模範解答
-  debrief: { points: ['学び'], commands: [['kubectl …', '説明']] },
+  solution: ["kubectl get pods", "..."], // テストで自動実行される模範解答
+  debrief: { points: ["学び"], commands: [["kubectl …", "説明"]] },
 });
 ```
 
