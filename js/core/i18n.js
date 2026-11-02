@@ -105,6 +105,9 @@
     add(map) {
       Object.assign(dict, map);
       for (const k in map) done.add(map[k]);
+      // A deferred pack runs once the HTML has been read: the first one (ui, the page's own texts)
+      // shows the page translated without waiting for the game's scripts
+      if (doc && doc.readyState !== "loading" && doc.documentElement.classList.contains("i18n-wait")) I.page(doc.body);
     },
     use(lang) {
       I.lang = lang;
@@ -142,6 +145,7 @@
     page(root) {
       doc.documentElement.lang = I.lang;
       if (I.lang === "ja") return;
+      doc.documentElement.classList.remove("i18n-wait");
       root.querySelectorAll("[data-i18n]").forEach((el) => {
         el.innerHTML = I.t(el.innerHTML.trim());
       });
@@ -169,9 +173,14 @@
   IG.i18n = I;
   IG.t = I.t;
 
-  // The language's packs, before the game's scripts (they are parser-blocking like the rest)
+  // The language's packs, deferred like the game's scripts and before them (they run in the order
+  // they were written), and fetched first: the browser has already queued the game's scripts by now.
+  // Until page() has translated the HTML the page stays hidden (css/app.css, html.i18n-wait), so a
+  // visitor in another language does not see it in Japanese first.
   if (doc && I.lang !== "ja" && doc.readyState === "loading" && doc.currentScript) {
     const base = doc.currentScript.src.replace(/js\/core\/i18n\.js(\?.*)?$/, "");
-    for (const p of PACKS) doc.write(`<script src="${base}js/i18n/${I.lang}/${p}.js"></script>`);
+    doc.documentElement.classList.add("i18n-wait");
+    for (const p of PACKS)
+      doc.write(`<script src="${base}js/i18n/${I.lang}/${p}.js" defer fetchpriority="high"></script>`);
   }
 })((globalThis.IG = globalThis.IG || {}));

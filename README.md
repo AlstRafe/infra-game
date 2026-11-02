@@ -74,6 +74,7 @@ index.html            画面構造（スクリプトの読み込み順もここ�
 css/app.css           テーマ・レイアウト・レスポンシブ
 js/core/util.js       共通処理・YAML パーサ/シリアライザ・仮想ファイルシステム
 js/core/i18n.js       言語の選択と翻訳（IG.t・IG.i18n.deep・言語メニュー。下の「言語」を参照）
+js/core/early.js      最初の表示の前に再訪問者を見分ける（「はじめての方へ」を出してから消してページがずれないように）
 js/i18n/<言語>/*.js   翻訳（ko / en-GB / zh-TW。ui・sim・missions・learn・ref の 5 ファイル）
 js/sim/               シミュレーションモデル（DOM 非依存）
   images.js           イメージカタログとコンテナ起動判定
@@ -212,7 +213,7 @@ IG.registerMission({
 });
 ```
 
-新しいファイルを作ったら `index.html` の `<script>` に追加してください（テストも同じ順序で読み込みます）。
+新しいファイルを作ったら `index.html` の `<script ... defer>` に追加してください（テストも同じ順序で読み込みます。`defer` を付けると HTML を読み終えてから順に実行され、最初の表示を待たせません）。
 
 ### 言語
 

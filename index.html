@@ -22,6 +22,7 @@
   <link rel="apple-touch-icon" href="apple-touch-icon.png">
   <link rel="stylesheet" href="./css/app.css">
   <script src="./js/core/i18n.js"></script>
+  <script src="./js/core/early.js"></script>
 </head>
 <body>
   <a class="skip" href="#main">本文へ移動</a>
@@ -68,7 +69,7 @@
         <div class="dc-tip" id="homeTip" hidden></div>
       </div>
 
-      <div class="first-run" id="firstRun" hidden>
+      <div class="first-run" id="firstRun">
         <div>
           <strong>はじめての方へ</strong>
           <p data-i18n>画面下のターミナルにコマンドを打ってミッションを解決します。<b>何を壊しても大丈夫</b>（すべてブラウザ内のシミュレーション）。詰まったら各目標の「ヒント」を押せば、使うコマンドまで教えてくれます。まずは Linux 基礎の「初日の当番」から。知識が足りなければ<a href="#/learn">ラーニング</a>、コマンドが分からなければ<a href="#/ref">コマンド辞典</a>（<kbd>Ctrl</kbd>+<kbd>K</kbd>）へ。</p>
@@ -268,59 +269,59 @@
     </section>
   </div>
 
-  <script src="./js/core/util.js"></script>
-  <script src="./js/sim/images.js"></script>
-  <script src="./js/sim/linux.js"></script>
-  <script src="./js/sim/world.js"></script>
-  <script src="./js/sim/k8s.js"></script>
-  <script src="./js/sim/docker.js"></script>
-  <script src="./js/sim/harbor.js"></script>
-  <script src="./js/sim/aws.js"></script>
-  <script src="./js/cmd/bash.js"></script>
-  <script src="./js/cmd/shell.js"></script>
-  <script src="./js/cmd/coreutils.js"></script>
-  <script src="./js/cmd/textproc.js"></script>
-  <script src="./js/cmd/sysutils.js"></script>
-  <script src="./js/cmd/storage.js"></script>
-  <script src="./js/cmd/netutils.js"></script>
-  <script src="./js/cmd/extras.js"></script>
-  <script src="./js/cmd/manpages.js"></script>
-  <script src="./js/cmd/kubectl.js"></script>
-  <script src="./js/ref/cmdref.js"></script>
-  <script src="./js/ref/linux.js"></script>
-  <script src="./js/ref/linux-tasks.js"></script>
-  <script src="./js/ref/docker.js"></script>
-  <script src="./js/ref/harbor.js"></script>
-  <script src="./js/ref/k8s.js"></script>
-  <script src="./js/ref/openshift.js"></script>
-  <script src="./js/ref/aws.js"></script>
-  <script src="./js/game/engine.js"></script>
-  <script src="./js/game/learn.js"></script>
-  <script src="./js/game/drills/linux.js"></script>
-  <script src="./js/game/drills/docker.js"></script>
-  <script src="./js/game/drills/harbor.js"></script>
-  <script src="./js/game/drills/k8s.js"></script>
-  <script src="./js/game/drills/openshift.js"></script>
-  <script src="./js/game/drills/aws.js"></script>
-  <script src="./js/game/drills/extra-linux.js"></script>
-  <script src="./js/game/drills/extra-docker.js"></script>
-  <script src="./js/game/drills/extra-harbor.js"></script>
-  <script src="./js/game/drills/extra-k8s.js"></script>
-  <script src="./js/game/drills/extra-openshift.js"></script>
-  <script src="./js/game/drills/extra-aws.js"></script>
-  <script src="./js/game/certs/linux.js"></script>
-  <script src="./js/game/certs/containers.js"></script>
-  <script src="./js/game/certs/k8s.js"></script>
-  <script src="./js/game/certs/openshift.js"></script>
-  <script src="./js/game/certs/aws.js"></script>
-  <script src="./js/game/missions/basics.js"></script>
-  <script src="./js/game/missions/docker.js"></script>
-  <script src="./js/game/missions/harbor.js"></script>
-  <script src="./js/game/missions/k8s.js"></script>
-  <script src="./js/game/missions/openshift.js"></script>
-  <script src="./js/game/missions/aws.js"></script>
-  <script src="./js/ui/datacenter.js"></script>
-  <script src="./js/ui/ref.js"></script>
-  <script src="./js/ui/app.js"></script>
+  <script src="./js/core/util.js" defer></script>
+  <script src="./js/sim/images.js" defer></script>
+  <script src="./js/sim/linux.js" defer></script>
+  <script src="./js/sim/world.js" defer></script>
+  <script src="./js/sim/k8s.js" defer></script>
+  <script src="./js/sim/docker.js" defer></script>
+  <script src="./js/sim/harbor.js" defer></script>
+  <script src="./js/sim/aws.js" defer></script>
+  <script src="./js/cmd/bash.js" defer></script>
+  <script src="./js/cmd/shell.js" defer></script>
+  <script src="./js/cmd/coreutils.js" defer></script>
+  <script src="./js/cmd/textproc.js" defer></script>
+  <script src="./js/cmd/sysutils.js" defer></script>
+  <script src="./js/cmd/storage.js" defer></script>
+  <script src="./js/cmd/netutils.js" defer></script>
+  <script src="./js/cmd/extras.js" defer></script>
+  <script src="./js/cmd/manpages.js" defer></script>
+  <script src="./js/cmd/kubectl.js" defer></script>
+  <script src="./js/ref/cmdref.js" defer></script>
+  <script src="./js/ref/linux.js" defer></script>
+  <script src="./js/ref/linux-tasks.js" defer></script>
+  <script src="./js/ref/docker.js" defer></script>
+  <script src="./js/ref/harbor.js" defer></script>
+  <script src="./js/ref/k8s.js" defer></script>
+  <script src="./js/ref/openshift.js" defer></script>
+  <script src="./js/ref/aws.js" defer></script>
+  <script src="./js/game/engine.js" defer></script>
+  <script src="./js/game/learn.js" defer></script>
+  <script src="./js/game/drills/linux.js" defer></script>
+  <script src="./js/game/drills/docker.js" defer></script>
+  <script src="./js/game/drills/harbor.js" defer></script>
+  <script src="./js/game/drills/k8s.js" defer></script>
+  <script src="./js/game/drills/openshift.js" defer></script>
+  <script src="./js/game/drills/aws.js" defer></script>
+  <script src="./js/game/drills/extra-linux.js" defer></script>
+  <script src="./js/game/drills/extra-docker.js" defer></script>
+  <script src="./js/game/drills/extra-harbor.js" defer></script>
+  <script src="./js/game/drills/extra-k8s.js" defer></script>
+  <script src="./js/game/drills/extra-openshift.js" defer></script>
+  <script src="./js/game/drills/extra-aws.js" defer></script>
+  <script src="./js/game/certs/linux.js" defer></script>
+  <script src="./js/game/certs/containers.js" defer></script>
+  <script src="./js/game/certs/k8s.js" defer></script>
+  <script src="./js/game/certs/openshift.js" defer></script>
+  <script src="./js/game/certs/aws.js" defer></script>
+  <script src="./js/game/missions/basics.js" defer></script>
+  <script src="./js/game/missions/docker.js" defer></script>
+  <script src="./js/game/missions/harbor.js" defer></script>
+  <script src="./js/game/missions/k8s.js" defer></script>
+  <script src="./js/game/missions/openshift.js" defer></script>
+  <script src="./js/game/missions/aws.js" defer></script>
+  <script src="./js/ui/datacenter.js" defer></script>
+  <script src="./js/ui/ref.js" defer></script>
+  <script src="./js/ui/app.js" defer></script>
 </body>
 </html>
