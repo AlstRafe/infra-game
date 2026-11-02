@@ -330,4 +330,9 @@ IG.i18n.add({
   "Pod 再起動": "restart a Pod",
   "イメージ 脆弱性": "image vulnerabilities",
   "S3 バケット 公開": "public S3 bucket",
+  "自動": "auto",
+  "オフ": "off",
+  "オン": "on",
+  "ダークモード 自動（端末の設定に合わせる）、押すと切り替え": "Dark mode: auto (follows your device). Press to switch",
+  "ダークモード {state}、押すと切り替え": "Dark mode: {state}. Press to switch",
 });
