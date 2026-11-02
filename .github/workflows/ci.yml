@@ -1,10 +1,10 @@
-# Tests and style checks on every push and pull request. The VM serves whatever reaches master
+# Tests and style checks on every push. The VM serves whatever reaches master
 # within a minute, so a red mark here is the warning before (or right after) it goes live.
 name: CI
 
+# Every branch on push (a pull request shows the run of its branch's last commit), or by hand.
 on:
   push:
-  pull_request:
   workflow_dispatch:
 
 permissions:
@@ -20,8 +20,8 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
         with:
           node-version: 22
           cache: npm
