@@ -94,6 +94,7 @@
       location.hash = nx ? `#/play/${nx.id}` : "#/play/sandbox";
     };
     $("firstRun").hidden = !!progress.data.seenIntro || anyClear;
+    document.documentElement.classList.remove("returning"); // from js/core/early.js; from here on, hidden decides
     if (!homeView) {
       homeView = new IG.DC.View($("dcHome"), {
         padLeft: (w) => (w > 900 ? Math.min(470, w * 0.46) : 0),
@@ -136,10 +137,11 @@
             const st = progress.stars(m.id),
               open = progress.unlocked(m, unlockAll);
             const cls = [st ? "cleared" : "", nx && nx.id === m.id ? "next" : ""].join(" ");
-            return `<li><button class="mission-row ${cls}" data-play="${m.id}" ${open ? "" : "disabled"} aria-label="${esc(m.title)}${open ? "" : T("（ロック中）")}">
-            <span class="num">${open ? i + 1 : "🔒"}</span>
-            <span><strong>${esc(m.title)}</strong><small>${esc(m.summary)}</small></span>
-            <span class="meta"><span class="stars" aria-label="★${st}">${starText(st)}</span><span class="diff">${T("難易度")} ${"●".repeat(m.difficulty)}${"○".repeat(3 - m.difficulty)}</span></span>
+            // the button is named by what it shows (title, summary, stars, difficulty), so a voice user can say what they see
+            return `<li><button class="mission-row ${cls}" data-play="${m.id}" ${open ? "" : "disabled"}>
+            <span class="num" aria-hidden="true">${open ? i + 1 : "🔒"}</span>
+            <span><strong>${esc(m.title)}</strong>${open ? "" : `<span class="sr-only">${T("（ロック中）")}</span>`}<small>${esc(m.summary)}</small></span>
+            <span class="meta"><span class="stars" role="img" aria-label="★${st}/3">${starText(st)}</span><span class="diff">${T("難易度")} <span role="img" aria-label="${m.difficulty}/3">${"●".repeat(m.difficulty)}${"○".repeat(3 - m.difficulty)}</span></span></span>
           </button></li>`;
           })
           .join("")}</ol></article>`;
