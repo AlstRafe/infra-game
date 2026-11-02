@@ -642,7 +642,7 @@
       if (stack.length) return [`nginx: [emerg] unexpected end of file, expecting "}" in ${p}:${line}`];
     }
     const ports = new Set();
-    for (const p of files) for (const m of (h.vfs.read(p) || '').matchAll(/^\s*listen\s+(\d+)/gm)) { if (Number(m[1]) < 1024 || true) ports.add(Number(m[1])); }
+    for (const p of files) for (const m of (h.vfs.read(p) || '').matchAll(/^\s*listen\s+(\d+)/gm)) ports.add(Number(m[1]));
     for (const port of ports) { const other = h.sockets().find(s => s.port === port && s.svc !== 'nginx'); if (other) return [`nginx: [emerg] bind() to 0.0.0.0:${port} failed (98: Address already in use)`]; }
     return null;
   }

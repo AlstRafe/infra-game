@@ -118,6 +118,19 @@ node tests/run-i18n.js en-GB -v      # 1 言語だけ、全件表示
 
 各ミッションについて「開始時点で目標が未達成であること」と「模範解答で全目標を達成できること」を確認します。ミッションやシミュレータを変更したら必ず実行してください。
 
+### 書式とチェック
+
+Home Page・News Site と同じ書式です（1 行 120 字・ダブルクォート・LF。`.editorconfig` と `.prettierrc.json` は 3 リポジトリで同じファイル）。VS Code は推奨拡張（EditorConfig・Prettier・ESLint）を入れると保存時に整形します。
+
+```bash
+npm install       # 初回だけ（Prettier と ESLint。ゲーム自体はパッケージ不要）
+npm run format    # Prettier で整形
+npm run lint      # 整形済みかの確認と ESLint
+npm test          # 上のテストをすべて
+```
+
+index.html（本文が翻訳を引くキー）と js/ref・js/i18n（1 行 1 項目の表）は整形しません（`.prettierignore`）。
+
 ### コマンド辞典への追加
 
 `js/ref/<分野>.js` の `IG.registerCommands({...})` に足します。書式は `js/ref/cmdref.js` 冒頭のコメントを参照してください。

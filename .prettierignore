@@ -1,0 +1,6 @@
+# index.html: its text is what the translations are looked up by, so its lines stay as written.
+*.html
+# Tables with one entry per line: the command reference and the translations.
+js/ref/
+js/i18n/
+package-lock.json
