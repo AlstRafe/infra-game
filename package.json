@@ -4,7 +4,7 @@
   "description": "Tools for working on CoreLab (Prettier, ESLint, the tests). The game itself needs no build and no packages.",
   "scripts": {
     "format": "prettier --write .",
-    "lint": "prettier --check . && eslint .",
+    "lint": "prettier --check . && eslint --max-warnings 0 .",
     "test": "node tests/run-solutions.js && node tests/run-linux.js && node tests/run-i18n.js && node tests/run-learn.js && node tests/run-ref.js"
   },
   "devDependencies": {

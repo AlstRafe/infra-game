@@ -1183,7 +1183,7 @@
       add(2, 0, "root", "[kthreadd]", { stat: "S", vsz: 0, rss: 0 });
       add(14, 2, "root", "[rcu_preempt]", { stat: "I", vsz: 0, rss: 0 });
       add(289, 1, "root", "/lib/systemd/systemd-udevd", { stat: "Ss" });
-      for (const [s, st] of Object.entries(this.services)) {
+      for (const s of Object.keys(this.services)) {
         if (this.svcState(s) !== "active") continue;
         const def = SVC[s] || { proc: "/usr/bin/" + s };
         if (def.oneshot) continue;

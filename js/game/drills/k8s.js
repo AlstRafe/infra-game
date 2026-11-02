@@ -152,7 +152,7 @@ IG.registerDrills({
         {
           q: "Deployment `web` を 1 つ前のリビジョンに戻すコマンドを入力してください。",
           a: "kubectl rollout undo deployment/web",
-          ok: [/^kubectl rollout undo (deploy|deployment|deployments)[\/ ]web( (-n ?|--namespace[ =])\S+)?$/],
+          ok: [/^kubectl rollout undo (deploy|deployment|deployments)[/ ]web( (-n ?|--namespace[ =])\S+)?$/],
           x: "`kubectl rollout history` で履歴を確認し、`--to-revision=N` で任意の版にも戻せます。",
           r: "deploy",
         },
@@ -193,8 +193,8 @@ IG.registerDrills({
           q: "Deployment `web` のレプリカ数を 5 にするコマンドを入力してください。",
           a: "kubectl scale deployment web --replicas=5",
           ok: [
-            /^kubectl scale (deploy|deployment|deployments)[\/ ]web --replicas[= ]5( (-n ?|--namespace[ =])\S+)?$/,
-            /^kubectl scale --replicas[= ]5 (deploy|deployment|deployments)[\/ ]web( (-n ?|--namespace[ =])\S+)?$/,
+            /^kubectl scale (deploy|deployment|deployments)[/ ]web --replicas[= ]5( (-n ?|--namespace[ =])\S+)?$/,
+            /^kubectl scale --replicas[= ]5 (deploy|deployment|deployments)[/ ]web( (-n ?|--namespace[ =])\S+)?$/,
           ],
           x: "恒久的に変えるならマニフェストの replicas を直して apply（GitOps ならリポジトリ側）します。",
           r: "kubectl",

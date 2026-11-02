@@ -210,8 +210,7 @@
       Bc = Number(f.B || f["before-context"] || f.C || f.context || 0);
     const max = f.m || f["max-count"] ? Number(f.m || f["max-count"]) : Infinity;
     const invert = f.v || f["invert-match"];
-    let any = false,
-      total = 0;
+    let any = false;
     const srcs = files.length ? files : ["-"];
     const name = (n) => (n === "-" ? "(standard input)" : n);
     for (const file of srcs) {
@@ -295,7 +294,6 @@
         }
         if (count >= max && afterLeft <= 0) break;
       }
-      total += count;
       if (f.c || f.count) o.o((showName ? name(file) + ":" : "") + count + "\n");
       if ((f.l || f["files-with-matches"]) && count) o.o((color ? C_.f + name(file) + C_.e : name(file)) + "\n");
       if ((f.L || f["files-without-match"]) && !count) o.o(name(file) + "\n");
@@ -312,7 +310,6 @@
 
   /* ================================================================ sed */
   function parseSed(script, ere) {
-    const cmds = [];
     let i = 0;
     const s = script;
     const ws = () => {

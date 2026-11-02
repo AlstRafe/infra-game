@@ -3,7 +3,6 @@
  * Parsing/expansion/execution live in bash.js; Linux commands in coreutils.js / sysutils.js. */
 (function (IG) {
   "use strict";
-  const U = IG.util;
   const VFS = IG.VFS;
   const B = IG.bash;
   IG.commands = IG.commands || {};
@@ -369,7 +368,7 @@
         return this.finish(prevOver, prevChunks, 2);
       }
       if (!over) this.pushHistory(src);
-      let code = 0;
+      let code;
       this.interp.steps = 0;
       try {
         code = this.interp.run(ast, { stdin: B.mkIn("", true), fd: { 1: { term: "out" }, 2: { term: "err" } } });
@@ -440,9 +439,7 @@
           continue;
         }
         const rest = line.slice(i + 1);
-        let m,
-          rep = null,
-          len = 0;
+        let m, rep, len;
         const H = this.history;
         if (rest[0] === "!") {
           rep = H[H.length - 1];
@@ -984,7 +981,7 @@
         .filter((k) => k >= 0)
         .pop();
       if (sep !== undefined) prev = prev.slice(sep + 1);
-      let cands = [];
+      let cands;
       const w = this.world;
       const cl = w.currentCluster();
       const ctxNs = () => {
@@ -1961,7 +1958,6 @@
       const ast = B.parse(line);
       const n = ast.items[0] && ast.items[0].node;
       if (n && n.type === "simple") {
-        const sh = Object.create(Shell.prototype);
         return n.words.map((w) => w.replace(/^'(.*)'$/s, "$1").replace(/^"(.*)"$/s, "$1"));
       }
     } catch (e) {

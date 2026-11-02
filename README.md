@@ -95,6 +95,7 @@ js/ref/<分野>.js      辞典のデータ（linux.js / linux-tasks.js / docker.
 js/ui/ref.js          辞典の画面部品（#/ref のページと Ctrl+K の検索で共用）
 js/ui/app.js          画面制御（ホーム・ミッション・ターミナル・エディタ）
 portal.json           サイト一覧（Home Page）の CoreLab カードに出す「すぐ遊べるミッション」
+og.png                リンクを貼ったときのプレビュー画像（1200×630。index.html の og:image）/ apple-touch-icon.png ホーム画面のアイコン
 tests/run-solutions.js 全ミッションの模範解答を自動プレイして解けることを検証（portal.json のミッションも確認）
 tests/run-linux.js    Linux シミュレータの回帰テスト（実機の出力・エラー・終了コードと照合）
 tests/run-learn.js    学習問題・資格カタログの検証（出典・配点・採点・模擬試験・進捗）
@@ -125,9 +126,11 @@ Home Page・News Site と同じ書式です（1 行 120 字・ダブルクォー
 ```bash
 npm install       # 初回だけ（Prettier と ESLint。ゲーム自体はパッケージ不要）
 npm run format    # Prettier で整形
-npm run lint      # 整形済みかの確認と ESLint
+npm run lint      # 整形済みかの確認と ESLint（警告 0 件まで）
 npm test          # 上のテストをすべて
 ```
+
+GitHub に push すると Actions（`.github/workflows/ci.yml`）が `npm test` と `npm run lint`（警告 0 件まで）を通します。VM は master を 1 分以内に配信するので、赤くなったらすぐ直してください。
 
 index.html（本文が翻訳を引くキー）と js/ref・js/i18n（1 行 1 項目の表）は整形しません（`.prettierignore`）。
 

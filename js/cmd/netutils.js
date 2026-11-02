@@ -7,11 +7,6 @@
   const C = (IG.commands = IG.commands || {});
   const opts = (...a) => IG.cliOpts(...a);
   const out = () => IG.cliOut();
-  const lines = (t) => {
-    const l = String(t).split("\n");
-    if (l[l.length - 1] === "") l.pop();
-    return l;
-  };
   const join = (l) => (l.length ? l.join("\n") + "\n" : "");
   const root = (ctx) => ctx.user === "root";
 
@@ -241,16 +236,19 @@
         rows[rows.length - 1].users.push(`("nginx",pid=${s.pid + 1},fd=6)`, `("nginx",pid=${s.pid + 2},fd=6)`);
     }
     if (!f.l && (f.t || !f.u))
-      for (const fr of ctx.shell.stack.filter((x) => x.host === h.name && !x.via))
-        rows.push({
-          proto: "tcp",
-          state: "ESTAB",
-          local: `${h.ip}:22`,
-          peer: "198.51.100.20:51522",
-          users: showProc ? [`("sshd",pid=4201,fd=4)`] : [],
-          recvq: 0,
-          sendq: 0,
-        });
+      ctx.shell.stack
+        .filter((x) => x.host === h.name && !x.via)
+        .forEach(() =>
+          rows.push({
+            proto: "tcp",
+            state: "ESTAB",
+            local: `${h.ip}:22`,
+            peer: "198.51.100.20:51522",
+            users: showProc ? [`("sshd",pid=4201,fd=4)`] : [],
+            recvq: 0,
+            sendq: 0,
+          }),
+        );
     return rows;
   }
   C.ss = (argv, ctx) => {

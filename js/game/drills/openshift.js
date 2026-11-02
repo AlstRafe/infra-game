@@ -66,7 +66,7 @@
           {
             q: "Service `web` を外部公開する Route を作成するコマンドを入力してください。",
             a: "oc expose service/web",
-            ok: [/^oc expose (svc|service)[\/ ]web( --hostname[ =]\S+| --port[ =]\S+| --name[ =]\S+)*$/],
+            ok: [/^oc expose (svc|service)[/ ]web( --hostname[ =]\S+| --port[ =]\S+| --name[ =]\S+)*$/],
             x: "Route はクラスタの Ingress Controller（HAProxy ベースのルーター）がホスト名で振り分けます。",
             r: "net",
           },

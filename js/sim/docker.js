@@ -169,7 +169,6 @@
     /* ------------------------------------------------------------ build */
     build(ctxDir, dockerfilePath, tag, vfs) {
       const lines = [];
-      const t0 = 0.4;
       const text = vfs.read(dockerfilePath);
       if (text === undefined)
         return {

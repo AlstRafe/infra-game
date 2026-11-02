@@ -640,7 +640,7 @@ kbd {
   border: 1px solid var(--line);
   font-size: 18px;
   filter: grayscale(1);
-  opacity: 0.35;
+  opacity: 0.55;
   cursor: help;
 }
 .badge.got {

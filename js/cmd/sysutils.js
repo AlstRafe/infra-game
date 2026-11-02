@@ -416,7 +416,6 @@
   };
   C.getent = (argv, ctx) => {
     const [db, key] = argv;
-    const h = ctx.host;
     const v = ctx.vfs;
     if (db === "passwd" || db === "group") {
       const l = lines(v.read("/etc/" + db) || "");

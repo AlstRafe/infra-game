@@ -120,14 +120,6 @@
   function inode(path) {
     return 100000 + (U.hash(path) % 900000);
   }
-  function check(ctx, path, shown, cmd, need = "r") {
-    const fs = ctx.vfs;
-    if (!fs.lexists(path) && !fs.exists(path)) return `${cmd}: ${shown}: No such file or directory`;
-    if (!ctx.pod && !ctx.container && !ctx.host.traversable(ctx.user, path))
-      return `${cmd}: ${shown}: Permission denied`;
-    if (need === "r" && fs.isFile(path) && !ctx.shell.canRead(path)) return `${cmd}: ${shown}: Permission denied`;
-    return null;
-  }
   // read files (or stdin) for text filters. returns {texts:[{name,text}], errs}
   function inputs(ctx, files, cmd) {
     const res = { texts: [], errs: [] };

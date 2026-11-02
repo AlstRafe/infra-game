@@ -185,6 +185,7 @@ IG.i18n.add({
   "獲得 +{xp} XP": "+{xp} XP earned",
   "ランクアップ！「{rank}」になりました": "Rank up! You are now “{rank}”",
   "バッジ獲得": "Badge earned",
+  "{name}（未獲得）": "{name} (not yet earned)",
   "間違えた問題（{n}）": "Questions you got wrong ({n})",
   "全問正解です。": "All correct.",
   "もう一度": "Play again",
