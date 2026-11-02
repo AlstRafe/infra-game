@@ -203,7 +203,7 @@
         continue;
       }
       if (c === '"' || c === "'") {
-        if (i === 0 || /[\s:\[{,-]/.test(s[i - 1])) q = c;
+        if (i === 0 || /[\s:[{,-]/.test(s[i - 1])) q = c;
         continue;
       }
       if (c === "#" && (i === 0 || /\s/.test(s[i - 1]))) return s.slice(0, i).trimEnd();
@@ -496,7 +496,7 @@
     return (
       s === "" ||
       /^\s|\s$/.test(s) ||
-      /^[-?:,\[\]{}#&*!|>'"%@`]/.test(s) ||
+      /^[-?:,[\]{}#&*!|>'"%@`]/.test(s) ||
       /: |\s#|:$/.test(s) ||
       /^(true|false|null|~|yes|no|on|off|y|n)$/i.test(s) ||
       /^[-+]?(\d+\.?\d*|\.\d+)([eE][-+]?\d+)?$/.test(s)

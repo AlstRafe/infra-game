@@ -929,7 +929,7 @@
       return fail(
         `Error: Error opening ${args.find((a) => a.startsWith("/dev/")) || "/dev/nvme0n1"}: Permission denied`,
       );
-    const s = st(h);
+    st(h); // the disks' state is set up before anything reads it
     if (list) {
       const rootDisk =
         h.os === "rhel"
@@ -1214,7 +1214,6 @@
       mklabel(h, d, "msdos");
       o.o(`Created a new DOS disklabel with disk identifier ${d.ptuuid}.\n`);
     }
-    const total = Math.round(d.mib * 2048);
     const parseLast = (v, first) => {
       if (!v) return Math.round(lastUsable(d) * 2048) - 1;
       const m = v.match(/^\+(\d+(?:\.\d+)?)([KMGTP])?$/i);
@@ -2246,8 +2245,6 @@
       ),
     );
   };
-  const nameFilter = (pos, key) => (x) =>
-    !pos.length || pos.some((p) => p === x[key] || p.replace(/^\/dev\//, "") === x[key]);
   C.pvs = (argv, ctx) => {
     if (!root(ctx)) return LVM_DENY;
     const h = ctx.host,
@@ -2651,8 +2648,8 @@
   function lvResize(mode) {
     return (argv, ctx) => {
       if (!root(ctx)) return LVM_DENY;
-      const h = ctx.host,
-        s = st(h);
+      const h = ctx.host;
+      st(h); // the disks' state is set up before anything reads it
       const { f, pos } = opts(argv, "Ll", ["size", "extents"]);
       const cmd = "lv" + mode;
       const L = f.L || f.size,

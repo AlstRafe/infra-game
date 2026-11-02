@@ -192,14 +192,16 @@
         const j = JSON.parse(text);
         return j.kind === "List" ? j.items : [j];
       } catch (e) {
-        throw new Error(`error: error parsing ${file}: ${e.message}`);
+        throw new Error(`error: error parsing ${file}: ${e.message}`, { cause: e });
       }
     }
     try {
       const docs = Y.parseAll(text).filter((d) => d !== null);
       return docs.flatMap((d) => (d && d.kind === "List" ? d.items || [] : [d]));
     } catch (e) {
-      throw new Error(`error: error parsing ${file}: error converting YAML to JSON: ${e.message}`);
+      throw new Error(`error: error parsing ${file}: error converting YAML to JSON: ${e.message}`, {
+        cause: e,
+      });
     }
   }
 
@@ -2314,7 +2316,7 @@ Global flags: -n NAMESPACE, -A, -o wide|yaml|json|name|jsonpath=..., -l key=valu
         const u = U.first(a.flags.u || a.flags.username);
         const p = U.first(a.flags.p || a.flags.password);
         const token = U.first(a.flags.token);
-        let user = null;
+        let user;
         if (token) user = Object.entries(target.users).find(([, x]) => x.token === token)?.[0];
         else if (u) user = target.users[u] && target.users[u].password === p ? u : null;
         else

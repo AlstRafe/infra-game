@@ -172,6 +172,6 @@
   // The language's packs, before the game's scripts (they are parser-blocking like the rest)
   if (doc && I.lang !== "ja" && doc.readyState === "loading" && doc.currentScript) {
     const base = doc.currentScript.src.replace(/js\/core\/i18n\.js(\?.*)?$/, "");
-    for (const p of PACKS) doc.write(`<script src="${base}js/i18n/${I.lang}/${p}.js"><\/script>`);
+    for (const p of PACKS) doc.write(`<script src="${base}js/i18n/${I.lang}/${p}.js"></script>`);
   }
 })((globalThis.IG = globalThis.IG || {}));

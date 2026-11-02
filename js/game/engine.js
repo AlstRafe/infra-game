@@ -239,7 +239,7 @@
       const ctx = this.ctx();
       this.m.objectives.forEach((o, i) => {
         if (this.done[i]) return;
-        let pass = false;
+        let pass;
         try {
           pass = !!o.check(this.world, ctx);
         } catch (e) {

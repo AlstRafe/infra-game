@@ -7,7 +7,7 @@
   const esc = U.escapeHtml;
   const T = IG.t;
 
-  let storage = null;
+  let storage;
   try {
     storage = window.localStorage;
     storage.getItem("probe");
@@ -155,10 +155,11 @@
       )
       .join("");
     $("badgeList").innerHTML = Object.entries(IG.badges)
-      .map(
-        ([id, b]) =>
-          `<span class="badge ${progress.data.badges.includes(id) ? "got" : ""}" title="${esc(b.name)}: ${esc(b.desc)}" aria-label="${esc(b.name)}">${b.icon}</span>`,
-      )
+      .map(([id, b]) => {
+        const got = progress.data.badges.includes(id);
+        const label = got ? b.name : T("{name}（未獲得）", { name: b.name });
+        return `<span class="badge ${got ? "got" : ""}" role="img" title="${esc(label)}: ${esc(b.desc)}" aria-label="${esc(label)}: ${esc(b.desc)}">${b.icon}</span>`;
+      })
       .join("");
   }
 

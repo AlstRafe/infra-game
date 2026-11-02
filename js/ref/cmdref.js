@@ -222,7 +222,7 @@
     const w = new Set(t.match(/-{0,2}[a-z0-9][a-z0-9._:/+=*-]*/g) || []);
     for (const x of w) { if (SYN_OF.has(x)) canon.add(SYN_OF.get(x)); const bare = x.replace(/^-+/, ''); if (SYN_OF.has(bare)) canon.add(SYN_OF.get(bare)); }
     const jp = new Set();
-    const runs = (t.replace(/[a-z0-9._:/+=*-]+/g, ' ') + ' ' + [...canon].join(' ')).split(/[\s、。,.!?！？「」『』（）()・:：/／~〜→\-]+/).filter(Boolean);
+    const runs = (t.replace(/[a-z0-9._:/+=*-]+/g, ' ') + ' ' + [...canon].join(' ')).split(/[\s、。,.!?！？「」『』（）()・:：/／~〜→-]+/).filter(Boolean);
     for (const r of runs) {
       if (/^[a-z0-9]+$/.test(r)) { w.add(r); continue; }
       if (r.length === 1) { if (/[一-鿿]/.test(r)) jp.add(r); continue; }

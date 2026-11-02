@@ -1195,7 +1195,7 @@
         }
         return { value: this.param(inner), end: j };
       }
-      const m = s.slice(i + 1).match(/^([A-Za-z_]\w*|[0-9]|[?#$!@*\-])/);
+      const m = s.slice(i + 1).match(/^([A-Za-z_]\w*|[0-9]|[?#$!@*-])/);
       if (!m) return { value: "$", end: i + 1, literal: true };
       const name = m[1];
       if (name === "@" && inQuotes) return { atFields: sh.positional(), end: i + 2 };
@@ -1233,7 +1233,7 @@
       }
       if ((m = inner.match(/^#([A-Za-z_]\w*)\[[@*]\]$/))) return String(sh.arrayGet(m[1]).length);
       if ((m = inner.match(/^!([A-Za-z_]\w*)$/))) return sh.special(sh.special(m[1]) || "") ?? "";
-      m = inner.match(/^([A-Za-z_]\w*|[0-9]+|[?#$!@*\-])(\[(.*?)\])?(.*)$/s);
+      m = inner.match(/^([A-Za-z_]\w*|[0-9]+|[?#$!@*-])(\[(.*?)\])?(.*)$/s);
       if (!m) throw new Error(`\${${inner}}: bad substitution`);
       const name = m[1],
         idx = m[3],

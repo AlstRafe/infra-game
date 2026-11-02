@@ -71,7 +71,7 @@ const pageTexts = (() => {
     out.add(inner.trim());
     return "";
   });
-  for (const [, a, v] of body.matchAll(/\s(title|aria-label|placeholder)="([^"]*)"/g))
+  for (const [, , v] of body.matchAll(/\s(title|aria-label|placeholder)="([^"]*)"/g))
     if (JP.test(v)) out.add(entity(v));
   for (const t of body.replace(/<[^>]*>/g, "\n").split("\n")) if (JP.test(t)) out.add(entity(t.trim()));
   return [...out];

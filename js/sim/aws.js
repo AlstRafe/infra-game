@@ -571,7 +571,7 @@
         p = Array.isArray(p) ? p[0] : p;
       } catch (e) {
         const m = {};
-        raw.replace(/(\w+)=([^,\[]+|\[[^\]]*\])/g, (_, k, v) => {
+        raw.replace(/(\w+)=([^,[]+|\[[^\]]*\])/g, (_, k, v) => {
           m[k] = v;
         });
         p = {
