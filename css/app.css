@@ -307,9 +307,23 @@ html.i18n-wait body {
   gap: 20px;
   height: 58px;
   padding: 0 20px;
+  border-bottom: 1px solid var(--line);
+}
+/* The frosted background is drawn by a layer of its own: a backdrop-filter on the bar itself would
+   pin the phone tab bar (the nav, position: fixed) to the bar instead of the screen */
+.topbar::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
   background: var(--topbar);
   backdrop-filter: blur(10px);
-  border-bottom: 1px solid var(--line);
+}
+/* Nothing in the bar wraps its label: as the window narrows, the less needed parts are hidden in
+   steps (see "top bar: narrow windows" below) and the nav scrolls as a last resort */
+.topbar > * {
+  flex: none;
+  white-space: nowrap;
 }
 .brand {
   display: flex;
@@ -377,11 +391,22 @@ html.i18n-wait body {
 }
 .topnav {
   display: flex;
+  flex: 0 1 auto;
+  min-width: 0;
   gap: 4px;
   margin-left: 8px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.topnav::-webkit-scrollbar {
+  display: none;
+}
+.topnav :focus-visible {
+  outline-offset: -2px;
 }
 .topnav a,
 .topnav button {
+  flex: none;
   border: 0;
   background: none;
   color: var(--muted);
@@ -630,8 +655,10 @@ html.i18n-wait body {
   background: linear-gradient(90deg, color-mix(in srgb, var(--tc) 14%, transparent), transparent);
 }
 .track-icon {
+  flex: none;
   display: grid;
   place-items: center;
+  white-space: nowrap;
   width: 38px;
   height: 38px;
   border-radius: 10px;
@@ -1703,28 +1730,21 @@ html.i18n-wait body {
     flex-wrap: wrap;
     gap: 10px;
   }
-  .topbar {
-    gap: 10px;
-    padding: 0 12px;
-  }
-  .profile-text {
-    display: none;
-  }
-  .topnav a,
-  .topnav button {
-    padding: 6px 8px;
-    font-size: 12.5px;
-  }
-  .brand-text small {
-    display: none;
-  }
 }
 @media (max-width: 520px) {
   .view {
     padding: 12px 12px 30px;
   }
+  .level-dots {
+    gap: 4px;
+  }
+  .level-dots li span {
+    font-size: 10.5px;
+    letter-spacing: 0;
+    word-break: keep-all;
+  }
   .hero .dc-canvas {
-    height: 210px;
+    height: 170px;
   }
   .hero h1 {
     font-size: 23px;
@@ -1738,20 +1758,6 @@ html.i18n-wait body {
   .first-run {
     flex-direction: column;
     align-items: flex-start;
-  }
-  .brand-text {
-    display: none;
-  }
-  .portal-text {
-    display: none;
-  }
-  .topbar {
-    gap: 8px;
-  }
-  .portal-link {
-    min-width: 24px;
-    padding: 0 8px 0 0;
-    font-size: 16px;
   }
   .result-stats {
     gap: 18px;
@@ -2555,7 +2561,7 @@ html.i18n-wait body {
 .lang a[aria-current]::after {
   content: "✓";
 }
-@media (max-width: 1000px) {
+@media (max-width: 1160px) {
   .lang summary span {
     display: none;
   }
@@ -3134,47 +3140,7 @@ code[data-ref-cmd]:hover {
   text-decoration: underline dotted color-mix(in srgb, var(--accent) 60%, transparent);
   text-underline-offset: 3px;
 }
-@media (max-width: 1100px) {
-  .search-btn kbd {
-    display: none;
-  }
-}
-@media (max-width: 900px) {
-  .search-label {
-    display: none;
-  }
-  .search-btn {
-    padding: 0 9px;
-  }
-}
-@media (max-width: 640px) {
-  /* the nav scrolls sideways instead of wrapping its labels */
-  .topnav {
-    flex: 1;
-    min-width: 0;
-    margin-left: 0;
-    overflow-x: auto;
-    scrollbar-width: none;
-    -webkit-mask-image: linear-gradient(90deg, #000 82%, transparent);
-    mask-image: linear-gradient(90deg, #000 82%, transparent);
-  }
-  .topnav::-webkit-scrollbar {
-    display: none;
-  }
-  .topnav a,
-  .topnav button {
-    flex: none;
-    white-space: nowrap;
-  }
-  .search-btn {
-    margin-left: 0;
-    flex: none;
-  }
-}
 @media (max-width: 520px) {
-  .nav-long {
-    display: none;
-  }
   .ref-item {
     grid-template-columns: minmax(0, 1fr);
   }
@@ -3200,5 +3166,152 @@ code[data-ref-cmd]:hover {
   }
   .ref-opts dd {
     margin-bottom: 6px;
+  }
+}
+
+/* ------------------------------------------------ top bar: narrow windows
+   Nothing wraps: the parts a visitor needs least go first (the tagline and the shortcut key, the
+   rank's name, the search and language labels, "All sites", the name), and on phones and small
+   tablets the nav becomes a tab bar at the bottom of the screen, within reach of the thumb. */
+@media (max-width: 1440px) {
+  .topbar {
+    gap: 14px;
+  }
+  .brand-text small,
+  .search-btn kbd {
+    display: none;
+  }
+}
+@media (max-width: 1300px) {
+  .profile {
+    padding-right: 6px;
+  }
+  .profile-text {
+    display: none;
+  }
+}
+@media (max-width: 1160px) {
+  .search-label {
+    display: none;
+  }
+  .search-btn {
+    padding: 0 9px;
+  }
+}
+@media (max-width: 1000px) {
+  .topbar {
+    gap: 10px;
+    padding: 0 14px;
+  }
+  .portal-text {
+    display: none;
+  }
+  .portal-link {
+    min-width: 24px;
+    padding: 0 10px 0 0;
+    margin-right: 0;
+    font-size: 16px;
+  }
+  .topnav {
+    margin-left: 0;
+  }
+  .topnav a,
+  .topnav button {
+    padding: 7px 8px;
+  }
+}
+@media (max-width: 880px) {
+  .brand-text,
+  .nav-long {
+    display: none;
+  }
+}
+@media (max-width: 760px) {
+  .brand-text {
+    display: flex;
+  }
+  /* contents: "コマンド" and "辞典" make one line of the tab's label */
+  .nav-long {
+    display: contents;
+  }
+  .topnav {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 0;
+    padding: 0 4px env(safe-area-inset-bottom);
+    overflow: visible;
+    background: var(--bg);
+    border-top: 1px solid var(--line);
+    box-shadow: 0 -4px 18px rgba(0, 0, 0, 0.12);
+  }
+  .topnav a,
+  .topnav button {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    min-height: 56px;
+    padding: 4px 2px;
+    border-radius: 0;
+    font-size: 10.5px;
+    font-weight: 700;
+    line-height: 1.2;
+    text-align: center;
+    white-space: normal;
+  }
+  .topnav a:hover,
+  .topnav button:hover,
+  .topnav a.active {
+    background: none;
+    box-shadow: none;
+  }
+  .topnav a.active {
+    color: var(--accent);
+  }
+  /* the icons: drawn in the text's colour through a mask */
+  .topnav a::before,
+  .topnav button::before {
+    content: "";
+    flex: none;
+    width: 22px;
+    height: 22px;
+    background: currentColor;
+    -webkit-mask: var(--ico) center / contain no-repeat;
+    mask: var(--ico) center / contain no-repeat;
+  }
+  .topnav [data-nav="home"] {
+    --ico: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='1.7' stroke-linecap='round' stroke-linejoin='round'><path d='M5 21V4h11l-2 4 2 4H5'/></svg>");
+  }
+  .topnav [data-nav="learn"] {
+    --ico: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='1.7' stroke-linecap='round' stroke-linejoin='round'><path d='M3 5h6a3 3 0 0 1 3 3v12a2 2 0 0 0-2-2H3zM21 5h-6a3 3 0 0 0-3 3v12a2 2 0 0 1 2-2h7z'/></svg>");
+  }
+  .topnav [data-nav="ref"] {
+    --ico: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='1.7' stroke-linecap='round' stroke-linejoin='round'><rect x='3' y='4' width='18' height='16' rx='2'/><path d='M7 9l3 3-3 3M12 15h5'/></svg>");
+  }
+  .topnav [data-nav="sandbox"] {
+    --ico: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='1.7' stroke-linecap='round' stroke-linejoin='round'><path d='M9 3h6M10 3v6l-5 9a2 2 0 0 0 1.7 3h10.6a2 2 0 0 0 1.7-3l-5-9V3M7.5 15h9'/></svg>");
+  }
+  .topnav #howtoBtn {
+    --ico: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='1.7' stroke-linecap='round' stroke-linejoin='round'><circle cx='12' cy='12' r='9'/><path d='M9.5 9.5a2.5 2.5 0 1 1 3.4 2.3c-.6.3-.9.8-.9 1.4v.6M12 17v.5'/></svg>");
+  }
+  main {
+    padding-bottom: calc(57px + env(safe-area-inset-bottom));
+  }
+  .toast {
+    bottom: calc(80px + env(safe-area-inset-bottom));
+  }
+  /* while typing (the on-screen keyboard is up) the tab bar steps aside */
+  body:has(:is(input, textarea):focus) .topnav {
+    display: none;
+  }
+}
+@media (max-width: 370px) {
+  .brand-text {
+    display: none;
   }
 }
