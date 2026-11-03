@@ -1,7 +1,9 @@
 #!/usr/bin/env node
 /* Checks the translations (js/i18n/<lang>/*.js, see js/core/i18n.js) for each language:
  * (1) every Japanese text the game shows has one: the page (index.html), the texts in code
- *     (IG.t('…') / T('…')) and the data (missions, drills, the command reference),
+ *     (IG.t('…') / T('…')) and the data (missions, drills, the command reference); the screen's own
+ *     texts have theirs in the ui or sim pack, not borrowed from a data pack where the same word may
+ *     mean something else (評価 is "evaluate" in the command reference, not a heading's "Scoring"),
  * (2) a translation keeps the {placeholders} of its Japanese and has no kana left in it,
  * (3) every mission's reference solution still completes (nothing depends on the wording),
  * (4) portal.json (the Home Page card) has the text in the language, starting with the mission's title.
@@ -76,6 +78,8 @@ const pageTexts = (() => {
   for (const t of body.replace(/<[^>]*>/g, "\n").split("\n")) if (JP.test(t)) out.add(entity(t.trim()));
   return [...out];
 })();
+// (the texts of the screen itself: in js/ui and js/core, besides index.html)
+const screenCode = new Set();
 const codeTexts = (() => {
   const out = new Set();
   const call = /(?:\bIG\.t|(?<![\w.$])T)\(\s*('(?:\\.|[^'\\\n])*'|"(?:\\.|[^"\\\n])*"|`(?:\\.|[^`\\])*`)/g;
@@ -83,7 +87,9 @@ const codeTexts = (() => {
     for (const [, lit] of fs.readFileSync(path.join(root, s), "utf8").matchAll(call)) {
       if (lit.startsWith("`") && lit.includes("${")) continue;
       const text = vm.runInNewContext(lit);
-      if (JP.test(text)) out.add(text);
+      if (!JP.test(text)) continue;
+      out.add(text);
+      if (/^js\/(ui|core)\//.test(s)) screenCode.add(text);
     }
   }
   return [...out];
@@ -112,6 +118,14 @@ for (const lang of langs) {
     "data",
     dataMissing.map((t) => `no translation: ${short(t)}`),
     `missions, drills and the command reference as loaded`,
+  );
+  const own = { ...pack(lang, "ui"), ...pack(lang, "sim") };
+  check(
+    "own words",
+    [...new Set([...pageTexts, ...screenCode])]
+      .filter((t) => T.has(t) && !Object.hasOwn(own, t))
+      .map((t) => `only in a data pack: ${short(t)}`),
+    `the screen's texts in the ui / sim packs`,
   );
 
   // 2. the translations themselves
