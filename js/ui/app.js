@@ -1269,8 +1269,14 @@
     const a = e.target.closest("a[hreflang]");
     if (a) a.href = `?lang=${a.hreflang}${location.hash}`;
   });
+  // Closed by a click elsewhere or Escape (back on its button), as on every site of the list
   document.addEventListener("click", (e) => {
     if (!e.target.closest("#langMenu")) $("langMenu").open = false;
+  });
+  $("langMenu").addEventListener("keydown", (e) => {
+    if (e.key !== "Escape" || !$("langMenu").open) return;
+    $("langMenu").open = false;
+    $("langMenu").querySelector("summary").focus();
   });
   IG.theme.button($("themeBtn"));
   // Served under a sub-path of a site list (e.g. /infra/ on this PC's front page)? Then offer the way back to it.

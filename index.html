@@ -171,7 +171,7 @@
 
         <div class="stage">
           <section class="panel dc-panel">
-            <div class="panel-head"><span class="kicker"><i class="live-dot"></i>LIVE VIEW</span><span class="legend"><i class="ok"></i>正常<i class="warn"></i>注意<i class="bad"></i>異常<i class="off"></i>停止</span></div>
+            <div class="panel-head"><span class="kicker"><i class="live-dot"></i>LIVE VIEW</span><span class="legend"><i class="ok"></i>正常<i class="warn"></i>注意<i class="bad"></i>異常<i class="off"></i>停止中</span></div>
             <canvas id="dcMission" class="dc-canvas" aria-label="ミッション環境の状態"></canvas>
           </section>
           <section class="panel terminal" id="terminal">
@@ -265,7 +265,7 @@
         <li><b>ブリーフィングを読む</b><span>左側に状況と目標が出ます。目標は自動で判定され、達成するとチェックが付きます。</span></li>
         <li><b>ターミナルで調査・修正</b><span data-i18n>本物と同じ書式のコマンドが使えます。<code>help</code> で一覧、Tab で補完、↑ で履歴。ファイル編集は <code>vi ファイル名</code>。</span></li>
         <li><b>LIVE VIEW で状態を確認</b><span>ラックの LED が緑＝正常、黄＝注意、赤＝異常。ラックにカーソルを合わせると詳細が見えます。</span></li>
-        <li><b>評価</b><span>★3: ヒントなし＆目標時間内。ヒントを使うと ★ が減ります。獲得 XP でランクが上がり、データセンターのラックが稼働します。</span></li>
+        <li><b>クリアの評価</b><span>★3: ヒントなし＆目標時間内。ヒントを使うと ★ が減ります。獲得 XP でランクが上がり、データセンターのラックが稼働します。</span></li>
         <li><b>知識が足りないときは</b><span data-i18n><a href="#/learn">ラーニング</a>で分野ごとの学習問題（入門〜資格レベル）を。コマンドは <a href="#/ref">コマンド辞典</a>（どこでも <kbd>Ctrl</kbd>+<kbd>K</kbd>）で、名前でも「やりたいこと」でも探せます。ターミナルの <code>apropos</code> / <code>man</code> も同じ辞典を引きます。ミッション中に開いても環境はそのままです。</span></li>
       </ol>
       <p class="muted">すべての操作はブラウザ内のシミュレーションで、実際のクラスタ・クラウド・ネットワークには一切接続しません。</p>

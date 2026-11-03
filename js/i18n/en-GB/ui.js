@@ -276,6 +276,8 @@ IG.i18n.add({
   "正常": "OK",
   "注意": "Warning",
   "異常": "Fault",
+  "停止中": "Stopped",
+  "クリアの評価": "Scoring",
   "Tab 補完 · ↑↓ 履歴 · Ctrl+R 履歴検索 · Ctrl+L クリア · Ctrl+C 中断 · 複数行は続けて入力（> 表示）": "Tab completes · ↑↓ history · Ctrl+R searches history · Ctrl+L clears · Ctrl+C interrupts · keep typing for more lines (shown as >)",
   "イベント": "Events",
   "早見表": "Cheat sheet",
@@ -335,4 +337,5 @@ IG.i18n.add({
   "オン": "on",
   "ダークモード 自動（端末の設定に合わせる）、押すと切り替え": "Dark mode: auto (follows your device). Press to switch",
   "ダークモード {state}、押すと切り替え": "Dark mode: {state}. Press to switch",
+  "フリーラボ": "Free lab",
 });
