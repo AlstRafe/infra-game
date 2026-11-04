@@ -1,4 +1,5 @@
 // ESLint for CoreLab's scripts (npm run lint). Prettier owns the layout (npm run format); these rules catch mistakes.
+// The rules block is the same as News Site's.
 import js from "@eslint/js";
 import globals from "globals";
 
@@ -15,9 +16,12 @@ export default [
       "no-irregular-whitespace": ["error", { skipStrings: true, skipTemplates: true, skipRegExps: true }],
       // el.textContent = el.textContent and the like go through a setter on purpose.
       "no-self-assign": ["error", { props: false }],
-      // A terminal simulator (and its tests) match escape sequences on purpose.
-      "no-control-regex": "off",
     },
+  },
+  {
+    // A terminal simulator (and its tests) match escape sequences on purpose.
+    files: ["js/**/*.js", "tests/**/*.js"],
+    rules: { "no-control-regex": "off" },
   },
   {
     files: ["js/**/*.js"],
