@@ -123,7 +123,7 @@ node tests/run-i18n.js en-GB -v      # 1 言語だけ、全件表示
 
 ### 書式とチェック
 
-Home Page・News Site と同じ書式です（1 行 120 字・ダブルクォート・LF。`.editorconfig` と `.prettierrc.json` は 3 リポジトリで同じファイル）。VS Code は推奨拡張（EditorConfig・Prettier・ESLint）を入れると保存時に整形します。
+Home Page・News Site と共通のルールです（1 行 120 字・ダブルクォート・LF ほか）。まとめは [Home Page の docs/CONVENTIONS.md](https://github.com/AlstRafe/home-page/blob/master/docs/CONVENTIONS.md)。VS Code は推奨拡張（EditorConfig・Prettier・ESLint）を入れると保存時に整形します。
 
 ```bash
 npm install       # 初回だけ（Prettier と ESLint。ゲーム自体はパッケージ不要）

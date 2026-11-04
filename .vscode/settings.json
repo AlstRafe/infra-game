@@ -5,6 +5,6 @@
   "files.insertFinalNewline": true,
   "files.trimTrailingWhitespace": true,
   "prettier.requireConfig": true,
-  "[javascript][css][json][jsonc][markdown]": { "editor.defaultFormatter": "esbenp.prettier-vscode" },
+  "[javascript][css][json][jsonc][markdown][yaml]": { "editor.defaultFormatter": "esbenp.prettier-vscode" },
   "[html]": { "editor.formatOnSave": false }
 }
