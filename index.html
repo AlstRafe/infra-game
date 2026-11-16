@@ -54,7 +54,7 @@
     <!-- ============================== HOME -->
     <section id="viewHome" class="view" aria-label="ホーム">
       <div class="hero">
-        <canvas id="dcHome" class="dc-canvas" aria-label="あなたのデータセンター（クリアしたミッションに応じて設備が稼働します）"></canvas>
+        <canvas id="dcHome" class="dc-canvas" role="img" aria-label="あなたのデータセンター（クリアしたミッションに応じて設備が稼働します）"></canvas>
         <div class="hero-copy">
           <p class="eyebrow">YOUR DATA CENTER</p>
           <h1 data-i18n>障害を直して、<br>データセンターを育てよう。</h1>
@@ -172,7 +172,7 @@
         <div class="stage">
           <section class="panel dc-panel">
             <div class="panel-head"><span class="kicker"><i class="live-dot"></i>LIVE VIEW</span><span class="legend"><i class="ok"></i>正常<i class="warn"></i>注意<i class="bad"></i>異常<i class="off"></i>停止中</span></div>
-            <canvas id="dcMission" class="dc-canvas" aria-label="ミッション環境の状態"></canvas>
+            <canvas id="dcMission" class="dc-canvas" role="img" aria-label="ミッション環境の状態"></canvas>
           </section>
           <section class="panel terminal" id="terminal">
             <div class="term-head">
@@ -186,7 +186,7 @@
             <div class="term-out" id="termOut" role="log" aria-live="polite"></div>
             <form class="term-in" id="termForm" autocomplete="off">
               <label class="prompt" for="termInput" id="termPrompt">operator@bastion:~$</label>
-              <input id="termInput" spellcheck="false" autocapitalize="off" autocomplete="off" aria-label="コマンド入力" placeholder="コマンドを入力（help で一覧）">
+              <input type="text" id="termInput" spellcheck="false" autocapitalize="off" autocomplete="off" aria-label="コマンド入力" placeholder="コマンドを入力（help で一覧）">
             </form>
             <div class="term-keys" id="termKeys" role="toolbar" aria-label="ターミナルのキー">
               <button type="button" data-key="Tab">Tab</button>
@@ -223,7 +223,7 @@
     <section class="modal editor" role="dialog" aria-modal="true" aria-labelledby="editorTitle">
       <header><span class="kicker">EDIT</span><h2 id="editorTitle">file</h2><span class="mode" id="editorMode">INSERT</span><button class="icon-btn" id="editorClose" aria-label="閉じる">×</button></header>
       <div class="code"><pre class="gutter" id="editorGutter">1</pre><textarea id="editorText" spellcheck="false" wrap="off" aria-label="ファイル内容"></textarea></div>
-      <form class="vim-cmd" id="vimForm" hidden><span>:</span><input id="vimInput" autocomplete="off" spellcheck="false" aria-label="コマンド"></form>
+      <form class="vim-cmd" id="vimForm" hidden><span>:</span><input type="text" id="vimInput" autocomplete="off" spellcheck="false" aria-label="コマンド"></form>
       <footer><span id="editorStatus">Esc → :wq で保存して終了 / :q! で破棄 / Ctrl+S で保存</span><span class="spacer"></span><button class="btn ghost small" id="editorCancel">破棄して閉じる</button><button class="btn primary small" id="editorSave">保存して閉じる <kbd>:wq</kbd></button></footer>
     </section>
   </div>

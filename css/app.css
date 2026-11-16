@@ -1960,6 +1960,13 @@ html.i18n-wait body {
   flex-wrap: wrap;
   gap: 8px;
 }
+/* A long label ("関連ミッション: …", "次のレベル: …" in English) wraps instead of widening the page on a phone. */
+.unit footer .btn,
+.result-actions .btn {
+  max-width: 100%;
+  white-space: normal;
+  text-align: center;
+}
 .need-know {
   margin-top: 20px;
   border: 1px dashed var(--line2);
@@ -2569,9 +2576,6 @@ html.i18n-wait body {
     padding: 0 8px;
   }
 }
-.ref {
-  --pad: 0px;
-}
 .ref-search {
   display: flex;
   align-items: center;
@@ -2637,6 +2641,10 @@ html.i18n-wait body {
 .ref-detail {
   min-width: 0;
   outline: 0;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--panel);
+  padding: 16px 18px 18px;
 }
 .ref-count {
   margin: 0 2px 8px;
@@ -2777,12 +2785,6 @@ html.i18n-wait body {
 }
 .ref-empty p {
   margin: 0 0 10px;
-}
-.ref-detail {
-  border: 1px solid var(--line);
-  border-radius: 14px;
-  background: var(--panel);
-  padding: 16px 18px 18px;
 }
 .ref-dh {
   border-bottom: 1px solid var(--line);

@@ -1201,7 +1201,7 @@
             add(pid + 1 + i, pid, def.workers.user, def.workers.cmd, { svc: s, stat: "S" });
       }
       if (this.name === "bastion" && this.world && this.world.features.has("docker")) {
-        for (const c of this.world.docker.containers.filter((c) => c.status === "running")) {
+        for (const c of this.world.docker.containers.filter((x) => x.status === "running")) {
           for (const p of c.ports)
             add(
               5100 + (U.hash(c.id + p.host) % 800),
@@ -1257,7 +1257,7 @@
           });
       }
       if (this.name === "bastion" && this.world && this.world.features.has("docker")) {
-        for (const c of this.world.docker.containers.filter((c) => c.status === "running"))
+        for (const c of this.world.docker.containers.filter((x) => x.status === "running"))
           for (const p of c.ports)
             out.push({
               proto: "tcp",

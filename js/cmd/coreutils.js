@@ -161,6 +161,14 @@
   }
   IG.readInputs = inputs;
   IG.cliOut = out;
+  // Why a command may not write the file p (null when it may): the checks of a > redirection.
+  function cannotWrite(ctx, p) {
+    if (ctx.vfs.isDir(p)) return "Is a directory";
+    if (!ctx.vfs.isDir(VFS.parent(p))) return "No such file or directory";
+    if (!ctx.shell.canWrite(p)) return "Permission denied";
+    return null;
+  }
+  IG.cannotWrite = cannotWrite;
 
   /* ================================================================ ls */
   const LS_COLORS = { d: "01;34", l: "01;36", x: "01;32", arc: "01;31", stk: "30;42", dev: "40;33;01" };
@@ -223,7 +231,7 @@
       else dirs.push({ name: t, path: p });
     }
     const sortEntries = (arr) => {
-      let s = arr.slice();
+      const s = arr.slice();
       if (f.S || f.sort === "size")
         s.sort((a, b) => fs.fileSize(b.node) - fs.fileSize(a.node) || a.name.localeCompare(b.name));
       else if (f.t || f.sort === "time") s.sort((a, b) => b.node.mtime - a.node.mtime || a.name.localeCompare(b.name));
@@ -635,7 +643,7 @@
       return o.r();
     }
     const target = pos[0];
-    let link = pos[1] || VFS.base(target);
+    const link = pos[1] || VFS.base(target);
     let lp = ctx.resolve(link);
     if (fs.isDir(lp) && !(f.n || f.T)) lp = lp + "/" + VFS.base(target);
     if (fs.lexists(lp)) {
@@ -734,10 +742,18 @@
   C.mktemp = (argv, ctx) => {
     const { f, pos } = opts(argv, "p", ["tmpdir"]);
     const tmpl = pos[0] || "tmp.XXXXXXXXXX";
+    if (!/X{3,}$/.test(tmpl)) return { stdout: "", stderr: `mktemp: too few X's in template '${tmpl}'\n`, code: 1 };
     const name = tmpl.replace(/X{3,}$/, (m) =>
       U.hex(String(ctx.world.now() + Math.random()), m.length).replace(/[0-9]/g, (d) => "aBcDeFgHiJ"[d]),
     );
     const p = tmpl.includes("/") ? ctx.resolve(name) : (f.p || f.tmpdir || "/tmp").replace(/\/$/, "") + "/" + name;
+    const why = cannotWrite(ctx, p);
+    if (why)
+      return {
+        stdout: "",
+        stderr: `mktemp: failed to create ${f.d ? "directory" : "file"} via template '${tmpl}': ${why}\n`,
+        code: 1,
+      };
     if (f.d) ctx.vfs.mkdirp(p, Object.assign(owner(ctx, true), { mode: 0o700 }));
     else ctx.vfs.write(p, "", Object.assign(owner(ctx), { mode: 0o600 }));
     return p + "\n";
@@ -1212,23 +1228,33 @@
       quiet = false,
       verbose = false;
     const files = [];
+    const fail = (msg) => {
+      o.e(`${cmd}: ${msg}`);
+      return o.r();
+    };
     for (let i = 0; i < argv.length; i++) {
       const a = argv[i];
       let m;
-      if (a === "-n" || a === "--lines") {
+      if (a === "--") {
+        files.push(...argv.slice(i + 1));
+        break;
+      }
+      if (a === "-n" || a === "--lines" || a === "-c" || a === "--bytes") {
+        const bytes = a === "-c" || a === "--bytes";
         const v = argv[++i];
+        if (v === undefined)
+          return fail(
+            `option requires an argument -- '${bytes ? "c" : "n"}'\nTry '${cmd} --help' for more information.`,
+          );
+        if (!/^[+-]?\d+$/.test(v)) return fail(`invalid number of ${bytes ? "bytes" : "lines"}: '${v}'`);
         plus = v.startsWith("+");
-        n = parseInt(v.replace("+", ""), 10);
-        if (v.startsWith("-")) n = -Math.abs(n);
+        if (bytes) c = Number(v);
+        else n = parseInt(v.replace("+", ""), 10);
         continue;
       }
       if ((m = a.match(/^(?:-n|--lines=)([+-]?\d+)$/))) {
         plus = m[1].startsWith("+");
         n = parseInt(m[1].replace("+", ""), 10);
-        continue;
-      }
-      if (a === "-c" || a === "--bytes") {
-        c = Number(argv[++i]);
         continue;
       }
       if ((m = a.match(/^-c(\d+)$/))) {
@@ -1258,13 +1284,14 @@
       if ((r.texts.length > 1 && !quiet) || verbose)
         o.o(`${k ? "\n" : ""}==> ${t.name === "-" ? "standard input" : t.name} <==\n`);
       if (c !== null) {
-        o.o(cmd === "head" ? t.text.slice(0, c) : t.text.slice(-c));
+        if (cmd === "head") o.o(t.text.slice(0, c));
+        else o.o(plus ? t.text.slice(Math.max(0, c - 1)) : c ? t.text.slice(-Math.abs(c)) : "");
         return;
       }
       const l = lines(t.text);
       let sel;
       if (cmd === "head") sel = n < 0 ? l.slice(0, Math.max(0, l.length + n)) : l.slice(0, n);
-      else sel = plus ? l.slice(Math.max(0, n - 1)) : l.slice(Math.max(0, l.length - n));
+      else sel = plus ? l.slice(Math.max(0, n - 1)) : l.slice(Math.max(0, l.length - Math.abs(n)));
       o.o(join(sel));
     });
     r.errs.forEach((e) =>
@@ -1319,13 +1346,13 @@
       };
       return { v, name: t.name === "-" ? "" : t.name };
     });
-    if (rows.length > 1)
+    if (rows.length > 1) {
+      const sum = (k) => rows.reduce((s, x) => s + x.v[k], 0);
       rows.push({
-        v: ["l", "w", "m", "c"].reduce((acc, k) => ((acc[k] = rows.reduce((s, x) => s + x.v[k], 0)), acc), {
-          L: Math.max(...rows.map((x) => x.v.L)),
-        }),
+        v: { l: sum("l"), w: sum("w"), m: sum("m"), c: sum("c"), L: Math.max(...rows.map((x) => x.v.L)) },
         name: "total",
       });
+    }
     const width =
       rows.length > 1 || show.length > 1 ? Math.max(...rows.flatMap((x) => show.map((k) => String(x.v[k]).length))) : 0;
     for (const row of rows)
@@ -1340,12 +1367,9 @@
     for (const t of pos) {
       if (t === "/dev/null") continue;
       const p = ctx.resolve(t);
-      if (!ctx.shell.canWrite(p)) {
-        o.e(`tee: ${t}: Permission denied`);
-        continue;
-      }
-      if (!ctx.vfs.isDir(VFS.parent(p))) {
-        o.e(`tee: ${t}: No such file or directory`);
+      const why = cannotWrite(ctx, p);
+      if (why) {
+        o.e(`tee: ${t}: ${why}`);
         continue;
       }
       ctx.vfs.write(p, data, Object.assign(ctx.vfs.exists(p) ? {} : owner(ctx), { append: !!(f.a || f.append) }));
@@ -1415,15 +1439,35 @@
 
   /* ================================================================ misc text producers */
   C.seq = (argv) => {
-    const { f, pos } = opts(argv, "sf", ["separator"]);
+    // A negative number is an operand, not an option: seq 5 -1 1
+    const f = {},
+      pos = [];
+    for (let i = 0; i < argv.length; i++) {
+      const a = argv[i];
+      if (/^-(?!\d|\.\d)/.test(a) && a !== "-") {
+        const long = a.match(/^--(separator|format)(?:=(.*))?$/);
+        if (long) f[long[1][0]] = long[2] ?? argv[++i];
+        else if (/^-[sf]/.test(a)) f[a[1]] = a.slice(2) || argv[++i];
+        else if (a === "-w" || a === "--equal-width") f.w = true;
+        else pos.push(a);
+      } else pos.push(a);
+    }
     const nums = pos.map(Number);
-    if (!pos.length || nums.some(isNaN))
+    if (!pos.length)
+      return { stdout: "", stderr: "seq: missing operand\nTry 'seq --help' for more information.\n", code: 1 };
+    if (nums.some(isNaN))
       return {
         stdout: "",
-        stderr: `seq: invalid floating point argument: ‘${pos.find((x) => isNaN(Number(x))) || ""}’\nTry 'seq --help' for more information.\n`,
+        stderr: `seq: invalid floating point argument: ‘${pos.find((x) => isNaN(Number(x)))}’\nTry 'seq --help' for more information.\n`,
         code: 1,
       };
     const [a, step, b] = nums.length === 1 ? [1, 1, nums[0]] : nums.length === 2 ? [nums[0], 1, nums[1]] : nums;
+    if (!step)
+      return {
+        stdout: "",
+        stderr: `seq: invalid Zero increment value: ‘${pos[1]}’\nTry 'seq --help' for more information.\n`,
+        code: 1,
+      };
     const out2 = [];
     const dec = Math.max(...pos.map((x) => (x.split(".")[1] || "").length));
     for (let v = a; step > 0 ? v <= b + 1e-9 : v >= b - 1e-9; v += step) {
@@ -1431,7 +1475,7 @@
       if (out2.length > 100000) break;
     }
     const w = f.w ? Math.max(...out2.map((x) => x.length)) : 0;
-    return out2.length ? out2.map((x) => x.padStart(w, "0")).join(f.s || f.separator || "\n") + "\n" : "";
+    return out2.length ? out2.map((x) => x.padStart(w, "0")).join(f.s ?? "\n") + "\n" : "";
   };
   C.yes = (argv) => ({
     stdout:

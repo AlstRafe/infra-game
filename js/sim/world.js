@@ -277,7 +277,7 @@
         if (i) index = i[1].trim().split(/\s+/);
       }
       const server = svc === "nginx" ? "nginx/1.24.0 (Ubuntu)" : "Apache/2.4.58 (Ubuntu)";
-      let file = IG.VFS.norm(path.split("?")[0], "/");
+      const file = IG.VFS.norm(path.split("?")[0], "/");
       let p = root.replace(/\/$/, "") + file;
       if (h.vfs.isDir(p)) {
         const hit = index.map((x) => p.replace(/\/$/, "") + "/" + x).find((x) => h.vfs.isFile(x));

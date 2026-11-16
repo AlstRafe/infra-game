@@ -814,12 +814,12 @@
     $("termInput").placeholder = T("検索語を入力（Enter で実行 / Esc で編集）");
     updatePrompt();
   }
-  function searchEnd(run) {
+  function searchEnd(execute) {
     const s = term.search;
     term.search = null;
     $("termInput").placeholder = T("コマンドを入力（help で一覧）");
     updatePrompt();
-    if (run && s && s.match) {
+    if (execute && s && s.match) {
       $("termInput").value = "";
       submit(s.match);
     } else if (s) $("termInput").value = s.match || "";
@@ -1136,7 +1136,8 @@
   function route() {
     const h = location.hash;
     let m;
-    $("refModal").hidden = true;
+    // A dialog belongs to the screen it was opened on (the browser's Back after a mission left its result on top)
+    closeAllModals();
     if ((m = h.match(/^#\/ref(?:\/([ct])\/([^?]*))?(?:\?q=(.*))?$/)))
       return showRef(
         m[1] ? { kind: m[1], id: decodeURIComponent(m[2]) } : null,

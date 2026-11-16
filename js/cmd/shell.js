@@ -341,7 +341,7 @@
       let src = raw;
       if (!over) {
         // job completion notices from earlier background jobs
-        for (const j of this.jobs.filter((j) => j.done && !j.reported)) {
+        for (const j of this.jobs.filter((x) => x.done && !x.reported)) {
           j.reported = true;
           this.chunks.push({ text: `[${j.n}]+  Done                    ${j.cmd}\n`, stream: "out" });
         }
@@ -1244,14 +1244,11 @@
   }
 
   /* ================================================================ printf / echo escapes */
+  const ESCAPE = /\\(0[0-7]{0,3}|[0-7]{1,3}|x[0-9a-fA-F]{1,2}|u[0-9a-fA-F]{4}|[abefnrtv\\c'"])/g;
+  // backslash escapes of echo -e, printf's format and %b. \c: nothing after it is printed (stop: no more output)
   function escapes(s, forEcho) {
-    let stop = false;
-    const out = s.replace(/\\(0[0-7]{0,3}|[0-7]{1,3}|x[0-9a-fA-F]{1,2}|u[0-9a-fA-F]{4}|[abefnrtv\\c'"])/g, (m, e) => {
-      if (stop) return "";
-      if (e === "c") {
-        stop = true;
-        return "";
-      }
+    const cut = [...s.matchAll(ESCAPE)].find((m) => m[1] === "c");
+    const out = (cut ? s.slice(0, cut.index) : s).replace(ESCAPE, (m, e) => {
       if (e[0] === "x") return String.fromCharCode(parseInt(e.slice(1), 16));
       if (e[0] === "u") return String.fromCharCode(parseInt(e.slice(1), 16));
       if (/^[0-7]/.test(e))
@@ -1270,20 +1267,23 @@
         '"': '"',
       }[e];
     });
-    return { text: stop ? out.slice(0, out.length) : out, stop };
+    return { text: out, stop: !!cut };
   }
   function printf(fmt, args) {
     let out = "";
     let ai = 0;
     const errs = [];
     const next = () => (ai < args.length ? args[ai++] : undefined);
+    let stopped = false; // \c in the format or in a %b argument
     const once = () => {
       let i = 0;
       while (i < fmt.length) {
         const c = fmt[i];
         if (c === "\\") {
-          const m = fmt.slice(i).match(/^\\(0[0-7]{0,3}|[0-7]{1,3}|x[0-9a-fA-F]{1,2}|.)/);
-          out += escapes(m[0]).text;
+          const m = fmt.slice(i).match(/^\\(0[0-7]{0,3}|[0-7]{1,3}|x[0-9a-fA-F]{1,2}|.|$)/);
+          const e = m[1] ? escapes(m[0]) : { text: "\\", stop: false }; // a lone \ at the end stays
+          out += e.text;
+          if ((stopped = e.stop)) return;
           i += m[0].length;
           continue;
         }
@@ -1316,9 +1316,12 @@
           case "q":
             v = raw === undefined ? "''" : /^[\w./:@-]+$/.test(raw) ? raw : "'" + raw.replace(/'/g, "'\\''") + "'";
             break;
-          case "b":
-            v = escapes(raw ?? "").text;
+          case "b": {
+            const e = escapes(raw ?? "");
+            v = e.text;
+            stopped = e.stop;
             break;
+          }
           case "c":
             v = (raw ?? "").charAt(0);
             break;
@@ -1368,10 +1371,15 @@
                 : v.padStart(W, "0")
               : v.padStart(W);
         out += v;
+        if (stopped) return;
       }
     };
-    once();
-    while (ai < args.length && /%[^%]/.test(fmt)) once();
+    // The format is used again while arguments are left, but only if it takes some: printf '%%d' 5 prints once.
+    let used;
+    do {
+      used = ai;
+      once();
+    } while (!stopped && ai < args.length && ai > used);
     return { out, errs };
   }
   IG.printfFmt = printf;
@@ -1725,6 +1733,7 @@
       }
     },
     "builtin"(a, io, sh) {
+      if (!a.length) return 0;
       const f = BUILTINS[a[0]];
       if (!f) return er(sh, io, `bash: builtin: ${a[0]}: not a shell builtin`);
       return f(a.slice(1), io, sh);

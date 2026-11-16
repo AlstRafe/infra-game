@@ -438,7 +438,7 @@
         const unknown = Object.keys(s).find((k) => !known.includes(k));
         if (unknown)
           return { error: `validating ${path}: services.${name} additional properties '${unknown}' not allowed` };
-        let env = {};
+        const env = {};
         if (Array.isArray(s.environment))
           for (const kv of s.environment) {
             const i = String(kv).indexOf("=");
@@ -666,7 +666,8 @@
       }
       case "inspect": {
         const n = rest.find((x) => !x.startsWith("-"));
-        const c = D.byName(n || "");
+        if (!n) return fail('"docker inspect" requires at least 1 argument.');
+        const c = D.byName(n);
         if (c)
           return ok(
             JSON.stringify(

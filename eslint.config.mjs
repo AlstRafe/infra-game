@@ -21,7 +21,11 @@ export default [
   {
     // A terminal simulator (and its tests) match escape sequences on purpose.
     files: ["js/**/*.js", "tests/**/*.js"],
-    rules: { "no-control-regex": "off" },
+    rules: {
+      "no-control-regex": "off",
+      // CoreLab only: a variable that is never reassigned is const (let a = 1, b = 2 is split when only b changes).
+      "prefer-const": ["warn", { destructuring: "all" }],
+    },
   },
   {
     files: ["js/**/*.js"],

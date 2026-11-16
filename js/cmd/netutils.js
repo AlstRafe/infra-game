@@ -385,7 +385,13 @@
   };
   C.tracepath = (argv, ctx) => {
     const host = argv.filter((a) => !a.startsWith("-"))[0];
-    const ip = host && resolve(ctx, host);
+    if (!host)
+      return {
+        stdout: "",
+        stderr: "Usage\n  tracepath [options] <destination>\n\nFor more details see tracepath(8).\n",
+        code: 255,
+      };
+    const ip = resolve(ctx, host);
     if (!ip) return { stdout: "", stderr: `${host}: Name or service not known\n`, code: 2 };
     const internal = /^10\./.test(ip);
     return internal
@@ -671,6 +677,9 @@
   };
 
   /* ================================================================ nc / telnet */
+  // a port given by number or by its /etc/services name; NaN when it is neither
+  const SERVICES = { ssh: 22, telnet: 23, smtp: 25, domain: 53, http: 80, https: 443, mysql: 3306, postgresql: 5432 };
+  const portOf = (s) => (/^\d+$/.test(s) ? Number(s) : SERVICES[s] || NaN);
   C.nc = (argv, ctx) => {
     const fl = new Set(
       argv
@@ -696,9 +705,16 @@
           "usage: nc [-46CDdFhklNnrStUuvZz] [-I length] [-i interval] [-M ttl]\n\t  [-m minttl] [-O length] [-P proxy_username] [-p source_port]\n\t  [-q seconds] [-s sourceaddr] [-T keyword] [-V rtable] [-W recvlimit]\n\t  [-w timeout] [-X proxy_protocol] [-x proxy_address[:port]]\n\t  [destination] [port]\n",
         code: 1,
       };
-    const ports = portSpec.includes("-")
-      ? (([a, b]) => Array.from({ length: Math.min(200, b - a + 1) }, (_, k) => a + k))(portSpec.split("-").map(Number))
-      : [Number(portSpec)];
+    const range = portSpec.match(/^(\d+)-(\d+)$/);
+    if (!range && Number.isNaN(portOf(portSpec)))
+      return {
+        stdout: "",
+        stderr: `nc: getaddrinfo for host "${host}" port ${portSpec}: Servname not supported for ai_socktype\n`,
+        code: 1,
+      };
+    // a range in either order (nc sorts it), at most 200 ports
+    const [lo, hi] = range ? [Number(range[1]), Number(range[2])].sort((a, b) => a - b) : [];
+    const ports = range ? Array.from({ length: Math.min(200, hi - lo + 1) }, (_, k) => lo + k) : [portOf(portSpec)];
     const o = out();
     let anyOk = false;
     for (const port of ports) {
@@ -748,7 +764,13 @@
   C.telnet = (argv, ctx) => {
     const [host, p] = argv.filter((a) => !a.startsWith("-"));
     if (!host) return { stdout: "", stderr: IG.t("ℹ telnet <ホスト> <ポート> の形式で使ってください。\n"), code: 1 };
-    const port = Number(p || 23);
+    const port = p ? portOf(p) : 23;
+    if (Number.isNaN(port))
+      return {
+        stdout: "",
+        stderr: `telnet: could not resolve ${host}/${p}: Servname not supported for ai_socktype\n`,
+        code: 1,
+      };
     const r = tcpConnect(ctx, host, port);
     if (r.unresolved)
       return { stdout: "", stderr: `telnet: could not resolve ${host}/${port}: Name or service not known\n`, code: 1 };
@@ -789,7 +811,7 @@
     return res;
   }
   function parseTarget(s, ctx) {
-    const m = String(s).match(/^(?:([^@]+)@)?([^:]+)(?::(.*))?$/);
+    const m = String(s).match(/^(?:([^@]+)@)?([^:]*)(?::(.*))?$/);
     const cfg = sshConfig(ctx, m[2]);
     return {
       user: m[1] || cfg.user || ctx.user,
@@ -917,7 +939,8 @@
   };
   function remoteFs(ctx, spec) {
     const t = parseTarget(spec, ctx);
-    if (t.path === undefined)
+    // no host part (":file" or a plain path) is a local file, as in scp
+    if (t.path === undefined || !t.host)
       return { local: true, path: ctx.resolve(spec), vfs: ctx.vfs, host: ctx.host, user: ctx.user, label: spec };
     const a = sshAuth(ctx, t);
     if (a.error) return { error: a.error };
@@ -1093,7 +1116,12 @@
       o.o("\n");
     }
     if (f.N === undefined) o.o("Enter passphrase (empty for no passphrase): \nEnter same passphrase again: \n");
-    ctx.vfs.mkdirp(VFS.parent(file), { owner: ctx.user, mode: 0o700 });
+    if (!f.f) ctx.vfs.mkdirp(VFS.parent(file), { owner: ctx.user, mode: 0o700 }); // ~/.ssh is made when missing
+    const why = IG.cannotWrite(ctx, file);
+    if (why) {
+      o.e(`Saving key "${file}" failed: ${why}`);
+      return o.r();
+    }
     const comment = f.C || `${ctx.user}@${ctx.host.hostname}`;
     const body = U.b64(U.hex(file + "priv" + Math.random(), 48));
     ctx.vfs.write(
@@ -1113,7 +1141,14 @@
   };
   C["ssh-copy-id"] = (argv, ctx) => {
     const { f, pos } = opts(argv, "ip", []);
-    const t = parseTarget(pos[0] || "", ctx);
+    if (!pos[0])
+      return {
+        stdout: "",
+        stderr:
+          "Usage: /usr/bin/ssh-copy-id [-h|-?|-f|-n|-s|-x] [-i [identity_file]] [-p port] [-F alternative ssh_config file] [-t target_path] [[-o <ssh -o options>] ...] [user@]hostname\n",
+        code: 1,
+      };
+    const t = parseTarget(pos[0], ctx);
     const keyFile = f.i
       ? ctx.resolve(f.i.endsWith(".pub") ? f.i : f.i + ".pub")
       : ctx.shell.home() + "/.ssh/id_ed25519.pub";

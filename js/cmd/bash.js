@@ -156,7 +156,7 @@
           if (i >= n) throw new Incomplete();
           let e = src.indexOf("\n", i);
           if (e < 0) e = n;
-          let line = src.slice(i, e);
+          const line = src.slice(i, e);
           i = e + 1;
           const cmp = h.strip ? line.replace(/^\t+/, "") : line;
           if (cmp === h.delim) break;

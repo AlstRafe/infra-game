@@ -187,12 +187,13 @@
 
   /* ================================================================ users & groups */
   const NO_ROOT = (cmd) => `${cmd}: Permission denied.\n${cmd}: cannot lock /etc/passwd; try again later.`;
+  const USAGE = (cmd, what) => ({ stdout: "", stderr: `Usage: ${cmd} [options] ${what}\n`, code: 2 });
   C.useradd = (argv, ctx) => {
     if (!root(ctx)) return { stdout: "", stderr: NO_ROOT("useradd") + "\n", code: 1 };
     const { f, pos } = opts(argv, "sdGgucep", ["shell", "home-dir", "groups", "gid", "uid", "comment"]);
     const h = ctx.host;
     const name = pos[0];
-    if (!name) return { stdout: "", stderr: "Usage: useradd [options] LOGIN\n", code: 2 };
+    if (!name) return USAGE("useradd", "LOGIN");
     if (!/^[a-z_][a-z0-9_-]*\$?$/.test(name))
       return { stdout: "", stderr: `useradd: invalid user name '${name}': use --badname to ignore\n`, code: 3 };
     if (h.users[name]) return { stdout: "", stderr: `useradd: user '${name}' already exists\n`, code: 9 };
@@ -241,6 +242,7 @@
     const { f, pos } = opts(argv, "sdGglcu", ["shell", "home", "groups", "gid", "login", "comment"]);
     const h = ctx.host;
     const name = pos[0];
+    if (!name) return USAGE("usermod", "LOGIN");
     if (!h.users[name]) return { stdout: "", stderr: `usermod: user '${name}' does not exist\n`, code: 6 };
     const u = h.users[name];
     if (f.G || f.groups) {
@@ -271,6 +273,7 @@
     const { f, pos } = opts(argv);
     const h = ctx.host;
     const name = pos[0];
+    if (!name) return USAGE("userdel", "LOGIN");
     if (!h.users[name]) return { stdout: "", stderr: `userdel: user '${name}' does not exist\n`, code: 6 };
     if (ctx.shell.stack.some((s) => s.host === h.name && s.user === name))
       return {
@@ -292,6 +295,7 @@
     if (!root(ctx)) return { stdout: "", stderr: NO_ROOT("groupadd").replace("passwd", "group") + "\n", code: 10 };
     const { f, pos } = opts(argv, "g", ["gid"]);
     const h = ctx.host;
+    if (!pos[0]) return USAGE("groupadd", "GROUP");
     if (h.groups[pos[0]]) return { stdout: "", stderr: `groupadd: group '${pos[0]}' already exists\n`, code: 9 };
     const gid =
       f.g || f.gid
@@ -309,6 +313,7 @@
   C.groupdel = (argv, ctx) => {
     if (!root(ctx)) return { stdout: "", stderr: NO_ROOT("groupdel").replace("passwd", "group") + "\n", code: 10 };
     const h = ctx.host;
+    if (!argv[0]) return USAGE("groupdel", "GROUP");
     if (!h.groups[argv[0]]) return { stdout: "", stderr: `groupdel: group '${argv[0]}' does not exist\n`, code: 6 };
     if (Object.values(h.users).some((u) => u.gid === h.groups[argv[0]].gid))
       return {
@@ -324,6 +329,7 @@
     if (!root(ctx)) return { stdout: "", stderr: "gpasswd: Permission denied.\n", code: 1 };
     const h = ctx.host;
     const [flag, user, group] = argv;
+    if (!group) return { stdout: "", stderr: "Usage: gpasswd [option] GROUP\n", code: 2 };
     if (!h.groups[group])
       return { stdout: "", stderr: `gpasswd: group '${group}' does not exist in /etc/group\n`, code: 3 };
     if (flag === "-a") {
@@ -407,6 +413,7 @@
   C.chage = (argv, ctx) => {
     const { f, pos } = opts(argv, "MmWEId");
     const u = pos[0];
+    if (!u) return USAGE("chage", "LOGIN");
     if (!ctx.host.users[u])
       return { stdout: "", stderr: `chage: user '${u}' does not exist in /etc/passwd\n`, code: 1 };
     if (f.l)
@@ -417,6 +424,12 @@
   C.getent = (argv, ctx) => {
     const [db, key] = argv;
     const v = ctx.vfs;
+    if (!db)
+      return {
+        stdout: "",
+        stderr: "getent: wrong number of arguments\nTry `getent --help' or `getent --usage' for more information.\n",
+        code: 1,
+      };
     if (db === "passwd" || db === "group") {
       const l = lines(v.read("/etc/" + db) || "");
       const sel = key ? l.filter((x) => x.split(":")[0] === key || x.split(":")[2] === key) : l;
@@ -669,7 +682,7 @@
           (p.tty === "pts/" + (ctx.shell.stack.length - 1) && p.user === ctx.user) ||
           (p.cmd === "ps" && p.user === ctx.user),
       );
-    let sort = valOf("--sort");
+    const sort = valOf("--sort");
     if (sort) {
       const desc = sort.startsWith("-");
       const key = sort.replace(/^[-+]/, "");
@@ -933,15 +946,25 @@
     }
     return o.r();
   };
+  const procName = (p) => p.cmd.replace(/^-/, "").split(/[\s:]/)[0].split("/").pop();
+  // null when the pattern is not a valid regular expression
   function matchProcs(ctx, pattern, full, user, exact) {
-    const re = exact ? new RegExp("^" + pattern + "$") : new RegExp(pattern);
+    let re;
+    try {
+      const src = IG.posixRe(pattern.replace(/^(\^?)\*/, "$1\\*"), true);
+      re = new RegExp(exact ? `^(?:${src})$` : src);
+    } catch (e) {
+      return null;
+    }
     return allProcs(ctx, "__self__").filter(
-      (p) =>
-        p.cmd !== "__self__" &&
-        (!user || p.user === user) &&
-        re.test(full ? p.cmd : p.cmd.replace(/^-/, "").split(/[\s:]/)[0].split("/").pop()),
+      (p) => p.cmd !== "__self__" && (!user || p.user === user) && re.test(full ? p.cmd : procName(p)),
     );
   }
+  const badRegex = (cmd, pattern) => ({
+    stdout: "",
+    stderr: `${cmd}: ${pattern.endsWith("\\") ? "Trailing backslash" : "Invalid regular expression"}\n`,
+    code: 2,
+  });
   C.pgrep = (argv, ctx) => {
     const { f, pos } = opts(argv, "u", ["signal"]);
     if (!pos[0])
@@ -951,22 +974,16 @@
         code: 2,
       };
     const ps = matchProcs(ctx, pos[0], f.f, f.u, f.x);
+    if (!ps) return badRegex("pgrep", pos[0]);
     return {
-      stdout: join(
-        ps.map((p) =>
-          f.a
-            ? `${p.pid} ${p.cmd}`
-            : f.l
-              ? `${p.pid} ${p.cmd.replace(/^-/, "").split(/[\s:]/)[0].split("/").pop()}`
-              : String(p.pid),
-        ),
-      ),
+      stdout: join(ps.map((p) => (f.a ? `${p.pid} ${p.cmd}` : f.l ? `${p.pid} ${procName(p)}` : String(p.pid)))),
       stderr: "",
       code: ps.length ? 0 : 1,
     };
   };
   C.pidof = (argv, ctx) => {
-    const ps = matchProcs(ctx, argv.filter((a) => !a.startsWith("-"))[0] || "", false, null, true);
+    const names = argv.filter((a) => !a.startsWith("-"));
+    const ps = allProcs(ctx, "__self__").filter((p) => p.cmd !== "__self__" && names.includes(procName(p)));
     return {
       stdout: ps.length
         ? ps
@@ -985,7 +1002,14 @@
       argv.filter((a) => a !== sigArg),
       "u",
     );
-    const ps = matchProcs(ctx, pos[0] || "", f.f, f.u, f.x);
+    if (!pos[0])
+      return {
+        stdout: "",
+        stderr: "pkill: no matching criteria specified\nTry `pkill --help' for more information.\n",
+        code: 2,
+      };
+    const ps = matchProcs(ctx, pos[0], f.f, f.u, f.x);
+    if (!ps) return badRegex("pkill", pos[0]);
     const o = out();
     for (const p of ps) {
       const e = signal(ctx, p.pid, sig);
@@ -1510,7 +1534,7 @@
     const o = out();
     const flags = argv.filter((a) => a.startsWith("-"));
     const pos = argv.filter((a) => !a.startsWith("-"));
-    let [verb, ...units] = pos;
+    const [verb, ...units] = pos;
     if (!verb || verb === "list-units") {
       const failedOnly = flags.includes("--failed") || flags.some((f) => /--state=failed/.test(f));
       const all = Object.keys(h.services)
@@ -1574,7 +1598,7 @@
       o.e(`Too few arguments.`);
       return o.r();
     }
-    for (let u of units) {
+    for (const u of units) {
       const s = h.svcName(u);
       const known = h.knownService(s) || !!unitPath(h, s);
       if (!known) {
@@ -1913,6 +1937,8 @@
           .sort(),
       );
     if (argv[0] === "set-timezone") {
+      if (argv.length !== 2)
+        return { stdout: "", stderr: `${argv.length < 2 ? "Too few" : "Too many"} arguments.\n`, code: 1 };
       if (!root(ctx)) return { stdout: "", stderr: "Failed to set time zone: Access denied\n", code: 1 };
       if (!TZ[argv[1]])
         return {
@@ -2240,12 +2266,17 @@
       );
       return o.r();
     }
+    if (rhel && !names.length) {
+      o.e("Error: Need to pass a list of pkgs to remove", 1);
+      return o.r();
+    }
     const present = names.filter((n) => h.pkgs.has(n));
     if (!present.length) {
+      const missing = names.map((n) => `Package '${n}' is not installed, so not removed\n`).join("");
       o.o(
         rhel
           ? `No match for argument: ${names[0]}\nNo packages marked for removal.\nDependencies resolved.\nNothing to do.\nComplete!\n`
-          : `Reading package lists... Done\nBuilding dependency tree... Done\nReading state information... Done\nPackage '${names[0]}' is not installed, so not removed\n0 upgraded, 0 newly installed, 0 to remove and 14 not upgraded.\n`,
+          : `Reading package lists... Done\nBuilding dependency tree... Done\nReading state information... Done\n${missing}0 upgraded, 0 newly installed, 0 to remove and 14 not upgraded.\n`,
       );
       return o.r();
     }
@@ -2344,7 +2375,12 @@
         );
       }
       case "search": {
-        const re = new RegExp(pkgs[0] || ".", "i");
+        let re;
+        try {
+          re = new RegExp(pkgs[0] || ".", "i");
+        } catch (e) {
+          return { stdout: "", stderr: "E: Regex compilation error - Invalid regular expression\n", code: 100 };
+        }
         return (
           warn +
           "Sorting... Done\nFull Text Search... Done\n" +
@@ -2357,6 +2393,7 @@
       case "show":
       case "policy": {
         const n = pkgs[0];
+        if (!n) return { stdout: "", stderr: "E: No packages found\n", code: 100 };
         if (!(n in L.PKG))
           return { stdout: "", stderr: `N: Unable to locate package ${n}\nE: No packages found\n`, code: 100 };
         if (verb === "policy")
@@ -2368,8 +2405,19 @@
     }
   };
   C["apt-get"] = (argv, ctx) => C.apt(argv, Object.assign({}, ctx, { name: "apt-get" }));
-  C["apt-cache"] = (argv, ctx) =>
-    C.apt(argv[0] === "search" || argv[0] === "show" || argv[0] === "policy" ? argv : ["show"].concat(argv), ctx);
+  C["apt-cache"] = (argv, ctx) => {
+    if (!argv.length)
+      return {
+        stdout: "",
+        stderr:
+          "apt 2.4.13 (amd64)\nUsage: apt-cache [options] command\n       apt-cache [options] show pkg1 [pkg2 ...]\n",
+        code: 1,
+      };
+    return C.apt(
+      argv[0] === "search" || argv[0] === "show" || argv[0] === "policy" ? argv : ["show"].concat(argv),
+      ctx,
+    );
+  };
   C.dpkg = (argv, ctx) => {
     const h = ctx.host;
     const a = argv[0];
@@ -2617,7 +2665,7 @@
   }
   C.tar = (argv, ctx) => {
     const o = out();
-    let a = argv.slice();
+    const a = argv.slice();
     if (a[0] && !a[0].startsWith("-") && /^[cxtrufzjJvpCO]+$/.test(a[0])) a[0] = "-" + a[0];
     let mode = null,
       file = null,
@@ -2721,8 +2769,9 @@
         o.o(data);
       } else {
         const p = ctx.resolve(file);
-        if (!ctx.shell.canWrite(p)) {
-          o.e(`tar: ${file}: Cannot open: Permission denied\ntar: Error is not recoverable: exiting now`, 2);
+        const why = IG.cannotWrite(ctx, p);
+        if (why) {
+          o.e(`tar: ${file}: Cannot open: ${why}\ntar: Error is not recoverable: exiting now`, 2);
           return o.r();
         }
         fs.write(p, data, { owner: ctx.user, group: ctx.host.primaryGroup(ctx.user), size });
@@ -2740,6 +2789,13 @@
       }
       if (!ctx.shell.canRead(p)) {
         o.e(`tar: ${file}: Cannot open: Permission denied\ntar: Error is not recoverable: exiting now`, 2);
+        return o.r();
+      }
+      if (fs.isDir(p)) {
+        o.e(
+          `tar: ${file}: Cannot read: Is a directory\ntar: At beginning of tape, quitting now\ntar: Error is not recoverable: exiting now`,
+          2,
+        );
         return o.r();
       }
       raw = fs.read(p);
@@ -2894,8 +2950,14 @@
     const { pos } = opts(argv);
     const [zipName, ...files] = pos;
     if (!zipName) return { stdout: "", stderr: "zip error: Nothing to do! (try: zip -r archive.zip dir)\n", code: 12 };
-    const r = pack(ctx, files);
     const p = ctx.resolve(zipName.endsWith(".zip") ? zipName : zipName + ".zip");
+    if (IG.cannotWrite(ctx, p))
+      return {
+        stdout: "",
+        stderr: `zip I/O error: ${IG.cannotWrite(ctx, p)}\nzip error: Could not create output file (${zipName.endsWith(".zip") ? zipName : zipName + ".zip"})\n`,
+        code: 15,
+      };
+    const r = pack(ctx, files);
     ctx.vfs.write(p, ZIP + JSON.stringify(r.entries), {
       owner: ctx.user,
       group: ctx.host.primaryGroup(ctx.user),
@@ -2908,6 +2970,8 @@
   };
   C.unzip = (argv, ctx) => {
     const { f, pos } = opts(argv, "d");
+    if (!pos[0])
+      return "UnZip 6.00 of 20 April 2009, by Debian. Original by Info-ZIP.\n\nUsage: unzip [-Z] [-opts[modifiers]] file[.zip] [list] [-x xlist] [-d exdir]";
     const p = ctx.resolve(pos[0] || "");
     const t = ctx.vfs.read(p);
     if (t === undefined)
@@ -2926,6 +2990,11 @@
     if (f.l)
       return `Archive:  ${pos[0]}\n  Length      Date    Time    Name\n---------  ---------- -----   ----\n${entries.map((e) => `${String(e.size ?? (e.content || "").length).padStart(9)}  ${IG.strftime("%m-%d-%Y %R", e.mtime)}   ${e.path}`).join("\n")}\n---------                     -------\n${String(sizeOfEntries(entries)).padStart(9)}                     ${entries.length} files`;
     const dest = f.d ? ctx.resolve(f.d) : ctx.cwd;
+    const denied = (msg) => ({ stdout: "", stderr: msg + "\n        Permission denied\n", code: 2 });
+    if (!ctx.vfs.isDir(dest) && !ctx.shell.canWrite(dest))
+      return denied(`checkdir error:  cannot create extraction directory: ${f.d}`);
+    if (ctx.vfs.isDir(dest) && entries.length && !ctx.shell.canWrite(dest + "/.probe"))
+      return denied(`Archive:  ${pos[0]}\nerror:  cannot create ${entries[0].path}`);
     if (f.d) ctx.vfs.mkdirp(dest, { owner: ctx.user });
     unpack(ctx, entries, dest);
     return (
@@ -3253,6 +3322,7 @@
       const p = ctx.resolve(argv[i]);
       const n = ctx.vfs.node(p);
       if (!n) return { stdout: "", stderr: `${ctx.name}: ${argv[i]}: No such file or directory\n`, code: 127 };
+      if (n.type === "d") return { stdout: "", stderr: `${ctx.name}: ${argv[i]}: Is a directory\n`, code: 126 };
       if (!ctx.shell.canRead(p))
         return { stdout: "", stderr: `${ctx.name}: ${argv[i]}: Permission denied\n`, code: 126 };
       return {
