@@ -591,8 +591,8 @@
       t = pos.map((p) =>
         flat.find((n) => "/dev/" + n.name === p || n.path === p || (findVol(h, p) && findVol(h, p).name === n.name)),
       );
-      const miss = pos.find((p, i) => !t[i]);
-      if (miss) return fail(`lsblk: ${miss}: not a block device`, 32);
+      const miss = t.findIndex((n) => !n);
+      if (miss >= 0) return fail(`lsblk: ${pos[miss]}: not a block device`, 32);
     }
     const rows = [];
     const walk = (ns, pre) =>
@@ -869,7 +869,7 @@
                   : { b: "B", kib: "KiB", mib: "MiB", gib: "GiB", kb: "kB", mb: "MB", gb: "GB" }[unit])
             );
           };
-    let s = `Model: Amazon Elastic Block Store (nvme)\nDisk /dev/${d.name}: ${f(d.mib * MiB)}\nSector size (logical/physical): 512B/512B\nPartition Table: ${d.pt || "unknown"}\nDisk Flags: \n`;
+    const s = `Model: Amazon Elastic Block Store (nvme)\nDisk /dev/${d.name}: ${f(d.mib * MiB)}\nSector size (logical/physical): 512B/512B\nPartition Table: ${d.pt || "unknown"}\nDisk Flags: \n`;
     if (!d.pt) return s;
     const gpt = d.pt === "gpt";
     const hdr = gpt
@@ -945,7 +945,7 @@
     const devTok = args.find((a) => a.startsWith("/dev/"));
     if (!devTok)
       return fail(
-        argv.length
+        args.length
           ? `Error: Could not stat device ${args[0]} - No such file or directory.`
           : IG.t(
               "ℹ parted の対話モードは再現していません。parted -s /dev/nvme1n1 mklabel gpt mkpart primary ext4 0% 100% のように 1 行で指定してください（一覧は parted -l）。",
@@ -2489,6 +2489,11 @@
       s = st(h);
     const { f, pos } = opts(argv, "");
     const [name, ...devs] = pos;
+    if (!name)
+      return fail(
+        "  Please enter volume group name and physical volume(s)\n  Run `vgextend --help' for more information.",
+        3,
+      );
     if (!s.vgs[name]) return fail(`  Volume group "${name}" not found\n  Cannot process volume group ${name}`, 5);
     if (!devs.length)
       return fail("  Please enter physical volume(s)\n  Run `vgextend --help' for more information.", 3);
@@ -2513,6 +2518,11 @@
     const h = ctx.host,
       s = st(h);
     const [name, ...devs] = argv.filter((a) => !a.startsWith("-"));
+    if (!devs.length)
+      return fail(
+        "  Please give volume group name and physical volume paths\n  Run `vgreduce --help' for more information.",
+        3,
+      );
     if (!s.vgs[name]) return fail(`  Volume group "${name}" not found\n  Cannot process volume group ${name}`, 5);
     if (s.vgs[name].sys) return fail(PROTECTED("/dev/" + name), 5);
     const o = out();
@@ -2825,6 +2835,9 @@
     const h = ctx.host,
       s = st(h);
     const p = argv.filter((a) => !a.startsWith("-"));
+    if (p.length < 2)
+      return fail("  Old and new logical volume names required\n  Run `lvrename --help' for more information.", 3);
+    if (p.length === 2 && !findLv(h, p[0])) return fail(`  Failed to find logical volume "${p[0]}"`, 5);
     const [vg, from, to] =
       p.length === 3
         ? p

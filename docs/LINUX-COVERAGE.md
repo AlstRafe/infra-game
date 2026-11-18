@@ -3,7 +3,7 @@
 CoreLab の Linux はブラウザ内のシミュレーションです。インフラ運用でよく使う範囲について、実機（Ubuntu 22.04 / 24.04、RHEL 9）と同じ書式・出力・エラーメッセージ・終了コードになるよう作り込んでいます。網羅性のチェックには LPIC-1（101/102）と LFCS（Operations / Networking / Storage / Essential Commands / Users & Groups）の出題範囲を使いました。
 
 - 実装コマンド数: 約 365（シェル組み込みを除く）
-- 回帰テスト: `node tests/run-linux.js`（約 400 件、実機の出力と照合）
+- 回帰テスト: `node tests/run-linux.js`（約 440 件、実機の出力と照合）
 - 練習場所: フリーラボの `ssh lab-ubuntu`（Ubuntu 24.04・未使用の 20GB ディスク付き）と `ssh lab-rhel`（RHEL 9・LVM 構成・10GB ディスク付き）
 
 凡例: ✅ 対応 / △ 一部対応（制限あり） / ❌ 非対応（理由つき）

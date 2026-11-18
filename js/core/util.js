@@ -267,7 +267,7 @@
         }
         for (;;) {
           ws();
-          let key = value();
+          const key = value();
           ws();
           if (src[i] !== ":") throw new YAMLError("did not find expected ':'", line);
           i++;
@@ -508,15 +508,15 @@
     return needsQuote(v) ? JSON.stringify(v) : v;
   }
   function dump(v, ind) {
-    const pad = " ".repeat(ind);
+    const indent = " ".repeat(ind);
     if (Array.isArray(v)) {
-      if (!v.length) return pad + "[]\n";
+      if (!v.length) return indent + "[]\n";
       return v
         .map((item) => {
-          if (util.isObj(item) && Object.keys(item).length) return pad + "- " + dump(item, ind + 2).slice(ind + 2);
-          if (Array.isArray(item) && item.length) return pad + "-\n" + dump(item, ind + 2);
-          if (util.isObj(item)) return pad + "- {}\n";
-          return pad + "- " + scalarOut(item) + "\n";
+          if (util.isObj(item) && Object.keys(item).length) return indent + "- " + dump(item, ind + 2).slice(ind + 2);
+          if (Array.isArray(item) && item.length) return indent + "-\n" + dump(item, ind + 2);
+          if (util.isObj(item)) return indent + "- {}\n";
+          return indent + "- " + scalarOut(item) + "\n";
         })
         .join("");
     }
@@ -524,7 +524,7 @@
       return Object.entries(v)
         .filter(([, x]) => x !== undefined)
         .map(([k, x]) => {
-          const key = pad + (needsQuote(k) ? JSON.stringify(k) : k) + ":";
+          const key = indent + (needsQuote(k) ? JSON.stringify(k) : k) + ":";
           if (Array.isArray(x)) return x.length ? key + "\n" + dump(x, ind) : key + " []\n";
           if (util.isObj(x)) return Object.keys(x).length ? key + "\n" + dump(x, ind + 2) : key + " {}\n";
           if (typeof x === "string" && x.includes("\n")) {
@@ -534,7 +534,7 @@
               (x.endsWith("\n") ? " |\n" : " |-\n") +
               body
                 .split("\n")
-                .map((l) => (l ? pad + "  " + l : ""))
+                .map((l) => (l ? indent + "  " + l : ""))
                 .join("\n") +
               "\n"
             );
@@ -543,7 +543,7 @@
         })
         .join("");
     }
-    return pad + scalarOut(v) + "\n";
+    return indent + scalarOut(v) + "\n";
   }
 
   /* ---------------------------------------------------------------- Virtual filesystem

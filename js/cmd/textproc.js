@@ -525,7 +525,7 @@
             break;
           }
           default:
-            throw new Error(`unknown command: \`${c.cmd}'`);
+            throw new Error(c.cmd === undefined ? "missing command" : `unknown command: \`${c.cmd}'`);
         }
         list.push(c);
       }
@@ -767,6 +767,12 @@
       sep = false;
     for (let i = 0; i < argv.length; i++) {
       const a = argv[i];
+      if ((a === "-e" || a === "-f" || a === "--expression" || a === "--file") && argv[i + 1] === undefined) {
+        o.e(
+          `sed: option requires an argument -- '${a[1] === "-" ? a[2] : a[1]}'\nUsage: sed [OPTION]... {script-only-if-no-other-script} [input-file]...`,
+        );
+        return o.r();
+      }
       if (a === "-e" || a === "--expression") {
         scripts.push(argv[++i]);
         continue;
@@ -1214,7 +1220,7 @@
     function simpleStmt() {
       if (is("kw", "print") || is("kw", "printf")) {
         const kind = T[p++].v;
-        let args = [];
+        const args = [];
         const paren =
           isP("(") &&
           (() => {
@@ -1483,7 +1489,7 @@
       }
       if (t.t === "builtin") {
         p++;
-        let args = [];
+        const args = [];
         if (isP("(")) {
           p++;
           optNl();
@@ -1614,7 +1620,7 @@
     };
     const key = (list) => list.map((e) => toStr(ev(e))).join(toStr(V.SUBSEP));
     const arr = (n) => (A[n] = A[n] || {});
-    let locals = [];
+    const locals = [];
     const lookup = (n) => {
       for (let i = locals.length - 1; i >= 0; i--) if (n in locals[i]) return locals[i];
       return null;
@@ -2105,30 +2111,44 @@
     const vars = {};
     let progSrc = null;
     const files = [];
+    const USAGE = "usage: awk [-F fs][-v var=value][prog | -f progfile][file ...]";
+    // -v name=value。形が違えば gawk と同じエラーを返す
+    const setVar = (kv) => {
+      const k = kv.indexOf("=");
+      if (k < 1) return `awk: \`${kv}' argument to \`-v' not in \`var=value' form\n${USAGE}`;
+      vars[kv.slice(0, k)] = unesc(kv.slice(k + 1));
+      return null;
+    };
     for (let i = 0; i < argv.length; i++) {
       const a = argv[i];
-      if (a === "-F") {
-        vars.FS = unesc(argv[++i]);
+      if ((a === "-F" || a === "-v" || a === "-f") && i + 1 >= argv.length) {
+        o.e(`awk: option requires an argument -- ${a[1]}\n${USAGE}`, 2);
+        return o.r();
+      }
+      if (a === "-F" || /^-F./.test(a)) {
+        vars.FS = unesc(a === "-F" ? argv[++i] : a.slice(2));
         continue;
       }
-      if (/^-F./.test(a)) {
-        vars.FS = unesc(a.slice(2));
-        continue;
-      }
-      if (a === "-v") {
-        const kv = argv[++i];
-        const k = kv.indexOf("=");
-        vars[kv.slice(0, k)] = unesc(kv.slice(k + 1));
-        continue;
-      }
-      if (/^-v./.test(a)) {
-        const kv = a.slice(2);
-        const k = kv.indexOf("=");
-        vars[kv.slice(0, k)] = unesc(kv.slice(k + 1));
+      if (a === "-v" || /^-v./.test(a)) {
+        const bad = setVar(a === "-v" ? argv[++i] : a.slice(2));
+        if (bad) {
+          o.e(bad, 2);
+          return o.r();
+        }
         continue;
       }
       if (a === "-f") {
-        progSrc = ctx.vfs.read(ctx.resolve(argv[++i])) ?? "";
+        const src = argv[++i];
+        progSrc = ctx.vfs.read(ctx.resolve(src)) ?? null;
+        if (progSrc === null) {
+          o.e(
+            ctx.vfs.isDir(ctx.resolve(src))
+              ? `awk: fatal: can't read source file \`${src}': Is a directory`
+              : `awk: fatal: can't open source file \`${src}' for reading: No such file or directory`,
+            2,
+          );
+          return o.r();
+        }
         continue;
       }
       if (a === "--") continue;
@@ -2139,7 +2159,7 @@
       files.push(a);
     }
     if (progSrc === null) {
-      o.e("usage: awk [-F fs][-v var=value][prog | -f progfile][file ...]", 2);
+      o.e(USAGE, 2);
       return o.r();
     }
     let prog;
@@ -2277,7 +2297,10 @@
     if (f.R || f["random-sort"]) ls.sort(() => Math.random() - 0.5);
     const text = join(ls);
     if (f.o || f.output) {
-      ctx.vfs.write(ctx.resolve(f.o || f.output), text);
+      const dest = ctx.resolve(f.o || f.output);
+      const why = IG.cannotWrite(ctx, dest);
+      if (why) o.e(`sort: open failed: ${f.o || f.output}: ${why}`, 2);
+      else ctx.vfs.write(dest, text);
       return o.r();
     }
     o.o(text);
@@ -2287,7 +2310,10 @@
     const { f, pos } = opts(argv, "fsw", ["skip-fields", "skip-chars", "check-chars"]);
     const o = out();
     const r = inputs(ctx, pos.slice(0, 1), "uniq");
-    r.errs.forEach((e) => o.e(e));
+    if (r.errs.length) {
+      r.errs.forEach((e) => o.e(e));
+      return o.r(); // the output file is left as it was
+    }
     const keyOf = (l) => {
       let k = l;
       const sf = Number(f.f || f["skip-fields"] || 0);
@@ -2305,8 +2331,14 @@
     }
     const sel = groups.filter((g) => (f.d || f.repeated ? g.n > 1 : true) && (f.u || f.unique ? g.n === 1 : true));
     const text = join(sel.map((g) => (f.c || f.count ? String(g.n).padStart(7) + " " : "") + g.l));
-    if (pos[1]) ctx.vfs.write(ctx.resolve(pos[1]), text);
-    else o.o(text);
+    if (!pos[1]) {
+      o.o(text);
+      return o.r();
+    }
+    const dest = ctx.resolve(pos[1]);
+    const why = IG.cannotWrite(ctx, dest);
+    if (why) o.e(`uniq: ${pos[1]}: ${why}`);
+    else ctx.vfs.write(dest, text);
     return o.r();
   };
   function rangeList(spec) {
@@ -2413,7 +2445,7 @@
       return o.r();
     }
     const text = ctx.stdin;
-    let s1 = trSet(sets[0]);
+    const s1 = trSet(sets[0]);
     const s2 = sets[1] !== undefined ? trSet(sets[1]) : [];
     const comp = /[cC]/.test(flags);
     const inS1 = (c) => (comp ? !s1.includes(c) : s1.includes(c));
@@ -2453,6 +2485,9 @@
     const all = f.b === "a";
     const w = Number(f.w || 6),
       sep = f.s ?? "\t";
+    if (!Number.isInteger(w) || w < 1)
+      return { stdout: "", stderr: `nl: invalid line number field width: ‘${f.w}’\n`, code: 1 };
+    if (w > 1e5) throw new IG.bash.Flow("abort", 0, 130); // lines wider than the terminal holds
     return join(
       lines(r.texts.map((t) => t.text).join("")).map((l) =>
         (l || all ? String(++n).padStart(w) + sep + l : " ".repeat(w + sep.length) + l).replace(/\s+$/, (m) =>
@@ -2492,6 +2527,8 @@
   C.fold = (argv, ctx) => {
     const { f, pos } = opts(argv, "w", ["width"]);
     const w = Number(f.w || f.width || 80);
+    if (!Number.isInteger(w) || w < 1)
+      return { stdout: "", stderr: `fold: invalid number of columns: ‘${f.w || f.width}’\n`, code: 1 };
     const r = inputs(ctx, pos, "fold");
     const res = [];
     for (const l of lines(r.texts.map((t) => t.text).join(""))) {
@@ -2550,13 +2587,22 @@
   };
   C.shuf = (argv, ctx) => {
     const { f, pos } = opts(argv, "niI", ["input-range", "head-count"]);
+    const n = f.n || f["head-count"];
     let ls;
     if (f.i || f["input-range"]) {
-      const [a, b] = String(f.i || f["input-range"])
-        .split("-")
-        .map(Number);
-      ls = [];
-      for (let k = a; k <= b; k++) ls.push(String(k));
+      const spec = String(f.i || f["input-range"]);
+      const m = spec.match(/^(\d+)-(\d+)$/);
+      if (!m || Number(m[1]) > Number(m[2]))
+        return { stdout: "", stderr: `shuf: invalid input range: ‘${spec}’\n`, code: 1 };
+      const [a, size] = [Number(m[1]), m[2] - m[1] + 1];
+      if (size > 1e6) {
+        // a few numbers out of a huge range: drawn one by one, never listing the range
+        if (!n || n > 1e6) throw new IG.bash.Flow("abort", 0, 130);
+        const pick = new Set();
+        while (pick.size < Math.min(Number(n), size)) pick.add(a + Math.floor(Math.random() * size));
+        return join([...pick].map(String));
+      }
+      ls = Array.from({ length: size }, (_, k) => String(a + k));
     } else if (f.e) ls = pos;
     else
       ls = lines(
@@ -2564,8 +2610,12 @@
           .texts.map((t) => t.text)
           .join(""),
       );
-    ls = ls.slice().sort(() => Math.random() - 0.5);
-    const n = f.n || f["head-count"];
+    // Fisher-Yates: every order equally likely (sorting by a random comparison is not)
+    ls = ls.slice();
+    for (let k = ls.length - 1; k > 0; k--) {
+      const j = Math.floor(Math.random() * (k + 1));
+      [ls[k], ls[j]] = [ls[j], ls[k]];
+    }
     return join(n ? ls.slice(0, Number(n)) : ls);
   };
 
@@ -2616,7 +2666,7 @@
       r.errs.forEach((e) => o.e(e, 2));
       return o.r();
     }
-    let [A, Bt] = r.texts.map((t) => t.text);
+    const [A, Bt] = r.texts.map((t) => t.text);
     const norm = (s) => {
       let x = s;
       if (f.w || f["ignore-all-space"]) x = x.replace(/\s+/g, "");
@@ -2642,8 +2692,8 @@
       const changes = ops.map((x, k) => (x.t !== "=" ? k : -1)).filter((k) => k >= 0);
       let k = 0;
       while (k < changes.length) {
-        let start = Math.max(0, changes[k] - ctxN),
-          end = Math.min(ops.length - 1, changes[k] + ctxN);
+        const start = Math.max(0, changes[k] - ctxN);
+        let end = Math.min(ops.length - 1, changes[k] + ctxN);
         while (k + 1 < changes.length && changes[k + 1] - ctxN <= end + 1) {
           k++;
           end = Math.min(ops.length - 1, changes[k] + ctxN);
@@ -2702,6 +2752,13 @@
   };
   C.cmp = (argv, ctx) => {
     const { f, pos } = opts(argv);
+    if (!pos.length)
+      return {
+        stdout: "",
+        stderr: "cmp: missing operand after 'cmp'\ncmp: Try 'cmp --help' for more information.\n",
+        code: 2,
+      };
+    if (pos.length === 1) pos.push("-"); // one file: compared with the standard input
     const r = inputs(ctx, pos, "cmp");
     if (r.errs.length) return { stdout: "", stderr: r.errs.join("\n") + "\n", code: 2 };
     const [a, b] = r.texts.map((t) => t.text);
@@ -2897,8 +2954,8 @@
     // supports: . .a .a.b .[n] .[] .a[] | , select() map() keys length type to_entries from_entries
     // has() del() sort_by() group_by() unique min max add first last @csv @tsv tostring tonumber
     // ascii_downcase ascii_upcase join() split() test() contains() {a: .b} [ ... ] "\(.x)" == != and or not
-    let s = filter.trim(),
-      i = 0;
+    const s = filter.trim();
+    let i = 0;
     const ws = () => {
       while (/\s/.test(s[i] || "")) i++;
     };
@@ -3064,8 +3121,8 @@
     }
     function strLit() {
       i++;
-      let parts = [],
-        cur = "";
+      const parts = [];
+      let cur = "";
       while (i < s.length && s[i] !== '"') {
         if (s[i] === "\\" && s[i + 1] === "(") {
           i += 2;
@@ -3208,7 +3265,7 @@
       if (/[a-z_]/.test(c || "")) {
         const name = ident();
         ws();
-        let args = [];
+        const args = [];
         if (s[i] === "(") {
           i++;
           for (;;) {
@@ -3371,7 +3428,8 @@
           case "range":
             return (v) => {
               const n = f0(v)[0];
-              return Array.from({ length: n }, (_, k) => k);
+              if (n > 1e6) throw new IG.bash.Flow("abort", 0, 130); // more numbers than the terminal holds
+              return Array.from({ length: Math.max(0, Math.floor(n)) || 0 }, (_, k) => k);
             };
           case "paths":
             return (v) => {
@@ -3456,6 +3514,7 @@
               : jqFormat(v, 2, f.c || f["compact-output"], f.S || f["sort-keys"])) + (f.j ? "" : "\n"),
           );
     } catch (e) {
+      if (e instanceof IG.bash.Flow) throw e;
       o.e(`jq: error: ${e.message}`, 3);
     }
     if (f.e && /^(null|false)\n$/.test(o.so)) o.code = 1;
@@ -3472,23 +3531,39 @@
       noRun = false,
       verbose = false,
       delim = null,
-      P = 1;
-    for (; i < argv.length; i++) {
-      const a = argv[i];
-      if (a === "-n") n = Number(argv[++i]);
-      else if (/^-n\d+$/.test(a)) n = Number(a.slice(2));
-      else if (a === "-I") rep = argv[++i];
-      else if (/^-I./.test(a)) rep = a.slice(2);
-      else if (a === "-i") rep = "{}";
-      else if (a === "-0" || a === "--null") nul = true;
-      else if (a === "-r" || a === "--no-run-if-empty") noRun = true;
-      else if (a === "-t" || a === "--verbose") verbose = true;
-      else if (a === "-d") delim = argv[++i];
-      else if (a === "-P") P = Number(argv[++i]);
-      else if (a === "-L") n = Number(argv[++i]);
-      else break;
+      byLine = false; // -L: n input lines per run (-n: n words)
+    // -n / -L: a whole number of at least 1 (0 would never use up the input); -P: at least 0
+    const count = (flag, v) => {
+      const min = flag === "P" ? 0 : 1;
+      if (v === undefined)
+        throw new Error(`option requires an argument -- '${flag}'\nTry 'xargs --help' for more information.`);
+      if (!/^\d+$/.test(v)) throw new Error(`invalid number "${v}" for -${flag} option`);
+      if (Number(v) < min) throw new Error(`value ${v} for -${flag} option should be >= ${min}`);
+      return Number(v);
+    };
+    try {
+      for (; i < argv.length; i++) {
+        const a = argv[i];
+        // -P (parallel runs) is checked and otherwise ignored: every run here is instant
+        if (a === "-n" || a === "-L" || a === "-P") {
+          const v = count(a[1], argv[++i]);
+          if (a !== "-P") [n, byLine] = [v, a === "-L"];
+        } else if (/^-[nLP]./.test(a)) {
+          const v = count(a[1], a.slice(2));
+          if (a[1] !== "P") [n, byLine] = [v, a[1] === "L"];
+        } else if (a === "-I") rep = argv[++i];
+        else if (/^-I./.test(a)) rep = a.slice(2);
+        else if (a === "-i") rep = "{}";
+        else if (a === "-0" || a === "--null") nul = true;
+        else if (a === "-r" || a === "--no-run-if-empty") noRun = true;
+        else if (a === "-t" || a === "--verbose") verbose = true;
+        else if (a === "-d") delim = argv[++i];
+        else break;
+      }
+    } catch (e) {
+      o.e(`xargs: ${e.message}`);
+      return o.r();
     }
-    void P;
     const cmd = argv.slice(i);
     if (!cmd.length) cmd.push("echo");
     const input = ctx.stdin;
@@ -3504,7 +3579,18 @@
     const batches = [];
     if (rep) items.forEach((it) => batches.push(cmd.map((c) => c.split(rep).join(it))));
     else if (!items.length) batches.push(cmd);
-    else
+    else if (byLine) {
+      const ls = lines(input).filter((l) => l.trim());
+      for (let k = 0; k < ls.length; k += n)
+        batches.push(
+          cmd.concat(
+            ls
+              .slice(k, k + n)
+              .join(" ")
+              .match(/\S+/g),
+          ),
+        );
+    } else
       for (let k = 0; k < items.length; k += n === Infinity ? items.length : n)
         batches.push(cmd.concat(items.slice(k, n === Infinity ? undefined : k + n)));
     let code = 0;
@@ -3550,7 +3636,10 @@
         const e = primary();
         return (x) => !e(x);
       }
-      const arg = () => expr[p++];
+      const arg = () => {
+        if (p >= expr.length) throw new Error(`missing argument to \`${t}'`);
+        return expr[p++];
+      };
       const numCmp = (spec, val) => {
         const m = String(spec).match(/^([+-]?)(\d+)$/);
         if (!m) return false;

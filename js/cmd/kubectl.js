@@ -722,7 +722,7 @@
       objs = [];
     const fmt = U.first(a.flags.o || a.flags.output);
     const selector = U.first(a.flags.l || a.flags.selector);
-    let expanded = [];
+    const expanded = [];
     for (const t of targets) {
       if (!t.type) return fail(`error: the server doesn't have a resource type "${t.raw}"`);
       if (t.type === "routes" && !cl.openshift)
@@ -1192,6 +1192,8 @@
       type = first;
       name = second;
     }
+    if (!TYPE_OF[type]) return { error: `error: the server doesn't have a resource type "${type}"` };
+    if (!name) return { error: "error: resource(s) were provided, but no name was specified" };
     if (TYPE_OF[type] !== "deployments")
       return {
         error: IG.t(`error: {0} "{1}" is not a deployment (このシミュレータでは Deployment のみ対応)`, {
@@ -1960,6 +1962,8 @@
       case "cordon":
       case "uncordon":
       case "drain": {
+        if (!a.pos[1])
+          return fail(`error: USAGE: ${verb} NODE [flags]\nSee 'kubectl ${verb} -h' for help and examples`);
         if (!(cl.users[user] || {}).admin)
           return fail(
             `Error from server (Forbidden): nodes "${a.pos[1]}" is forbidden: User "${user}" cannot patch resource "nodes" in API group "" at the cluster scope`,
@@ -2104,7 +2108,7 @@
           { 0: interactive ? "（-it）" : "", 1: pod.owner ? "deploy/" + pod.owner : pod.name },
         ),
       );
-    let argv = cmd;
+    const argv = cmd;
     if (/^(\/bin\/)?(ba)?sh$/.test(cmd[0]) && cmd[1] === "-c")
       return ctx.shell.exec(cmd.slice(2).join(" "), { pod: podCtx(cl, pod, st) });
     return ctx.shell.runArgv(argv, { pod: podCtx(cl, pod, st) });
@@ -2143,6 +2147,7 @@
         );
       case "use-context": {
         const n = a.pos[2];
+        if (!n) return fail("error: Unexpected args: []\nSee 'kubectl config use-context -h' for help and examples");
         if (!k.contexts[n]) return fail(`error: no context exists with the name: "${n}"`);
         k.current = n;
         return ok(`Switched to context "${n}".`);
@@ -2301,6 +2306,11 @@ Global flags: -n NAMESPACE, -A, -o wide|yaml|json|name|jsonpath=..., -l key=valu
             (c) =>
               c.server.replace(/\/$/, "") === server.replace(/\/$/, "") ||
               c.apiHost() === server.replace(/^https?:\/\//, "").replace(/:\d+$/, ""),
+          );
+        // no server given and no OpenShift cluster here: oc tries its default, https://localhost:8443
+        if (!target && !server)
+          return fail(
+            "error: dial tcp 127.0.0.1:8443: connect: connection refused - verify you have provided the correct host and port and that the server is currently running.",
           );
         if (!target)
           return fail(
@@ -2505,7 +2515,7 @@ Global flags: -n NAMESPACE, -A, -o wide|yaml|json|name|jsonpath=..., -l key=valu
           );
           for (const d of cl
             .list("Deployment", ns)
-            .filter((d) => IG.k8s.matches(s.spec.selector, d.spec.template.metadata.labels))) {
+            .filter((x) => IG.k8s.matches(s.spec.selector, x.spec.template.metadata.labels))) {
             const st = deployStatus(cl, d);
             lines.push(
               `  deployment/${d.metadata.name} deploys ${d.spec.template.spec.containers[0].image}`,

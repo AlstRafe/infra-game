@@ -122,7 +122,7 @@
         const r = IG.runtime.respond({ kind: "web", server: "nginx/1.26.2", body: inst.body }, req.path);
         return Object.assign({ target: { kind: "ec2", id: inst.id } }, r);
       }
-      let m = req.host.match(/^([a-z0-9.-]+)\.s3(?:[.-]([a-z0-9-]+))?\.amazonaws\.com$/);
+      const m = req.host.match(/^([a-z0-9.-]+)\.s3(?:[.-]([a-z0-9-]+))?\.amazonaws\.com$/);
       let bucket, key;
       if (m && m[1] !== "s3") {
         bucket = m[1];
@@ -168,8 +168,8 @@
 
   /* ------------------------------------------------------------ mini JMESPath for --query */
   function jmes(data, expr) {
-    let s = expr.trim(),
-      i = 0;
+    const s = expr.trim();
+    let i = 0;
     const peek = () => s[i],
       eat = (c) => {
         if (s[i] === c) {
@@ -424,7 +424,7 @@
     const q = U.first(a.flags.query);
     const outFmt = U.first(a.flags.output) || "json";
     const out = (obj) => {
-      let v = q ? jmes(obj, q.replace(/^['"]|['"]$/g, "")) : obj;
+      const v = q ? jmes(obj, q.replace(/^['"]|['"]$/g, "")) : obj;
       if (outFmt === "text") return ok(toText(v));
       if (outFmt === "table")
         return ok(JSON.stringify(v, null, 4) + IG.t("\n\nℹ --output table は未対応のため JSON で表示しました。"));

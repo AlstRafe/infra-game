@@ -110,7 +110,7 @@ tests/run-i18n.js     翻訳の検証（訳のない文・{名前} の欠け・�
 ```bash
 node tests/run-solutions.js          # 全ミッション
 node tests/run-solutions.js k8s-03 -v # 1 本を出力付きで
-node tests/run-linux.js              # Linux の回帰テスト（約 400 件）
+node tests/run-linux.js              # Linux の回帰テスト（約 440 件）
 node tests/run-linux.js lvm -v       # 名前に lvm を含むケースだけ
 node tests/run-learn.js              # 学習問題と資格カタログ
 node tests/run-learn.js -v           # 資格ごとのカバー率つき

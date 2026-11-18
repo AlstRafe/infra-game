@@ -153,6 +153,7 @@
     }
     const cols = Number(f.c || f.cols || 16),
       g = Number(f.g || f.groupsize || 2);
+    if (!(cols >= 1 && cols <= 256)) return fail("xxd: invalid number of columns (max. 256).");
     const width = cols * 2 + Math.ceil(cols / g) - 1;
     const res = [];
     for (let p = 0; p < b.length; p += cols) {
@@ -396,15 +397,21 @@
     };
     let parts;
     const text = r.text;
+    // every size and count is a whole number of at least 1 (0 would split forever)
+    const bad = (what, v) => fail(`split: invalid number of ${what}: ‘${v}’`);
     if (f.b || f.bytes) {
       const n = sz(f.b || f.bytes);
+      if (!(n >= 1)) return bad("bytes", f.b || f.bytes);
       parts = text.match(new RegExp(`[\\s\\S]{1,${n}}`, "g")) || [];
     } else if (f.n || f.number) {
       const n = Number(f.n || f.number);
+      if (!Number.isInteger(n) || n < 1) return bad("chunks", f.n || f.number);
+      if (n > 10000) throw new IG.bash.Flow("abort", 0, 130); // more files than the simulator keeps
       const per = Math.ceil(text.length / n);
       parts = Array.from({ length: n }, (_, i) => text.slice(i * per, (i + 1) * per));
     } else {
       const n = Number(f.l || f.lines || 1000);
+      if (!Number.isInteger(n) || n < 1) return bad("lines", f.l || f.lines);
       const ls = text.split(/(?<=\n)/);
       parts = [];
       for (let i = 0; i < ls.length; i += n) parts.push(ls.slice(i, i + n).join(""));
@@ -463,7 +470,6 @@
     const vals = pos.length ? pos : lines(ctx.stdin);
     const res = [];
     for (const v of vals) {
-      let n;
       const m = String(v)
         .trim()
         .match(/^(-?\d+(?:\.\d+)?)([KMGTPE]?)(i?)B?$/i);
@@ -472,7 +478,7 @@
       if (unit && !f.from)
         return fail(`numfmt: rejecting suffix in input: '${v}' (consider using --from)`, 2, join(res));
       const base = f.from === "si" ? 1000 : 1024;
-      n = Number(m[1]) * base ** IEC.indexOf(unit);
+      const n = Number(m[1]) * base ** IEC.indexOf(unit);
       let s;
       if (f.to === "iec" || f.to === "iec-i" || f.to === "si") {
         const b = f.to === "si" ? 1000 : 1024;
@@ -605,6 +611,10 @@
     const mode = f.m || f.mode ? parseInt(f.m || f.mode, 8) : 0o755;
     const owner = f.o || f.owner,
       group = f.g || f.group;
+    if (!pos.length) {
+      o.e("install: missing file operand\nTry 'install --help' for more information.");
+      return o.r();
+    }
     if ((owner || group) && !root(ctx)) {
       o.e(`install: cannot change ownership of '${pos[pos.length - 1]}': Operation not permitted`);
       return o.r();
@@ -709,7 +719,7 @@
         continue;
       }
       if (ctx.vfs.isDir(p) && !f.d) {
-        for (const c of ctx.vfs.children(p).filter((c) => f.a || !c.name.startsWith(".")))
+        for (const c of ctx.vfs.children(p).filter((k) => f.a || !k.name.startsWith(".")))
           o.o(
             `${fmt(ctx.vfs.node(p + "/" + c.name) || {}, p)} ${t === "." && !pos.length ? "./" : t.replace(/\/$/, "") + "/"}${c.name}\n`,
           );
@@ -935,7 +945,10 @@
       }
     }
     if (f.o || f.output) {
-      ctx.vfs.write(ctx.resolve(f.o || f.output), t, { owner: ctx.user, group: ctx.host.primaryGroup(ctx.user) });
+      const dest = ctx.resolve(f.o || f.output);
+      const why = IG.cannotWrite(ctx, dest);
+      if (why) return { stdout: "", stderr: `iconv: cannot open output file: ${why}\n`, code: 1 };
+      ctx.vfs.write(dest, t, { owner: ctx.user, group: ctx.host.primaryGroup(ctx.user) });
       return "";
     }
     return t;
@@ -1350,20 +1363,22 @@
     const total = r.reduce((a, x) => a + x[1], 0) + Math.round((p.vsz || 0) / 2);
     return `${pid}:   ${p.cmd}\n${r.map(([a, k, m, n]) => `${a.toString(16).padStart(16, "0")} ${String(k + "K").padStart(6)} ${m} ${n}`).join("\n")}\n total ${String(total + "K").padStart(16)}\n`;
   };
+  // ionice [-c CLASS] [-n LEVEL] [-t] COMMAND… runs the command (I/O priority has no effect here);
+  // ionice -p PID and a bare ionice show a class
   C.ionice = (argv, ctx) => {
-    if (argv.includes("-p")) {
-      const p = procOf(ctx, argv[argv.indexOf("-p") + 1]);
-      return p ? "none: prio 0\n" : fail(`ionice: ioprio_get failed: No such process`);
+    if (!argv.length) return "none: prio 0\n";
+    let i = 0;
+    for (; i < argv.length; i++) {
+      const a = argv[i];
+      if (a === "-p" || a === "--pid") {
+        const p = procOf(ctx, argv[i + 1]);
+        return p ? "none: prio 0\n" : fail(`ionice: ioprio_get failed: No such process`);
+      }
+      if (a === "-c" || a === "-n" || a === "--class" || a === "--classdata") i++;
+      else if (!/^-[cn]\w+$|^--(class|classdata)=|^-t$|^--ignore$/.test(a)) break;
     }
-    if (argv.includes("-c")) {
-      const rest = argv.slice(
-        argv.findIndex((a, i) => i > argv.indexOf("-c") + 1 && !/^-n$/.test(a) && !/^\d+$/.test(a)),
-      );
-      if (rest.length && rest[0] && !rest[0].startsWith("-"))
-        return ctx.shell.runArgv ? ctx.shell.runArgv(rest, ctx.io) : "";
-      return "";
-    }
-    return "none: prio 0\n";
+    if (i >= argv.length) return "";
+    return { stdout: "", stderr: "", code: ctx.shell.invoke(argv.slice(i), ctx.io) };
   };
   C.taskset = (argv, ctx) => {
     if (argv.includes("-p") || argv.includes("-cp")) {
@@ -1650,8 +1665,8 @@
         if (!known) return fail(`Error: unknown connection '${id}'.`, 10);
         const kv = rest.slice(rest[0] === "id" ? 2 : 1);
         for (let i = 0; i < kv.length; i += 2) {
-          let k = kv[i].replace(/^\+/, ""),
-            v = kv[i + 1];
+          const k = kv[i].replace(/^\+/, "");
+          let v = kv[i + 1];
           if (k === "ipv4.dns" && kv[i].startsWith("+") && N.props[k] !== "--") v = N.props[k] + "," + v;
           if (!(k in N.props) && !/^(ipv4|ipv6|connection)\./.test(k))
             return fail(`Error: invalid property '${k}': invalid property name.`, 2);
@@ -1933,6 +1948,8 @@
       );
     if (sub === "rand") {
       const n = Number(a.filter((x) => /^\d+$/.test(x)).pop() || 16);
+      // more than the terminal can hold: stopped like any runaway output, before building it
+      if (n > 1e6) throw new IG.bash.Flow("abort", 0, 130);
       const bytes = Array.from({ length: n }, (_, i) => U.hash(now(ctx) + ":" + i + Math.random()) & 255);
       if (a.includes("-hex")) return bytes.map((b) => b.toString(16).padStart(2, "0")).join("") + "\n";
       if (a.includes("-base64")) return U.b64(String.fromCharCode(...bytes)) + "\n";
@@ -1961,10 +1978,20 @@
     }
     if (sub === "genrsa" || sub === "genpkey") {
       const bits = Number(a.filter((x) => /^\d+$/.test(x)).pop() || 2048);
-      const key = pem("PRIVATE KEY", b64("SIMKEY" + U.hex(now(ctx) + String(Math.random()), Math.round(bits / 2.5))));
+      // the key text grows with the size: capped at the largest size OpenSSL recommends, with its warning
+      const warn =
+        bits > 16384
+          ? `Warning: It is not recommended to use more than 16384 bit for RSA keys.\n         Your key size is ${bits}! Larger key size may behave not as expected.\n`
+          : "";
+      const key = pem(
+        "PRIVATE KEY",
+        b64("SIMKEY" + U.hex(now(ctx) + String(Math.random()), Math.round(Math.min(bits, 16384) / 2.5))),
+      );
       const file = val("-out");
-      if (!file) return key;
-      return writeOut(file, key, 0o600) ? "" : fail(`Can't open "${file}" for writing, Permission denied`);
+      if (!file) return { stdout: key, stderr: warn, code: 0 };
+      return writeOut(file, key, 0o600)
+        ? { stdout: "", stderr: warn, code: 0 }
+        : fail(`Can't open "${file}" for writing, Permission denied`);
     }
     if (sub === "req") {
       if (!a.includes("-x509")) {
