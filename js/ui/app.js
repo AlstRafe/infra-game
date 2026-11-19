@@ -97,7 +97,6 @@
     document.documentElement.classList.remove("returning"); // from js/core/early.js; from here on, hidden decides
     if (!homeView) {
       homeView = new IG.DC.View($("dcHome"), {
-        padLeft: (w) => (w > 900 ? Math.min(470, w * 0.46) : 0),
         rackLabels: false,
         onHover: (h) => homeTip(h),
         onClick: (r) => {
@@ -406,7 +405,7 @@
     renderProfile();
     const chip = $("drillChip");
     chip.textContent = (tr || {}).name || "LEARNING";
-    chip.style.setProperty("--tc", (tr || {}).color || "#38d6c4");
+    chip.style.setProperty("--tc", (tr || {}).color || "#d9783f");
     $("drillTitle").textContent = run.meta.title;
     document.title = `${run.meta.title} | CoreLab`;
     $("drillBack").href = backHref;
@@ -556,7 +555,7 @@
     setNav(m.sandbox ? "sandbox" : "home");
     document.title = `${m.title} | CoreLab`;
     renderProfile();
-    const t = trackOf(m.track) || { name: "FREE LAB", color: "#38d6c4" };
+    const t = trackOf(m.track) || { name: "FREE LAB", color: "#d9783f" };
     const chip = $("mTrack");
     chip.textContent = t.name;
     chip.style.setProperty("--tc", t.color);
@@ -646,7 +645,7 @@
         .map(({ topic, level }) => {
           const tr = trackOf(topic) || {};
           const s = unitStat(topic, level);
-          return `<a class="need-link ${s.cls}" href="#/drill/${topic}/${level.n}" style="--tc:${tr.color || "#38d6c4"}">
+          return `<a class="need-link ${s.cls}" href="#/drill/${topic}/${level.n}" style="--tc:${tr.color || "#d9783f"}">
         <span class="need-lv">Lv${level.n}</span>
         <span><strong>${esc(level.title)}</strong><small>${esc(tr.short || topic)} · ${T("{n} 問", { n: level.qs.length })} · ${esc(s.label)}</small></span></a>`;
         })
