@@ -4,12 +4,12 @@
   "use strict";
 
   const STATE = {
-    ok: "#3ddc97",
-    warn: "#f5b83d",
-    bad: "#ff5d5d",
-    off: "#3c4a5c",
-    info: "#5aa9ff",
-    ghost: "rgba(120,140,160,.25)",
+    ok: "#8fc79c",
+    warn: "#d8ab52",
+    bad: "#e8877c",
+    off: "#4a5266",
+    info: "#9db4ec",
+    ghost: "rgba(130,140,160,.25)",
   };
   const TW = 34,
     TH = 17,
@@ -258,14 +258,14 @@
         g.font = font;
         g.lineJoin = "round";
         g.lineWidth = 3;
-        g.strokeStyle = "rgba(8, 13, 19, .85)";
+        g.strokeStyle = "rgba(16, 19, 27, .85)";
         g.strokeText(str, x, ty);
         g.fillStyle = color;
         g.fillText(str, x, ty);
       };
       g.textAlign = "left";
-      text(big, hexA(z.color, z.ghost ? 0.5 : 0.95), name, y);
-      if (z.sub) text(small, hexA("#9fb0c3", z.ghost ? 0.45 : 0.8), z.sub, y + line);
+      text(big, hexA(mix(z.color, "#e3e6ec", 0.25), z.ghost ? 0.5 : 0.95), name, y);
+      if (z.sub) text(small, hexA("#a4adbd", z.ghost ? 0.45 : 0.8), z.sub, y + line);
     }
     links(g, P, t, s) {
       const zmap = Object.fromEntries(this.scene.zones.map((z) => [z.id, z]));
@@ -275,7 +275,7 @@
         if (!a || !b) continue;
         const pa = P(a.x + a.w / 2, a.y + a.d / 2),
           pb = P(b.x + b.w / 2, b.y + b.d / 2);
-        g.strokeStyle = hexA(l.ghost ? "#556677" : "#7fd3ff", l.ghost ? 0.12 : 0.22);
+        g.strokeStyle = hexA(l.ghost ? "#5d6780" : "#9db4ec", l.ghost ? 0.12 : 0.22);
         g.lineWidth = 1.2 * s;
         g.setLineDash([5 * s, 5 * s]);
         g.lineDashOffset = -t * 20;
@@ -305,7 +305,7 @@
       const { z, r, gx, gy } = it;
       const ghost = r.state === "ghost" || z.ghost;
       const H = r.kind === "bucket" ? 34 : r.kind === "small" ? 44 : RACK_H;
-      const base = ghost ? "#1a222c" : mix("#1b2734", z.color, 0.12);
+      const base = ghost ? "#1b2030" : mix("#1e2433", z.color, 0.14);
       const hov = this.hover && this.hover.rack === r;
       if (r.kind === "bucket") return this.bucket(g, P, it, t, s, H, ghost, hov);
       const c = [P(gx, gy), P(gx + F, gy), P(gx + F, gy + F), P(gx, gy + F)];
@@ -350,7 +350,7 @@
         const u = units[i];
         poly(
           [face(0.08, v0), face(0.92, v0), face(0.92, v1), face(0.08, v1)],
-          u ? hexA("#0c131b", ghost ? 0.4 : 0.85) : hexA("#0c131b", 0.35),
+          u ? hexA("#10131b", ghost ? 0.4 : 0.85) : hexA("#10131b", 0.35),
         );
         if (!u || i >= n) continue;
         const col = STATE[u.state] || STATE.off;
@@ -379,7 +379,7 @@
       }
       if (units.length > 8) {
         const p = face(0.5, 4);
-        g.fillStyle = "#9fb0c3";
+        g.fillStyle = "#a4adbd";
         g.font = `${Math.max(8, 8 * s)}px system-ui`;
         g.textAlign = "center";
         g.fillText(`+${units.length - 8}`, p.x, p.y + 2);
@@ -417,7 +417,7 @@
       const lp = P(gx + F / 2, gy + F, 0);
       g.textAlign = "center";
       g.font = `600 ${Math.max(8, 9 * s)}px "Segoe UI","Hiragino Sans",system-ui,sans-serif`;
-      g.fillStyle = ghost ? "rgba(160,175,190,.35)" : "#d7e2ee";
+      g.fillStyle = ghost ? "rgba(160,170,190,.35)" : "#dde2ea";
       const label = r.label.length > 18 ? r.label.slice(0, 17) + "…" : r.label;
       if (this.rackLabels || hov) {
         g.fillText(label, lp.x - 4 * s, lp.y + 13 * s);
@@ -449,7 +449,7 @@
         h = H * s;
       const col = STATE[r.state] || STATE.off;
       g.globalAlpha = ghost ? 0.35 : 1;
-      g.fillStyle = mix("#1d2a37", z.color, 0.15);
+      g.fillStyle = mix("#1e2433", z.color, 0.15);
       g.beginPath();
       g.ellipse(cx.x, cx.y, rx, ry, 0, 0, Math.PI);
       g.lineTo(cx.x - rx, cx.y - h);
@@ -458,7 +458,7 @@
       g.fill();
       g.strokeStyle = hexA(hov ? "#ffffff" : z.color, 0.6);
       g.stroke();
-      g.fillStyle = mix("#2a3a4c", z.color, 0.2);
+      g.fillStyle = mix("#2a3247", z.color, 0.2);
       g.beginPath();
       g.ellipse(cx.x, cx.y - h, rx, ry, 0, 0, Math.PI * 2);
       g.fill();
@@ -475,7 +475,7 @@
       g.globalAlpha = 1;
       g.textAlign = "center";
       g.font = `600 ${Math.max(8, 9 * s)}px "Segoe UI",system-ui,sans-serif`;
-      g.fillStyle = "#d7e2ee";
+      g.fillStyle = "#dde2ea";
       g.fillText(r.label.length > 18 ? r.label.slice(0, 17) + "…" : r.label, cx.x, cx.y + ry + 11 * s);
       this.hit.push({
         x0: cx.x - rx - 4,
@@ -748,7 +748,7 @@
         id: "core",
         label: "CoreLab",
         sub: "NOC",
-        color: "#38d6c4",
+        color: "#e08a55",
         icon: "◈",
         racks: [
           {

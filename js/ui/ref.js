@@ -13,7 +13,7 @@
   const R = IG.cmdref;
   const esc = IG.util.escapeHtml;
   const T = IG.t;
-  const trackOf = (id) => IG.tracks.find((t) => t.id === id) || { id, label: id, color: "#38d6c4" };
+  const trackOf = (id) => IG.tracks.find((t) => t.id === id) || { id, label: id, color: "#d9783f" };
   const refToUrl = (ref) => String(ref).replace(/^#/, "e.");
   const EXAMPLES = [
     "ポートを使っているプロセス",
