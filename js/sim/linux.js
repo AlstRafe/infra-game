@@ -144,6 +144,8 @@
       user: "postgres",
       ports: [{ port: 5432, addr: "127.0.0.1" }],
       pkg: "postgresql",
+      // RHEL's postgresql-server keeps its data in /var/lib/pgsql
+      rhel: { exec: "/usr/bin/postmaster -D /var/lib/pgsql/data", proc: "/usr/bin/postmaster -D /var/lib/pgsql/data" },
     },
     "redis-server": {
       desc: "Advanced key-value store",
@@ -673,7 +675,12 @@
         ) + 1;
       let gid = o.gid;
       if (gid === undefined) {
-        if (!this.groups[name]) this.groups[name] = { gid: uid, members: new Set() };
+        // the user's own group takes the GID equal to the UID when it is free, else the next free one (as useradd)
+        if (!this.groups[name]) {
+          const used = Object.values(this.groups).map((g) => g.gid);
+          const free = used.includes(uid) ? Math.max(999, ...used.filter((g) => g < 60000)) + 1 : uid;
+          this.groups[name] = { gid: free, members: new Set() };
+        }
         gid = this.groups[name].gid;
       }
       this.users[name] = {
@@ -1145,7 +1152,12 @@
         else this.world.features.delete("docker");
       }
       this.services[name] = state;
-      if (state === "active") this.pids[name] = ++pidSeed + 2000;
+      // the process of a unit of one's own (systemctl start) is its main PID; it goes when the unit stops
+      const own = this.extraProcs.find((p) => p.svcCustom === name);
+      if (state === "active") this.pids[name] = own ? own.pid : ++pidSeed + 2000;
+      else this.extraProcs = this.extraProcs.filter((p) => p.svcCustom !== name);
+      // when the state last changed (systemctl status "since"); none for the state the host starts in
+      if (this.world && !this.world.bootstrap) (this.since = this.since || {})[name] = this.world.now();
     }
     processes(extra = []) {
       const now = this.world ? this.world.now() : Date.now();
@@ -1185,7 +1197,12 @@
       add(289, 1, "root", "/lib/systemd/systemd-udevd", { stat: "Ss" });
       for (const s of Object.keys(this.services)) {
         if (this.svcState(s) !== "active") continue;
-        const def = SVC[s] || { proc: "/usr/bin/" + s };
+        if (this.extraProcs.some((p) => p.svcCustom === s)) continue; // listed with extraProcs below
+        const exec = SVC[s]
+          ? ""
+          : (this.vfs.read(`/etc/systemd/system/${s}.service`) || "").match(/^ExecStart=[-@+!]*(.+)$/m);
+        const base = SVC[s] || { proc: exec ? exec[1].trim() : "/usr/bin/" + s };
+        const def = base.rhel && this.os === "rhel" ? Object.assign({}, base, base.rhel) : base;
         if (def.oneshot) continue;
         const pid = this.pids[s] || ++pidSeed;
         const heavy = /kubelet|dockerd|containerd|crio|postgres|firewalld/.test(def.proc || "");
@@ -1229,12 +1246,19 @@
       for (const p of this.extraProcs) add(p.pid, p.ppid || 1, p.user, p.cmd, p);
       return P.concat(extra).sort((a, b) => a.pid - b.pid);
     }
+    // 1, 5 and 15 minute load: an idle base plus the CPU the processes use (uptime, top, w)
+    loadavg() {
+      const cpu = this.processes().reduce((s, p) => s + (p.cpu || 0), 0) / 100;
+      return [0.08 + cpu, 0.11 + cpu * 0.9, 0.09 + cpu * 0.8];
+    }
     // Listening sockets: [{proto, addr, port, pid, proc}]
     sockets() {
       const out = [];
       for (const s of Object.keys(this.services)) {
         if (this.svcState(s) !== "active") continue;
-        const def = SVC[s];
+        // a site's own app (spec.web) listens on its port even without an entry in SVC
+        const def =
+          SVC[s] || (this.web && this.web.service === s ? { ports: [{ port: this.web.port }], proc: s } : null);
         if (!def || !def.ports) continue;
         const port = def.web ? this.webPort(s) : null;
         for (const p of def.ports)
@@ -1282,8 +1306,10 @@
       const m = conf.match(/^\s*listen\s+(\d+)/m);
       return m ? Number(m[1]) : null;
     }
-    // firewall decision for inbound traffic
-    firewallAllows(port, proto = "tcp", srcIp = "10.0.1.20") {
+    // How the host's firewall treats inbound traffic: null lets it in; "drop" discards it silently
+    // (ufw's default deny, iptables DROP: the client times out); "unreachable" answers with ICMP
+    // host-prohibited (firewalld's default: No route to host); "refused" is an iptables REJECT.
+    firewallBlock(port, proto = "tcp", srcIp = "10.0.1.20") {
       const f = this.firewall;
       if (this.os === "ubuntu" && f.ufw.enabled) {
         for (const r of f.ufw.rules) {
@@ -1297,21 +1323,26 @@
             continue;
           if (r.proto && r.proto !== proto) continue;
           if (r.from && r.from !== "Anywhere" && !cidrHas(r.from, srcIp)) continue;
-          return r.action === "allow" || r.action === "limit";
+          return r.action === "allow" || r.action === "limit" ? null : r.action === "reject" ? "refused" : "drop";
         }
-        return false;
+        return "drop";
       }
       if (this.os === "rhel" && this.svcState("firewalld") === "active") {
         const svcPorts = { ssh: 22, http: 80, https: 443, cockpit: 9090 };
-        return f.firewalld.services.some((s) => svcPorts[s] === port) || f.firewalld.ports.includes(`${port}/${proto}`);
+        const open =
+          f.firewalld.services.some((s) => svcPorts[s] === port) || f.firewalld.ports.includes(`${port}/${proto}`);
+        return open ? null : "unreachable";
       }
-      const drop = f.iptables.find(
+      const rule = f.iptables.find(
         (r) =>
           r.chain === "INPUT" &&
           (!r.dport || r.dport === String(port)) &&
           (r.target === "DROP" || r.target === "REJECT"),
       );
-      return !drop;
+      return rule ? (rule.target === "REJECT" ? "refused" : "drop") : null;
+    }
+    firewallAllows(port, proto, srcIp) {
+      return !this.firewallBlock(port, proto, srcIp);
     }
   }
   function cidrHas(cidr, ip) {

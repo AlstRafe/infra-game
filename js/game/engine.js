@@ -13,7 +13,7 @@
       label: "Linux",
       color: "#8fa3b8",
       icon: "❯_",
-      blurb: IG.t("端末操作・ログ調査・ファイル編集"),
+      blurb: IG.t("端末操作・権限・ディスク・サービス・ファイアウォール"),
     },
     {
       id: "docker",
@@ -364,10 +364,72 @@
       if (result.stars === 3 && result.hints === 0) give("flawless");
       if (result.fast && result.stars > 0) give("speed");
       if (IG.missionsOf(m.track).every((x) => this.cleared(x.id))) give(m.track);
-      if (IG.missions.every((x) => this.cleared(x.id))) give("all");
+      // the free lab has no objectives and is never cleared, so it does not count
+      if (IG.missions.every((x) => x.sandbox || this.cleared(x.id))) give("all");
       this.save();
       const after = this.rank();
       return { gain, newBadges, rankUp: after.idx > before.idx ? after.cur : null };
+    }
+    /* A backup of the progress as a file (書き出す), and reading one back (読み込む), e.g. on another
+     * device. Reading merges: the better result of each mission, drill and exam is kept, so nothing
+     * already earned here is lost; XP is worked out again from the merged results. */
+    export() {
+      const doc = { app: "corelab", version: 2, exported: new Date(IG.clock.now()).toISOString(), progress: this.data };
+      return JSON.stringify(doc, null, 2) + "\n";
+    }
+    import(text) {
+      let doc;
+      try {
+        doc = JSON.parse(text);
+      } catch (e) {
+        return { error: "json" };
+      }
+      const d = doc && doc.app === "corelab" ? doc.progress : null;
+      const isMap = (x) => x == null || (typeof x === "object" && !Array.isArray(x));
+      if (!d || typeof d.xp !== "number" || !isMap(d.missions) || !Array.isArray(d.badges || []))
+        return { error: "format" };
+      if (![d.drills, d.exams].every(isMap)) return { error: "format" };
+      const mine = this.data;
+      const num = (v, dflt = 0) => (Number.isFinite(Number(v)) ? Number(v) : dflt);
+      const merge = (into, from, best) => {
+        for (const [k, r] of Object.entries(from || {})) {
+          if (!r || typeof r !== "object" || ["__proto__", "constructor", "prototype"].includes(k)) continue;
+          const a = into[k] || {};
+          into[k] = Object.assign({}, a, {
+            plays: Math.max(num(a.plays), num(r.plays)),
+            last: Math.max(num(a.last), num(r.last)),
+          });
+          if (best === "time") {
+            into[k].stars = Math.min(3, Math.max(num(a.stars), num(r.stars)));
+            into[k].xp = Math.max(num(a.xp), num(r.xp));
+            into[k].best = Math.min(num(a.best, Infinity), num(r.best, Infinity));
+            if (!Number.isFinite(into[k].best)) delete into[k].best;
+          } else {
+            into[k].best = Math.max(num(a.best), num(r.best));
+            into[k].passed = !!(a.passed || r.passed);
+          }
+        }
+        return into;
+      };
+      merge(mine.missions, d.missions, "time");
+      if (d.drills) mine.drills = merge(mine.drills || {}, d.drills, "score");
+      if (d.exams) mine.exams = merge(mine.exams || {}, d.exams, "score");
+      const known = new Set(Object.keys(IG.badges));
+      for (const b of d.badges || []) if (known.has(b) && !mine.badges.includes(b)) mine.badges.push(b);
+      mine.seenIntro = true;
+      mine.created = Math.min(num(mine.created, Date.now()), num(d.created, Date.now()));
+      mine.xp = Math.max(mine.xp, Progress.xpOf(mine));
+      this.save();
+      return { cleared: IG.missions.filter((m) => this.cleared(m.id)).length, xp: mine.xp };
+    }
+    // XP the results are worth: each mission's best, and the first pass of each drill and exam
+    static xpOf(data) {
+      let xp = 0;
+      for (const r of Object.values(data.missions || {})) xp += Number(r.xp) || 0;
+      for (const [key, r] of Object.entries(data.drills || {}))
+        if (r.passed && IG.drillXp) xp += IG.drillXp(key.split(":")[1].startsWith("#") ? null : key.split(":")[1]);
+      for (const r of Object.values(data.exams || {})) if (r.passed && IG.examXp) xp += IG.examXp;
+      return xp;
     }
     trackProgress(track) {
       const list = IG.missionsOf(track);

@@ -1,7 +1,7 @@
 /* CoreLab en-GB: ui — each Japanese text and its translation (see js/core/i18n.js; tests/run-i18n.js lists what is missing). */
 IG.i18n.add({
   "Linux 基礎": "Linux basics",
-  "端末操作・ログ調査・ファイル編集": "Terminal use, log investigation, file editing",
+  "端末操作・権限・ディスク・サービス・ファイアウォール": "Terminal use, permissions, disks, services, firewalls",
   "コンテナの起動・ビルド・Compose": "Running and building containers, Compose",
   "レジストリ・脆弱性スキャン・pull 認証": "Registry, vulnerability scanning, pull authentication",
   "Pod・Service・ロールアウト・ノード障害": "Pods, Services, rollouts, node failures",
@@ -338,4 +338,16 @@ IG.i18n.add({
   "ダークモード 自動（端末の設定に合わせる）、押すと切り替え": "Dark mode: auto (follows your device). Press to switch",
   "ダークモード {state}、押すと切り替え": "Dark mode: {state}. Press to switch",
   "フリーラボ": "Free lab",
+  "進捗はこのブラウザにだけ保存されます。別の端末や別のブラウザで続けるときは、書き出したファイルを読み込んでください。": "Your progress is saved in this browser only. To carry on on another device or browser, export it and load the file there.",
+  "進捗を書き出す": "Export progress",
+  "ファイルから読み込む": "Load from a file",
+  "{0}（間違えた問題）": "{0} (questions you missed)",
+  "全問正解！": "All correct!",
+  "あと少し": "Nearly there",
+  "間違えた問題の解き直し（記録には残りません） · 所要 {time}": "Retrying the questions you missed (not recorded) · took {time}",
+  "間違えた {n} 問だけ解き直す": "Retry just the {n} you missed",
+  "全問をもう一度": "All questions again",
+  "進捗を書き出しました（{file}）": "Progress exported ({file})",
+  "読み込めませんでした。CoreLab で書き出した進捗ファイルを選んでください。": "Could not load that. Choose a progress file exported from CoreLab.",
+  "進捗を読み込みました（クリア {n} 本 · {xp} XP）": "Progress loaded ({n} missions cleared · {xp} XP)",
 });

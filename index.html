@@ -94,6 +94,12 @@
           </section>
           <section class="card small-print">
             <p>表示されるホスト名・IP・ログ・脆弱性・顧客データはすべて訓練用の架空データです。実在の環境・手順書を表すものではありません。</p>
+            <p class="backup-note">進捗はこのブラウザにだけ保存されます。別の端末や別のブラウザで続けるときは、書き出したファイルを読み込んでください。</p>
+            <div class="backup-actions">
+              <button class="btn ghost small" id="exportProgress" type="button">進捗を書き出す</button>
+              <button class="btn ghost small" id="importProgress" type="button">ファイルから読み込む</button>
+              <input type="file" id="importFile" accept=".json,application/json" hidden>
+            </div>
             <button class="link-btn" id="resetProgress">進捗をリセット</button>
           </section>
         </div>
@@ -318,6 +324,7 @@
   <script src="./js/game/certs/openshift.js" defer></script>
   <script src="./js/game/certs/aws.js" defer></script>
   <script src="./js/game/missions/basics.js" defer></script>
+  <script src="./js/game/missions/linux-admin.js" defer></script>
   <script src="./js/game/missions/docker.js" defer></script>
   <script src="./js/game/missions/harbor.js" defer></script>
   <script src="./js/game/missions/k8s.js" defer></script>

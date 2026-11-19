@@ -104,8 +104,8 @@
           disk: d,
         });
     });
-    for (const [vg, g] of Object.entries(s.vgs))
-      for (const lv of g.lvs)
+    for (const [vg, g] of Object.entries(s.vgs).sort(([a], [b]) => a.localeCompare(b)))
+      for (const lv of [...g.lvs].sort((a, b) => a.name.localeCompare(b.name)))
         v.push({
           dev: `/dev/${vg}/${lv.name}`,
           mapper: "/dev/mapper/" + mapName(vg, lv.name),
@@ -285,6 +285,7 @@
     return m;
   }
   IG.mounts = mounts;
+  IG.storageState = st; // disks, PVs and VGs of a host (mission checks)
   C.df = (argv, ctx) => {
     const h = ctx.host;
     const { f, pos } = opts(argv, "tx", ["type", "output", "exclude-type"]);
@@ -2251,6 +2252,7 @@
       s = st(h);
     const { pos } = opts(argv, "oO", ["options", "units"]);
     const rows = Object.entries(s.pvs)
+      .sort(([a], [b]) => a.localeCompare(b)) // pvs, vgs and lvs list by name
       .filter(([d]) => !pos.length || pos.includes(d))
       .map(([d, p]) => {
         if (!p.vg) return [d, "", "lvm2", "---", lsz(p.mib), lsz(p.mib)];
@@ -2265,7 +2267,9 @@
     const h = ctx.host,
       s = st(h);
     const { pos } = opts(argv, "oO", ["options", "units"]);
-    const names = Object.keys(s.vgs).filter((n) => !pos.length || pos.includes(n));
+    const names = Object.keys(s.vgs)
+      .sort()
+      .filter((n) => !pos.length || pos.includes(n));
     if (pos.length && !names.length)
       return fail(`  Volume group "${pos[0]}" not found\n  Cannot process volume group ${pos[0]}`, 5);
     return names.length
@@ -2294,8 +2298,8 @@
       s = st(h);
     const { pos } = opts(argv, "oO", ["options", "units"]);
     const rows = [];
-    for (const [vg, g] of Object.entries(s.vgs))
-      for (const lv of g.lvs)
+    for (const [vg, g] of Object.entries(s.vgs).sort(([a], [b]) => a.localeCompare(b)))
+      for (const lv of [...g.lvs].sort((a, b) => a.name.localeCompare(b.name)))
         if (!pos.length || pos.some((p) => p === vg || findLv(h, p)?.lv === lv))
           rows.push([lv.name, vg, lvAttr(lv), lsz(lv.mib), "", "", "", "", "", "", "", ""]);
     return rows.length
@@ -2332,7 +2336,9 @@
     const h = ctx.host,
       s = st(h);
     const pos = argv.filter((a) => !a.startsWith("-"));
-    const names = Object.keys(s.vgs).filter((n) => !pos.length || pos.includes(n));
+    const names = Object.keys(s.vgs)
+      .sort()
+      .filter((n) => !pos.length || pos.includes(n));
     if (pos.length && !names.length)
       return fail(`  Volume group "${pos[0]}" not found\n  Cannot process volume group ${pos[0]}`, 5);
     return names
@@ -2349,8 +2355,8 @@
       s = st(h);
     const pos = argv.filter((a) => !a.startsWith("-"));
     const items = [];
-    for (const [vg, g] of Object.entries(s.vgs))
-      for (const lv of g.lvs)
+    for (const [vg, g] of Object.entries(s.vgs).sort(([a], [b]) => a.localeCompare(b)))
+      for (const lv of [...g.lvs].sort((a, b) => a.name.localeCompare(b.name)))
         if (!pos.length || pos.some((p) => p === vg || findLv(h, p)?.lv === lv)) items.push([vg, lv]);
     if (pos.length && !items.length) return fail(`  Failed to find logical volume "${pos[0]}"`, 5);
     return items

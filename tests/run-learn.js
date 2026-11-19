@@ -156,6 +156,67 @@ const restored = new IG.Progress(store);
 if (!restored.drillPassed("basics", 1) || !restored.examPassed("cka")) fail("progress: not restored from storage");
 console.log("PASS  progress    drill/exam results, XP once per unit, badges, persistence");
 
+/* ---------------------------------------------------------------- review of missed questions */
+const half = IG.drillRun("k8s", 2);
+for (let i = 0; !half.done; i++) {
+  const it = half.current;
+  half.answer(i % 2 ? (it.q.c ? it.order.indexOf(0) : it.q.a) : it.q.c ? it.order.indexOf(1) : "no");
+  half.next();
+}
+const missed = half.result().missed.length;
+const review = IG.reviewRun(half);
+const before = JSON.stringify(p.data);
+if (!review || review.items.length !== missed)
+  fail(`review: ${missed} missed, review asks ${review && review.items.length}`);
+else {
+  const rres = play(review, true);
+  const rrec = p.recordRun(review, rres);
+  if (!rres.passed || rrec.gain || JSON.stringify(p.data) !== before) fail("review: it changed the progress");
+  if (IG.reviewRun(review)) fail("review: a review with nothing missed offers another");
+  const twice = IG.reviewRun(half);
+  if (twice.meta.from !== half.meta || !twice.meta.title.includes(half.meta.title)) fail("review: lost its drill");
+}
+if (IG.reviewRun(r1)) fail("review: a perfect run offers a review");
+console.log(`PASS  review      ${missed} missed questions asked again, nothing recorded`);
+
+/* ---------------------------------------------------------------- backup (export / import) */
+{
+  const mem = () => {
+    const m = {};
+    return { getItem: (k) => (k in m ? m[k] : null), setItem: (k, v) => (m[k] = String(v)) };
+  };
+  const home = new IG.Progress(mem());
+  home.record(IG.mission("basics-01"), { stars: 3, time: 100, hints: 0, xp: 150, fast: true });
+  const hr = IG.drillRun("docker", 1);
+  home.recordRun(hr, play(hr, true));
+  const file = home.export();
+  const away = new IG.Progress(mem());
+  away.record(IG.mission("basics-01"), { stars: 1, time: 50, hints: 3, xp: 75, fast: false });
+  away.record(IG.mission("docker-01"), { stars: 2, time: 200, hints: 1, xp: 90, fast: false });
+  const r = away.import(file);
+  const b1 = away.data.missions["basics-01"];
+  if (r.error || b1.stars !== 3 || b1.best !== 50 || b1.xp !== 150 || !away.cleared("docker-01"))
+    fail(`backup: merged mission results are wrong ${JSON.stringify(b1)}`);
+  if (!away.drillPassed("docker", 1) || !away.data.badges.includes("study")) fail("backup: drills/badges not merged");
+  const want = 150 + 90 + IG.drillXp(1);
+  if (away.data.xp !== want || r.xp !== want) fail(`backup: XP ${away.data.xp}, expected ${want}`);
+  if (JSON.stringify(away.import(file)) !== JSON.stringify(r)) fail("backup: reading the same file twice changed it");
+  for (const bad of [
+    "",
+    "{",
+    "[]",
+    '{"app":"other","progress":{"xp":1,"missions":{},"badges":[]}}',
+    '{"app":"corelab","progress":{"xp":"9","missions":{}}}',
+    '{"app":"corelab","progress":{"xp":1,"missions":[],"badges":[]}}',
+  ])
+    if (!away.import(bad).error) fail(`backup: accepted ${bad || "an empty file"}`);
+  away.import('{"app":"corelab","progress":{"xp":0,"missions":{"__proto__":{"stars":3}},"badges":["no-such-badge"]}}');
+  if ({}.stars || away.data.badges.includes("no-such-badge"))
+    fail("backup: a crafted file changed objects or added a badge");
+  if (new IG.Progress(away.storage).data.xp !== want) fail("backup: the merge was not saved");
+}
+console.log("PASS  backup      export, merge on import (best results, XP again, badges), bad files refused");
+
 /* ---------------------------------------------------------------- missions ↔ drills */
 const linked = IG.missions.filter((m) => !m.sandbox && IG.drillsForMission(m.id).length);
 if (linked.length < IG.missions.filter((m) => !m.sandbox).length / 2)

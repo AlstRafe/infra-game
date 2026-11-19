@@ -469,19 +469,21 @@
   }
   function showRunResult() {
     const res = run.result();
-    const rec = progress.recordRun(run, res);
+    const rec = progress.recordRun(run, res); // a review of missed questions records nothing
     renderProfile();
-    const exam = run.meta.kind === "exam";
-    const cert = exam ? run.meta.cert : null;
-    const topic = exam ? cert.topic : run.meta.topic;
+    const review = !!run.meta.review;
+    const meta = review ? run.meta.from : run.meta;
+    const exam = meta.kind === "exam";
+    const cert = exam ? meta.cert : null;
+    const topic = exam ? cert.topic : meta.topic;
     const d = IG.drills[topic];
-    const nextLevel = !exam && run.meta.unit.n ? d.levels.find((l) => l.n === Number(run.meta.unit.n) + 1) : null;
+    const nextLevel = !exam && meta.unit.n ? d.levels.find((l) => l.n === Number(meta.unit.n) + 1) : null;
     $("drillFill").style.width = "100%";
     $("drillMain").innerHTML = `
       <article class="qcard result-card">
-        <p class="kicker">${exam ? "MOCK EXAM RESULT" : "DRILL RESULT"}</p>
-        <h2>${res.passed ? T("合格！") : T("もう一歩")} <span class="score">${res.score} / ${res.total}（${pct(res.pct)}）</span></h2>
-        <p class="muted flat">${T("合格ライン {pass}% · 所要 {time}", { pass: Math.round(run.meta.pass * 100), time: fmtTime(res.time) })}${rec.gain ? ` · ${T("獲得 +{xp} XP", { xp: rec.gain })}` : ""}</p>
+        <p class="kicker">${review ? "REVIEW" : exam ? "MOCK EXAM RESULT" : "DRILL RESULT"}</p>
+        <h2>${review ? (res.passed ? T("全問正解！") : T("あと少し")) : res.passed ? T("合格！") : T("もう一歩")} <span class="score">${res.score} / ${res.total}（${pct(res.pct)}）</span></h2>
+        <p class="muted flat">${review ? T("間違えた問題の解き直し（記録には残りません） · 所要 {time}", { time: fmtTime(res.time) }) : T("合格ライン {pass}% · 所要 {time}", { pass: Math.round(run.meta.pass * 100), time: fmtTime(res.time) })}${rec.gain ? ` · ${T("獲得 +{xp} XP", { xp: rec.gain })}` : ""}</p>
         ${rec.rankUp ? `<p class="levelup">🎉 ${T("ランクアップ！「{rank}」になりました", { rank: esc(rec.rankUp.name) })}</p>` : ""}
         ${rec.newBadges.map((b) => `<p class="levelup">${IG.badges[b].icon} ${T("バッジ獲得")}: ${esc(IG.badges[b].name)}</p>`).join("")}
         ${
@@ -491,13 +493,21 @@
             : `<p class="flat">${T("全問正解です。")}</p>`
         }
         <footer class="result-actions">
-          <button class="btn primary small" id="retryRun">${T("もう一度")}</button>
+          ${res.missed.length ? `<button class="btn primary small" id="reviewRun">${T("間違えた {n} 問だけ解き直す", { n: res.missed.length })}</button>` : ""}
+          <button class="btn ${res.missed.length ? "ghost" : "primary"} small" id="retryRun">${review ? T("全問をもう一度") : T("もう一度")}</button>
           ${nextLevel ? `<a class="btn ghost small" href="#/drill/${topic}/${nextLevel.n}">${T("次のレベル")}: Lv${nextLevel.n} ${esc(nextLevel.title)}</a>` : ""}
           ${exam ? "" : `<a class="btn ghost small" href="#/learn/${topic}">${T("{track}の一覧へ", { track: esc((trackOf(topic) || {}).name || "") })}</a>`}
           ${exam ? `<a class="btn ghost small" href="#/learn/${topic}#cert-${cert.id}">${T("試験範囲に戻る")}</a>` : ""}
           ${stash ? `<a class="btn ghost small" href="#/play/${stash.id}">${T("ミッションに戻る")}: ${esc((IG.mission(stash.id) || {}).title || "")}</a>` : ""}
         </footer>
       </article>`;
+    if ($("reviewRun"))
+      $("reviewRun").onclick = () => {
+        run = IG.reviewRun(run);
+        $("drillTitle").textContent = run.meta.title;
+        window.scrollTo(0, 0);
+        renderQuestion();
+      };
     $("retryRun").onclick = () => {
       const h = location.hash;
       location.hash = "#/learn";
@@ -1313,6 +1323,31 @@
       );
     }
   });
+  // Backup of the progress: a JSON file to keep or to read on another device (merged, nothing lost)
+  $("exportProgress").onclick = () => {
+    const blob = new Blob([progress.export()], { type: "application/json" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = `corelab-progress-${new Date().toISOString().slice(0, 10)}.json`;
+    document.body.append(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+    toast(T("進捗を書き出しました（{file}）", { file: a.download }), true);
+  };
+  $("importProgress").onclick = () => $("importFile").click();
+  $("importFile").onchange = async (e) => {
+    const file = e.target.files[0];
+    e.target.value = "";
+    if (!file) return;
+    const r = file.size > 2e6 ? { error: "format" } : progress.import(await file.text());
+    if (r.error) {
+      toast(T("読み込めませんでした。CoreLab で書き出した進捗ファイルを選んでください。"));
+      return;
+    }
+    showHome();
+    toast(T("進捗を読み込みました（クリア {n} 本 · {xp} XP）", { n: r.cleared, xp: r.xp }), true);
+  };
   $("resetProgress").onclick = () => {
     if (confirm(T("すべての進捗（XP・★・バッジ）をリセットします。よろしいですか？"))) {
       progress.reset();

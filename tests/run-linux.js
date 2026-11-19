@@ -1284,6 +1284,96 @@ const T = [
   ["awk -v without =", "awk -v x 1", { err: /not in `var=value' form/, code: 2 }],
   ["find -name without a pattern", "find -name", { err: "find: missing argument to `-name'", code: 1 }],
   ["timedatectl set-timezone without a zone", "sudo timedatectl set-timezone", { err: "Too few arguments.", code: 1 }],
+
+  // ---------------- found while writing the Linux missions 3-8 (2026-11-19)
+  [
+    "a user's own group skips a GID that is taken",
+    ["sudo groupadd deploy", "sudo useradd -m -G deploy bob", "id bob"],
+    "uid=1001(bob) gid=1002(bob) groups=1002(bob),1001(deploy)",
+  ],
+  [
+    "setgid directory: new files and directories take its group",
+    [
+      "sudo groupadd team",
+      "sudo mkdir /srv/share",
+      "sudo chgrp team /srv/share",
+      "sudo chmod 2777 /srv/share",
+      "touch /srv/share/f; mkdir /srv/share/d",
+      "stat -c '%G %A' /srv/share/f /srv/share/d",
+    ],
+    "team -rw-rw-r--\nteam drwxrwsr-x",
+  ],
+  [
+    "uptime counts the CPU the processes use, like top",
+    [
+      "ssh srv1",
+      `[ "$(uptime | sed 's/.*average: //')" = "$(top -b -n1 | head -1 | sed 's/.*average: //')" ] && echo same`,
+    ],
+    "same",
+  ],
+  [
+    "firewalld refuses with No route to host",
+    ["ssh rhel1", "exit", "curl -s -o /dev/null -w '%{http_code}' http://rhel1:8080/; nc -zv rhel1 8080"],
+    { err: /No route to host/, code: 1 },
+  ],
+  [
+    "firewall-cmd --runtime-to-permanent keeps a runtime rule over a reload",
+    [
+      "ssh rhel1",
+      "sudo firewall-cmd --add-port=8080/tcp",
+      "sudo firewall-cmd --runtime-to-permanent",
+      "sudo firewall-cmd --reload",
+      "sudo firewall-cmd --list-ports",
+    ],
+    "8080/tcp",
+  ],
+  [
+    "a reboot drops runtime-only firewalld rules",
+    [
+      "ssh rhel1",
+      "sudo firewall-cmd --add-port=9000/tcp",
+      "sudo reboot",
+      "ssh rhel1",
+      "sudo firewall-cmd --list-ports",
+    ],
+    "",
+  ],
+  [
+    "a unit of one's own runs its ExecStart again at boot (203/EXEC if not executable)",
+    [
+      "ssh srv1",
+      "printf '#!/bin/sh\\nexit 0\\n' | sudo tee /usr/local/bin/app > /dev/null",
+      "printf '[Service]\\nExecStart=/usr/local/bin/app\\n[Install]\\nWantedBy=multi-user.target\\n' | sudo tee /etc/systemd/system/app.service > /dev/null",
+      "sudo chmod +x /usr/local/bin/app",
+      "sudo systemctl enable --now app > /dev/null 2>&1",
+      "sudo chmod -x /usr/local/bin/app",
+      "sudo reboot",
+      "ssh srv1",
+      "systemctl is-active app; sudo journalctl -u app | tail -1",
+    ],
+    { out: /^failed\n.*status=203\/EXEC|^failed\n.*Failed with result/s },
+  ],
+  [
+    "a unit of one's own shows its own process and start time",
+    [
+      "ssh srv1",
+      "printf '#!/bin/sh\\n' | sudo tee /usr/local/bin/app > /dev/null",
+      "sudo chmod +x /usr/local/bin/app",
+      "printf '[Service]\\nExecStart=/usr/local/bin/app --serve\\n' | sudo tee /etc/systemd/system/app.service > /dev/null",
+      "sudo systemctl start app",
+      "systemctl status app | grep -E 'Active|Main PID|─'",
+    ],
+    /Active: active \(running\) since .*; \d+s ago\n {3}Main PID: \d+ \(app\)\n {13}└─\d+ "\/usr\/local\/bin\/app --serve"/,
+  ],
+  [
+    "vgs lists volume groups by name",
+    [
+      "ssh rhel1",
+      "sudo vgcreate aaa /dev/nvme1n1 > /dev/null",
+      "sudo vgs --noheadings -o vg_name 2>/dev/null || sudo vgs | awk 'NR>1{print $1}'",
+    ],
+    /aaa[\s\S]*rhel/,
+  ],
 ];
 
 const args = process.argv.slice(2);

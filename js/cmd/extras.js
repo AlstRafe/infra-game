@@ -1479,7 +1479,10 @@
         continue;
       }
       if (!r.ok) {
-        o.e(`${hostName}: Connection ${r.timeout ? "timed out" : "refused"}`, 0);
+        o.e(
+          `${hostName}: ${r.timeout ? "Connection timed out" : r.unreachable ? "No route to host" : "Connection refused"}`,
+          0,
+        );
         continue;
       }
       for (const t of types) {

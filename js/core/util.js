@@ -655,7 +655,8 @@
       const r = this.real(p) || p;
       const parent = VFS.parent(r);
       if (!this.isDir(parent)) {
-        if (opt.mkdirs) this.mkdirp(parent, opt);
+        if (opt.mkdirs)
+          this.mkdirp(parent, Object.assign({}, opt, { mode: undefined })); // the file's mode is not the directories' mode
         else throw new Error("ENOENT");
       }
       const prev = this.nodes.get(r);
@@ -684,9 +685,14 @@
       if (!prev) this.inherit(node, parent);
       return node;
     }
-    // a parent directory's default ACL applies to new entries (the umask is then ignored)
+    // A set-group-ID parent gives new entries its group (and new directories the bit itself);
+    // a parent directory's default ACL applies to new entries (the umask is then ignored).
     inherit(node, parentPath) {
       const d = this.nodes.get(this.real(parentPath) || parentPath);
+      if (d && d.mode & 0o2000) {
+        node.group = d.group;
+        if (node.type === "d") node.mode |= 0o2000;
+      }
       if (!d || !d.dacl) return;
       const a = d.dacl,
         dir = node.type === "d",

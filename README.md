@@ -19,18 +19,20 @@ python -m http.server 8123
 
 開発用に全ミッションを解放するには URL に `?unlock=all` を付けます（例: `http://localhost:8123/?unlock=all`）。言語は `?lang=ko` / `?lang=en-GB` / `?lang=zh-TW` / `?lang=ja` でも選べます。
 
-## ミッション（19 本 + フリーラボ）
+## ミッション（25 本 + フリーラボ）
 
-| トラック   | ミッション                                                                                                                   |
-| ---------- | ---------------------------------------------------------------------------------------------------------------------------- |
-| Linux 基礎 | 初日の当番（grep/パイプ）・Web サーバーが起動しない（ssh/systemctl/journalctl/nginx -t）                                     |
-| Docker     | はじめてのコンテナ・Compose が立ち上がらない・イメージをビルドせよ                                                           |
-| Harbor     | 社内レジストリへ push・脆弱性ポリシーに止められた・private イメージを pull せよ（robot + imagePullSecret）                   |
-| Kubernetes | キャパシティ復旧・Service に繋がらない・悪いリリースを戻せ・設定が足りない Pod・Pending から抜け出せ・ノードのディスクが満杯 |
-| OpenShift  | はじめての OpenShift（login/new-project/new-app/Route）・root で動かないコンテナ（SCC）                                      |
-| AWS        | EKS クラスタにつなげ・HTTPS が届かない（SG）・S3 公開事故を止めろ                                                            |
+| トラック   | ミッション                                                                                                                                                                                                                                                                                                                                                                                           |
+| ---------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Linux 基礎 | 初日の当番（grep/パイプ）・Web サーバーが起動しない（ssh/systemctl/journalctl/nginx -t）・共有ディレクトリに書き込めない（useradd/グループ/setgid）・CPU を食いつぶすプロセス（top/kill/cron）・増設ディスクを使えるようにせよ（mkfs/mount/fstab）・再起動のあとアプリが戻らない（systemd unit/enable）・サーバーの中では動くのに（firewalld --permanent）・データベースの容量が足りない（LVM 拡張） |
+| Docker     | はじめてのコンテナ・Compose が立ち上がらない・イメージをビルドせよ                                                                                                                                                                                                                                                                                                                                   |
+| Harbor     | 社内レジストリへ push・脆弱性ポリシーに止められた・private イメージを pull せよ（robot + imagePullSecret）                                                                                                                                                                                                                                                                                           |
+| Kubernetes | キャパシティ復旧・Service に繋がらない・悪いリリースを戻せ・設定が足りない Pod・Pending から抜け出せ・ノードのディスクが満杯                                                                                                                                                                                                                                                                         |
+| OpenShift  | はじめての OpenShift（login/new-project/new-app/Route）・root で動かないコンテナ（SCC）                                                                                                                                                                                                                                                                                                              |
+| AWS        | EKS クラスタにつなげ・HTTPS が届かない（SG）・S3 公開事故を止めろ                                                                                                                                                                                                                                                                                                                                    |
 
 各トラックは順番に解放されます。★3 = ヒントなし＆目標時間内。
+
+進捗はブラウザ（localStorage）に保存されます。ホーム右下の「進捗を書き出す」で JSON に保存し、別の端末やブラウザで「ファイルから読み込む」と、各ミッション・学習問題のよいほうの結果をまとめて引き継げます。
 
 ## ラーニング（学習問題と資格対策）
 
@@ -45,6 +47,8 @@ python -m http.server 8123
   - Kubernetes: KCNA / KCSA / CKAD / CKA / CKS / CKNE / CNPA / CNPE と CNCF の関連認定（CAPA・CCA・KCA・ICA・PCA・OTCA・CGOA）
   - OpenShift: EX180 / EX280 / EX380 / EX288 / EX282 / EX316 / EX156 / EX336 / EX370 / EX430 / EX432 / EX378 / EX267
   - AWS: CLF-C02 / SAA-C03 / SOA-C03 / DVA-C02 / SAP-C02 / DOP-C02 / SCS-C03 / ANS-C01 / AIF-C01 / AIB-C01 / AIP-C01 / MLA-C02 / DEA-C01
+
+問題集を終えたら、間違えた問題だけを集めた「解き直し」をすぐに始められます（解き直しの結果は記録を上書きしません）。
 
 AI・機械学習や言語フレームワークなど、このゲームの範囲外のドメインは「範囲外」と明示しています（カバー率には含めません）。合格すると XP とバッジが得られ、ミッションと同じキャリアに積み上がります。
 
@@ -110,7 +114,7 @@ tests/run-i18n.js     翻訳の検証（訳のない文・{名前} の欠け・�
 ```bash
 node tests/run-solutions.js          # 全ミッション
 node tests/run-solutions.js k8s-03 -v # 1 本を出力付きで
-node tests/run-linux.js              # Linux の回帰テスト（約 440 件）
+node tests/run-linux.js              # Linux の回帰テスト（約 450 件）
 node tests/run-linux.js lvm -v       # 名前に lvm を含むケースだけ
 node tests/run-learn.js              # 学習問題と資格カタログ
 node tests/run-learn.js -v           # 資格ごとのカバー率つき
