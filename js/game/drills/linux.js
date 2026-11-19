@@ -103,7 +103,7 @@ IG.registerDrills({
       n: 2,
       title: "権限・プロセス・サービス",
       goal: "サーバーに入り、サービスの状態とログを確認して再起動できる",
-      missions: ["basics-01", "basics-02"],
+      missions: ["basics-01", "basics-02", "basics-03", "basics-04", "basics-06"],
       refs: ["chmod", "systemctl", "journalctl", "signal", "sshconfig"],
       points: [
         "`-rw-r-----` は 所有者 / グループ / その他 の順に r(4) w(2) x(1)。`chmod 640 file` = rw- r-- ---",
@@ -169,7 +169,7 @@ IG.registerDrills({
       n: 3,
       title: "障害調査（設定・ディスク・ネットワーク）",
       goal: "「起動しない」「容量がない」「つながらない」を順序立てて切り分けられる",
-      missions: ["basics-02", "k8s-06"],
+      missions: ["basics-02", "basics-05", "basics-07", "k8s-06"],
       refs: ["nginx", "df", "ss", "ip", "proc"],
       points: [
         "サービスが起動しない → `systemctl status` → `journalctl -u` → 設定の文法チェック（`nginx -t` など）→ 修正 → restart",
@@ -243,7 +243,7 @@ IG.registerDrills({
       n: 4,
       title: "ストレージ・systemd 設計・権限管理",
       goal: "容量拡張やサービス化、権限設計を安全に行える",
-      missions: [],
+      missions: ["basics-03", "basics-05", "basics-06", "basics-08"],
       refs: ["lvm", "lvextend", "fstab", "service", "visudo", "setfacl"],
       points: [
         "LVM: 物理ボリューム（PV）→ ボリュームグループ（VG）→ 論理ボリューム（LV）。`lvextend -r` でファイルシステムごと拡張",

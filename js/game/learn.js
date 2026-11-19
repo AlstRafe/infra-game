@@ -228,6 +228,29 @@
     );
   };
 
+  // The questions answered wrong in a finished run (drill, exam or an earlier review), asked again in
+  // a new order. Practice only: progress.recordRun records nothing for it.
+  IG.reviewRun = (run, rnd = Math.random) => {
+    const missed = run.answers.filter((a) => !a.correct);
+    if (!missed.length) return null;
+    const from = run.meta.review ? run.meta.from : run.meta;
+    return new Run(
+      shuffle(
+        missed.map((a) => mkItem(a.item.q, a.item.topic, rnd, a.item.domain)),
+        rnd,
+      ),
+      {
+        kind: "review",
+        review: true,
+        from,
+        key: from.key,
+        topic: from.topic,
+        title: IG.t("{0}（間違えた問題）", { 0: from.title }),
+        pass: 1,
+      },
+    );
+  };
+
   /* Mock exam: questions are drawn from the units mapped to each in-scope domain, as many per domain
    * as its official weight suggests (at least one), then trimmed/padded to `size`. */
   IG.examRun = (certId, size = IG.EXAM_SIZE, rnd = Math.random) => {
@@ -301,6 +324,7 @@
   };
   // One path for both kinds: run.meta.key is "<topic>:<ref>" or "exam:<certId>".
   P.recordRun = function (run, result) {
+    if (run.meta.review) return { gain: 0, newBadges: [], rankUp: null };
     const exam = run.meta.kind === "exam";
     const store = exam ? (this.data.exams = this.data.exams || {}) : this.drills();
     const key = exam ? run.meta.cert.id : run.meta.key;

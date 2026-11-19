@@ -1755,7 +1755,7 @@
     if (argv.includes("-p") || argv.includes("--pretty"))
       return `up ${days ? `${days} day${days > 1 ? "s" : ""}, ` : ""}${hrs} hour${hrs === 1 ? "" : "s"}, ${mins} minute${mins === 1 ? "" : "s"}`;
     if (argv.includes("-s") || argv.includes("--since")) return strftime("%F %T", h.bootAt);
-    const load = h.loadavg ? h.loadavg() : [0.08, 0.12, 0.09];
+    const load = h.loadavg();
     return ` ${strftime("%T", ctx.world.now())} up ${days ? `${days} days, ` : ""}${String(hrs).padStart(2)}:${String(mins).padStart(2, "0")},  ${ctx.shell.stack.filter((s) => s.host === h.name).length} user,  load average: ${load.map((x) => x.toFixed(2)).join(", ")}`;
   };
   C.env = (argv, ctx) => {

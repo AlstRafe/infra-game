@@ -773,20 +773,14 @@
     };
   }
   IG.memInfo = memInfo;
-  function loadavg(h) {
-    const cpu = h.processes().reduce((s, p) => s + (p.cpu || 0), 0) / 100;
-    return [0.08 + cpu, 0.11 + cpu * 0.9, 0.09 + cpu * 0.8];
-  }
   C.top = (argv, ctx) => {
     const h = ctx.host;
     const procs = allProcs(ctx, "top").sort((a, b) => b.cpu - a.cpu || b.mem - a.mem);
     const m = memInfo(h);
-    const load = loadavg(h);
+    const load = h.loadavg();
     const cpuSum = Math.min(100, procs.reduce((s, p) => s + p.cpu, 0) / h.cpus);
-    const n = argv.includes("-n") ? Number(argv[argv.indexOf("-n") + 1]) : 1;
-    void n;
     const up = ctx.world.now() - h.bootAt;
-    const head = `top - ${IG.strftime("%T", ctx.world.now())} up ${Math.floor(up / 86400e3)} days, ${String(Math.floor((up % 86400e3) / 3600e3)).padStart(2)}:${String(Math.floor((up % 3600e3) / 60e3)).padStart(2, "0")},  1 user,  load average: ${load.map((x) => x.toFixed(2)).join(", ")}\nTasks: ${procs.length + 96} total,   1 running, ${procs.length + 95} sleeping,   0 stopped,   0 zombie\n%Cpu(s):  ${cpuSum.toFixed(1)} us,  0.3 sy,  0.0 ni, ${(99.5 - cpuSum).toFixed(1)} id,  0.1 wa,  0.0 hi,  0.0 si,  0.1 st\nMiB Mem :   ${(m.total / 1024).toFixed(1)} total,   ${(m.free / 1024).toFixed(1)} free,   ${(m.used / 1024).toFixed(1)} used,   ${(m.buff / 1024).toFixed(1)} buff/cache\nMiB Swap: ${((IG.swapKiB ? IG.swapKiB(h) : 0) / 1024).toFixed(1).padStart(8)} total, ${((IG.swapKiB ? IG.swapKiB(h) : 0) / 1024).toFixed(1).padStart(8)} free,      0.0 used.   ${(m.avail / 1024).toFixed(1)} avail Mem\n\n    PID USER      PR  NI    VIRT    RES    SHR S  %CPU  %MEM     TIME+ COMMAND\n`;
+    const head = `top - ${IG.strftime("%T", ctx.world.now())} up ${Math.floor(up / 86400e3)} days, ${String(Math.floor((up % 86400e3) / 3600e3)).padStart(2)}:${String(Math.floor((up % 3600e3) / 60e3)).padStart(2, "0")},  ${ctx.shell.stack.filter((s) => s.host === h.name).length} user,  load average: ${load.map((x) => x.toFixed(2)).join(", ")}\nTasks: ${procs.length + 96} total,   1 running, ${procs.length + 95} sleeping,   0 stopped,   0 zombie\n%Cpu(s):  ${cpuSum.toFixed(1)} us,  0.3 sy,  0.0 ni, ${Math.max(0, 99.5 - cpuSum).toFixed(1)} id,  0.1 wa,  0.0 hi,  0.0 si,  0.1 st\nMiB Mem :   ${(m.total / 1024).toFixed(1)} total,   ${(m.free / 1024).toFixed(1)} free,   ${(m.used / 1024).toFixed(1)} used,   ${(m.buff / 1024).toFixed(1)} buff/cache\nMiB Swap: ${((IG.swapKiB ? IG.swapKiB(h) : 0) / 1024).toFixed(1).padStart(8)} total, ${((IG.swapKiB ? IG.swapKiB(h) : 0) / 1024).toFixed(1).padStart(8)} free,      0.0 used.   ${(m.avail / 1024).toFixed(1)} avail Mem\n\n    PID USER      PR  NI    VIRT    RES    SHR S  %CPU  %MEM     TIME+ COMMAND\n`;
     const rows = procs
       .slice(0, argv.includes("-b") ? procs.length : 20)
       .map(
@@ -1483,6 +1477,14 @@
       " ",
     ),
   );
+  // systemd's "ago": 5s ago, 4min 10s ago, 3h 12min ago, 12 days ago
+  function agoText(ms) {
+    const t = Math.max(0, Math.round(ms / 1000));
+    if (t < 60) return `${t}s ago`;
+    if (t < 3600) return `${Math.floor(t / 60)}min ${t % 60}s ago`;
+    if (t < 86400) return `${Math.floor(t / 3600)}h ${Math.floor((t % 3600) / 60)}min ago`;
+    return `${Math.floor(t / 86400)} days ago`;
+  }
   function svcStatus(ctx, h, s) {
     const st = h.svcState(s);
     const info = unitInfo(h, s);
@@ -1494,9 +1496,10 @@
     lines2.push(
       `     Loaded: ${h.masked.has(s) ? "masked (Reason: Unit " + s + ".service is masked.)" : `loaded (${info.path || "/lib/systemd/system/" + s + ".service"}; ${enabled ? "enabled" : "disabled"}; vendor preset: enabled)`}`,
     );
-    const since = IG.strftime("%a %F %T UTC", st === "active" ? h.bootAt + 2000 : ctx.world.now() - 240e3);
+    const t0 = (h.since || {})[s] ?? (st === "active" ? h.bootAt + 2000 : ctx.world.now() - 240e3);
+    const since = `${IG.strftime("%a %F %T UTC", t0)}; ${agoText(ctx.world.now() - t0)}`;
     lines2.push(
-      `     Active: ${st === "active" ? `active (running) since ${since}; ${Math.floor((ctx.world.now() - h.bootAt) / 86400e3)} days ago` : st === "failed" ? `failed (Result: exit-code) since ${since}; 4min ago` : `inactive (dead)${h.journal[s] ? " since " + since + "; 4min ago" : ""}`}`,
+      `     Active: ${st === "active" ? `active (running) since ${since}` : st === "failed" ? `failed (Result: exit-code) since ${since}` : `inactive (dead)${h.journal[s] || (h.since || {})[s] ? " since " + since : ""}`}`,
     );
     if (st === "active" && !def.oneshot) {
       const procs = h.processes().filter((p) => p.svc === s);
@@ -1974,14 +1977,25 @@
     if (h.name === "bastion")
       return { stdout: "", stderr: IG.t("ℹ 踏み台（作業端末）の再起動は訓練環境では行いません。\n"), code: 1 };
     h.bootAt = ctx.world.now();
+    h.extraProcs = h.extraProcs.filter((p) => p.persistent);
     for (const s of Object.keys(h.services))
       h.setSvc(s, h.enabled[s] === false || h.masked.has(s) ? "inactive" : "active");
     for (const s of Object.keys(h.services))
       if (h.services[s] === "active") {
+        // a unit of one's own runs its ExecStart again (it may still fail with 203/EXEC)
+        if (!(s in L.SVC) && unitInfo(h, s).exec) {
+          startService(ctx, h, s, "start");
+          continue;
+        }
         const err = h.checks[s] ? h.checks[s](h) : s === "nginx" && !h.web ? nginxCheck(h) : null;
         if (err) h.setSvc(s, "failed");
       }
-    h.extraProcs = h.extraProcs.filter((p) => p.persistent);
+    // firewalld comes back with its permanent configuration; runtime-only changes are gone
+    const fw = h.firewall.firewalld;
+    if (fw.perm) {
+      fw.ports = fw.perm.ports.slice();
+      fw.services = fw.perm.services.slice();
+    }
     const bad = IG.storageBoot ? IG.storageBoot(h) : [];
     const sh = ctx.shell;
     while (sh.stack.length > 1 && sh.frame.host === h.name) sh.stack.pop();

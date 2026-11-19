@@ -163,6 +163,7 @@
         status: res.status || 0,
         ok: !!res.status && res.status < 400,
         from: from.kind,
+        src: from.host, // the host the request was sent from (host shells only)
         ns: from.ns,
         cluster: from.cluster,
         at: this.now(),
@@ -226,9 +227,13 @@
     hostHttp(h, req, src, local) {
       const target = { kind: "host", name: h.name };
       const srcIp = src ? src.ip : "10.244.0.1";
-      if (!local && h !== src && !h.firewallAllows(req.port, "tcp", srcIp))
+      const block = !local && h !== src && h.firewallBlock(req.port, "tcp", srcIp);
+      if (block)
         return {
-          error: `curl: (28) Failed to connect to ${req.host} port ${req.port} after 10002 ms: Timeout was reached`,
+          error:
+            block === "drop"
+              ? `curl: (28) Failed to connect to ${req.host} port ${req.port} after 10002 ms: Timeout was reached`
+              : `curl: (7) Failed to connect to ${req.host} port ${req.port} after 1 ms: ${block === "unreachable" ? "No route to host" : "Couldn't connect to server"}`,
           target,
         };
       const sock = h
@@ -250,7 +255,7 @@
         return { error: `curl: (35) OpenSSL/3.0.13: error:0A00010B:SSL routines::wrong version number`, target };
       let res;
       if (h.web && h.web.service === sock.svc)
-        res = IG.runtime.respond({ kind: "web", server: h.web.server, body: h.web.body }, req.path);
+        res = IG.runtime.respond(Object.assign({ kind: "web" }, h.web), req.path); // kind "app" answers /healthz too
       else res = this.docroot(h, sock.svc, req.path);
       const log =
         sock.svc === "nginx"

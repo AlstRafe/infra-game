@@ -829,6 +829,16 @@ html.i18n-wait body {
 .small-print p {
   margin: 0 0 8px;
 }
+.small-print .backup-note {
+  padding-top: 8px;
+  border-top: 1px solid var(--line);
+}
+.backup-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 10px;
+}
 
 /* ------------------------------------------------ mission */
 #viewMission {

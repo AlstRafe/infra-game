@@ -28,6 +28,11 @@ for (const m of IG.missions) {
   IG.clock.offset = 0;
   const s = new IG.Session(m);
   s.evaluate();
+  // every directory of the starting world can be entered by its owner (a file's mode once leaked
+  // into the directories made for it, e.g. 644 on /opt/inventory/bin)
+  const shut = Object.values(s.world.hosts).flatMap((h) =>
+    [...h.vfs.nodes].filter(([, n]) => n.type === "d" && !(n.mode & 0o100)).map(([p]) => `${h.name}:${p}`),
+  );
   const early = s.done.map((d, i) => (d ? i + 1 : 0)).filter(Boolean);
   const log = [];
   for (const step of m.solution || []) {
@@ -36,11 +41,11 @@ for (const m of IG.missions) {
     const r = s.run(cmd);
     log.push(`$ ${cmd}\n${r.res.out}${r.res.code ? `\n[exit ${r.res.code}]` : ""}`);
   }
-  const ok = m.sandbox ? true : s.completed && !early.length;
+  const ok = (m.sandbox ? true : s.completed && !early.length) && !shut.length;
   if (!ok) failed++;
   const mark = ok ? "PASS" : "FAIL";
   console.log(
-    `${mark}  ${m.id.padEnd(10)} ${m.title}${early.length ? `  (already done at start: ${early})` : ""}${!m.sandbox && !s.completed ? `  (incomplete: ${s.done.map((d, i) => (d ? "" : i + 1)).filter(Boolean)})` : ""}`,
+    `${mark}  ${m.id.padEnd(10)} ${m.title}${early.length ? `  (already done at start: ${early})` : ""}${!m.sandbox && !s.completed ? `  (incomplete: ${s.done.map((d, i) => (d ? "" : i + 1)).filter(Boolean)})` : ""}${shut.length ? `  (directories without x: ${shut.join(" ")})` : ""}`,
   );
   if (!ok || verbose) console.log(log.map((l) => "    " + l.replace(/\n/g, "\n    ")).join("\n"));
 }
@@ -55,6 +60,21 @@ if (!only) {
     if (!ok) failed++;
     console.log(`${ok ? "PASS" : "FAIL"}  portal.json ${text} -> ${href}`);
   }
+}
+// Clearing every mission gives the データセンター完成 badge (the free lab, never cleared, does not count)
+if (!only) {
+  const p = new IG.Progress(null);
+  for (const m of IG.missions.filter((x) => !x.sandbox))
+    p.record(m, { stars: 3, time: 1, hints: 0, xp: m.xp, fast: true });
+  const ok =
+    p.data.badges.includes("all") &&
+    Object.keys(IG.badges).every(
+      (b) => p.data.badges.includes(b) || !/^(all|first|flawless|speed|basics|docker|harbor|k8s|ocp|aws)$/.test(b),
+    );
+  if (!ok) failed++;
+  console.log(
+    `${ok ? "PASS" : "FAIL"}  badges: clearing every mission gives every mission badge (${p.data.badges.join(" ")})`,
+  );
 }
 console.log(failed ? `\n${failed} mission(s) failed` : "\nAll missions solvable.");
 process.exit(failed ? 1 : 0);

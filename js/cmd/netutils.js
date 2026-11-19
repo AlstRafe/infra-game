@@ -63,7 +63,7 @@
   }
   IG.tcpConnect = (...a) => tcpConnect(...a);
   function tcpConnect(ctx, name, port) {
-    // returns {ok} | {refused} | {timeout} | {unresolved}
+    // returns {ok} | {refused} | {timeout} | {unreachable} (No route to host) | {unresolved}
     const w = ctx.world;
     if (/^(localhost|127\.0\.0\.1)$/.test(name)) {
       const s = ctx.host.sockets().find((x) => x.port === port && x.proto.startsWith("tcp"));
@@ -73,7 +73,8 @@
     if (!ip) return { unresolved: true };
     const h = hostFor(ctx, name);
     if (h) {
-      if (h !== ctx.host && !h.firewallAllows(port, "tcp", ctx.host.ip)) return { timeout: true, ip };
+      const block = h !== ctx.host && h.firewallBlock(port, "tcp", ctx.host.ip);
+      if (block) return { [block === "drop" ? "timeout" : block === "refused" ? "refused" : "unreachable"]: true, ip };
       const s = h
         .sockets()
         .find((x) => x.port === port && x.proto.startsWith("tcp") && (h === ctx.host || !x.addr.startsWith("127.")));
@@ -754,7 +755,11 @@
             `nc: connect to ${host} (${ipS}) port ${port} (tcp) ${argv.includes("-w") ? "timed out: Operation now in progress" : "failed: Connection timed out"}`,
             1,
           );
-        else o.e(`nc: connect to ${host} (${ipS}) port ${port} (tcp) failed: Connection refused`, 1);
+        else
+          o.e(
+            `nc: connect to ${host} (${ipS}) port ${port} (tcp) failed: ${r.unreachable ? "No route to host" : "Connection refused"}`,
+            1,
+          );
       }
     }
     o.code = anyOk ? 0 : 1;
@@ -780,10 +785,10 @@
         stderr: `telnet: Unable to connect to remote host: Connection timed out\n`,
         code: 1,
       };
-    if (r.refused)
+    if (r.refused || r.unreachable)
       return {
         stdout: `Trying ${r.ip}...\n`,
-        stderr: `telnet: Unable to connect to remote host: Connection refused\n`,
+        stderr: `telnet: Unable to connect to remote host: ${r.unreachable ? "No route to host" : "Connection refused"}\n`,
         code: 1,
       };
     return IG.t(
@@ -850,8 +855,12 @@
     if (!h.sshable) return { error: `ssh: connect to host ${t.host} port 22: Connection refused`, code: 255 };
     const sshd = h.svcState("ssh") === "active" || h.svcState("sshd") === "active";
     if (!sshd) return { error: `ssh: connect to host ${t.host} port 22: Connection refused`, code: 255 };
-    if (h !== ctx.host && !h.firewallAllows(22, "tcp", ctx.host.ip))
-      return { error: `ssh: connect to host ${t.host} port 22: Connection timed out`, code: 255 };
+    const block = h !== ctx.host && h.firewallBlock(22, "tcp", ctx.host.ip);
+    if (block)
+      return {
+        error: `ssh: connect to host ${t.host} port 22: ${block === "drop" ? "Connection timed out" : block === "unreachable" ? "No route to host" : "Connection refused"}`,
+        code: 255,
+      };
     const u = h.users[t.user];
     if (!u || u.locked || /nologin|false/.test(u.shell))
       return { error: `${t.user}@${t.host}: Permission denied (publickey).`, code: 255 };
@@ -1449,6 +1458,10 @@
     if (argv.includes("--reload")) {
       fw.ports = fw.perm.ports.slice();
       fw.services = fw.perm.services.slice();
+      return "success";
+    }
+    if (argv.includes("--runtime-to-permanent")) {
+      fw.perm = { ports: fw.ports.slice(), services: fw.services.slice() };
       return "success";
     }
     if (argv.includes("--list-all"))
