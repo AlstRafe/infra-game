@@ -230,10 +230,15 @@
 * {
   box-sizing: border-box;
 }
+/* min-height, not height: a body only as tall as the window would carry the sticky header away after one screen */
 html,
 body {
   margin: 0;
-  height: 100%;
+  min-height: 100%;
+}
+html {
+  background: var(--bg);
+  -webkit-text-size-adjust: 100%;
 }
 html {
   background: var(--bg);
