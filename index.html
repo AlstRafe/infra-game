@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="theme-color" content="#edf0f2" media="(prefers-color-scheme: light)">
-  <meta name="theme-color" content="#141822" media="(prefers-color-scheme: dark)">
+  <meta name="theme-color" content="#fbfbfa" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#0f0f10" media="(prefers-color-scheme: dark)">
   <meta name="description" content="Kubernetes / Docker / AWS / OpenShift / Harbor の障害対応を、ブラウザの中のシミュレーションで遊びながら学ぶインフラ運用トレーニングゲーム。分野別の学習問題とコマンド辞典つき。">
   <title>CoreLab | インフラ運用トレーニングゲーム</title>
   <meta property="og:type" content="website">
@@ -19,7 +19,7 @@
   <meta property="og:image:height" content="630">
   <meta property="og:image:alt" content="CoreLab: Linux・Docker・Kubernetes・OpenShift・Harbor・AWS のターミナルで障害を直すトレーニングゲーム">
   <meta name="twitter:card" content="summary_large_image">
-  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23141822'/%3E%3Cpath d='M8 21l8-4 8 4-8 4z' fill='%23e3e6ec'/%3E%3Cpath d='M8 15l8-4 8 4-8 4z' fill='%23ec915e'/%3E%3Cpath d='M8 9l8-4 8 4-8 4z' fill='%23d8ab52'/%3E%3C/svg%3E">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23121315'/%3E%3Cpath d='M8 21l8-4 8 4-8 4z' fill='%23ececed'/%3E%3Cpath d='M8 15l8-4 8 4-8 4z' fill='%23ec915e'/%3E%3Cpath d='M8 9l8-4 8 4-8 4z' fill='%23a3a5ab'/%3E%3C/svg%3E">
   <link rel="apple-touch-icon" href="apple-touch-icon.png">
   <link rel="stylesheet" href="./css/app.css">
   <script src="./js/core/i18n.js"></script>
@@ -35,6 +35,7 @@
       <span class="brand-text"><span>CORE<b>LAB</b></span><small>INFRA OPS TRAINING</small></span>
     </a>
     <nav class="topnav" aria-label="メイン">
+      <a class="nav-portal" id="portalTab" href="../" hidden>サイト一覧</a>
       <a href="#/" data-nav="home">ミッション</a>
       <a href="#/learn" data-nav="learn">ラーニング</a>
       <a href="#/ref" data-nav="ref" data-i18n><span class="nav-long">コマンド</span>辞典</a>
@@ -46,64 +47,117 @@
       <span class="rank-badge" id="rankBadge">Lv1</span>
       <span class="profile-text"><strong id="rankName">見習いオペレーター</strong><span class="xpbar"><i id="xpFill"></i></span><small id="xpText">0 XP</small></span>
     </div>
+    <button type="button" class="howto-top" id="howtoTop" title="遊び方" aria-label="遊び方"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 1 1 3.4 2.3c-.6.3-.9.8-.9 1.4v.6M12 17v.5"/></svg></button>
     <button type="button" class="theme-btn" id="themeBtn" aria-label="ダークモード 自動（端末の設定に合わせる）、押すと切り替え" title="ダークモード 自動（端末の設定に合わせる）、押すと切り替え"><svg class="t-auto" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8"/><path d="M12 4a8 8 0 0 1 0 16z" fill="currentColor"/></svg><svg class="t-light" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2.5v2.5M12 19v2.5M4.6 4.6l1.8 1.8M17.6 17.6l1.8 1.8M2.5 12H5M19 12h2.5M4.6 19.4l1.8-1.8M17.6 6.4l1.8-1.8"/></svg><svg class="t-dark" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z"/></svg></button>
     <details class="lang" id="langMenu"></details>
   </header>
 
   <main id="main">
-    <!-- ============================== HOME -->
-    <section id="viewHome" class="view" aria-label="ホーム">
+    <!-- ============================== HOME: a product page, one thing per screen (css/app.css "home") -->
+    <section id="viewHome" class="view home" aria-label="ホーム">
       <div class="hero">
-        <canvas id="dcHome" class="dc-canvas" role="img" aria-label="あなたのデータセンター（クリアしたミッションに応じて設備が稼働します）"></canvas>
-        <div class="hero-copy">
-          <p class="eyebrow">YOUR DATA CENTER</p>
-          <h1 data-i18n>障害を直して、<br>データセンターを育てよう。</h1>
+        <div class="hero-in">
+          <p class="name"><span class="brand-mark" aria-hidden="true"><i></i><i></i><i></i></span>CoreLab</p>
+          <h1 data-i18n><span class="w">障害を直して、</span><span class="w">データセンターを育てよう。</span></h1>
           <p class="lead">Kubernetes・Docker・Harbor・OpenShift・AWS の「よくある障害」を、本物そっくりのターミナルで解決するトレーニングゲーム。クリアするほどラックが稼働していきます。</p>
-          <div class="hero-actions">
+          <div class="go">
             <button class="btn primary" id="continueBtn">▶ はじめる</button>
-            <a class="btn ghost" href="#/play/sandbox">フリーラボで遊ぶ</a>
+            <a class="go-more" href="#/play/sandbox">フリーラボで遊ぶ<span aria-hidden="true">›</span></a>
           </div>
-          <dl class="hero-stats">
-            <div><dt>クリア</dt><dd id="statClear">0/0</dd></div>
-            <div><dt>獲得 ★</dt><dd id="statStars">0</dd></div>
-            <div><dt>バッジ</dt><dd id="statBadges">0</dd></div>
-          </dl>
+          <div class="first-run" id="firstRun">
+            <strong>はじめての方へ</strong>
+            <p data-i18n>画面下のターミナルにコマンドを打ってミッションを解決します。<b>何を壊しても大丈夫</b>（すべてブラウザ内のシミュレーション）。詰まったら各目標の「ヒント」を押せば、使うコマンドまで教えてくれます。まずは Linux 基礎の「初日の当番」から。知識が足りなければ<a href="#/learn">ラーニング</a>、コマンドが分からなければ<a href="#/ref">コマンド辞典</a>（<kbd>Ctrl</kbd>+<kbd>K</kbd>）へ。</p>
+            <button class="go-more" id="firstRunHowto" type="button">遊び方を見る<span aria-hidden="true">›</span></button>
+            <button class="icon-btn" id="dismissFirstRun" type="button" aria-label="閉じる">×</button>
+          </div>
         </div>
-        <div class="dc-tip" id="homeTip" hidden></div>
       </div>
 
-      <div class="first-run" id="firstRun">
-        <div>
-          <strong>はじめての方へ</strong>
-          <p data-i18n>画面下のターミナルにコマンドを打ってミッションを解決します。<b>何を壊しても大丈夫</b>（すべてブラウザ内のシミュレーション）。詰まったら各目標の「ヒント」を押せば、使うコマンドまで教えてくれます。まずは Linux 基礎の「初日の当番」から。知識が足りなければ<a href="#/learn">ラーニング</a>、コマンドが分からなければ<a href="#/ref">コマンド辞典</a>（<kbd>Ctrl</kbd>+<kbd>K</kbd>）へ。</p>
+      <section class="plate" aria-labelledby="dcTitle">
+        <p class="name">YOUR DATA CENTER</p>
+        <h2 class="headline" id="dcTitle" data-i18n><span class="w">クリアするほど、</span><span class="w">ラックが動き出す。</span></h2>
+        <p class="desc">ラックを押すと、そのミッションが開きます。</p>
+        <div class="dc-stage">
+          <canvas id="dcHome" class="dc-canvas" role="img" aria-label="あなたのデータセンター（クリアしたミッションに応じて設備が稼働します）"></canvas>
+          <div class="dc-tip" id="homeTip" hidden></div>
         </div>
-        <button class="btn ghost" id="firstRunHowto">遊び方を見る</button>
-        <button class="icon-btn" id="dismissFirstRun" aria-label="閉じる">×</button>
-      </div>
+        <dl class="facts">
+          <div><dt>クリア</dt><dd id="statClear">0/0</dd></div>
+          <div><dt>獲得 ★</dt><dd id="statStars">0</dd></div>
+          <div><dt>バッジ</dt><dd id="statBadges">0</dd></div>
+        </dl>
+      </section>
 
-      <div class="home-grid">
-        <section class="tracks" id="trackList" aria-label="トラック一覧"></section>
-        <div class="side-panel">
-          <section class="card">
-            <h2 class="card-title">キャリア</h2>
-            <ol class="rank-ladder" id="rankLadder"></ol>
-          </section>
-          <section class="card">
-            <h2 class="card-title">バッジ</h2>
-            <div class="badges" id="badgeList"></div>
-          </section>
-          <section class="card small-print">
-            <p>表示されるホスト名・IP・ログ・脆弱性・顧客データはすべて訓練用の架空データです。実在の環境・手順書を表すものではありません。</p>
-            <p class="backup-note">進捗はこのブラウザにだけ保存されます。別の端末や別のブラウザで続けるときは、書き出したファイルを読み込んでください。</p>
-            <div class="backup-actions">
-              <button class="btn ghost small" id="exportProgress" type="button">進捗を書き出す</button>
-              <button class="btn ghost small" id="importProgress" type="button">ファイルから読み込む</button>
-              <input type="file" id="importFile" accept=".json,application/json" hidden>
-            </div>
-            <button class="link-btn" id="resetProgress">進捗をリセット</button>
-          </section>
+      <section class="band" aria-labelledby="msTitle">
+        <p class="name">ミッション</p>
+        <h2 class="headline" id="msTitle" data-i18n><span class="w">現場でよくある障害を、</span><span class="w">ひとつずつ。</span></h2>
+        <p class="desc">Linux・Docker・Harbor・Kubernetes・OpenShift・AWS。前のミッションをクリアすると、次が開きます。</p>
+        <div class="tracks" id="trackList" aria-label="トラック一覧"></div>
+      </section>
+
+      <section class="split" aria-labelledby="lnTitle">
+        <p class="name">ラーニング</p>
+        <h2 class="headline" id="lnTitle" data-i18n><span class="w">足りない知識は、</span><span class="w">問題で。</span></h2>
+        <p class="desc">入門からエキスパートまで 5 段階。どの問題にも公式ドキュメントの出典があり、認定資格の模擬試験も解けます。</p>
+        <p class="go"><a class="btn primary" href="#/learn">ラーニングを開く</a></p>
+        <div class="screen">
+          <div class="bar"><p class="who"><b>ラーニング</b><span class="sub">分野ごとの学習問題</span></p></div>
+          <ol class="rows" id="homeLearn"></ol>
         </div>
-      </div>
+        <ul class="facts" id="learnFacts"></ul>
+      </section>
+
+      <section class="band" aria-labelledby="rfTitle">
+        <p class="name">コマンド辞典</p>
+        <h2 class="headline" id="rfTitle" data-i18n><span class="w">打つ前に、</span><span class="w">引ける。</span></h2>
+        <p class="desc">名前からでも、やりたいことからでも。使用例と関連コマンド、公式ドキュメントまで一度にたどれます。</p>
+        <p class="go"><a class="btn primary" href="#/ref">コマンド辞典を開く</a><span class="note" data-i18n><kbd>Ctrl</kbd>+<kbd>K</kbd> でどの画面からでも</span></p>
+        <div class="screen">
+          <div class="bar">
+            <p class="who"><b>コマンド辞典</b><span class="sub">やりたいことから探す</span></p>
+            <form class="find" id="homeRefForm" role="search">
+              <input type="search" id="homeRefQ" placeholder="例: ポートを使っているプロセス" aria-label="コマンド辞典を検索" autocomplete="off" spellcheck="false">
+              <button type="submit" aria-label="検索"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l4.5 4.5"/></svg></button>
+            </form>
+          </div>
+          <ul class="tiles" id="homeRefTasks"></ul>
+        </div>
+        <ul class="facts" id="refFacts"></ul>
+      </section>
+
+      <section aria-labelledby="lbTitle">
+        <p class="name">フリーラボ</p>
+        <h2 class="headline" id="lbTitle" data-i18n><span class="w">壊しても、</span><span class="w">すぐ戻せる。</span></h2>
+        <p class="desc">目標のない砂場です。サーバーもクラスタもクラウドも、本物そっくりの環境で好きなだけ試せます。</p>
+        <p class="go"><a class="btn primary" href="#/play/sandbox">フリーラボを開く</a></p>
+        <div class="term-demo" aria-hidden="true">
+          <span class="term-bar">operator@bastion</span>
+<pre><span><span class="p">operator@bastion:~$</span> <span class="c">kubectl scale deployment hello --replicas=0</span></span><span>deployment.apps/hello scaled</span><span><span class="p">operator@bastion:~$</span> <span class="c">kubectl get pods</span></span><span>No resources found in lab namespace.</span><span><span class="p">operator@bastion:~$</span> <span class="c">kubectl scale deployment hello --replicas=2</span></span><span>deployment.apps/hello scaled</span><span><span class="p">operator@bastion:~$</span> <span class="c">kubectl get pods</span></span><span>NAME                     READY   STATUS              RESTARTS   AGE
+hello-bxmpsgbrgk-8htb5   0/1     ContainerCreating   0          0s
+hello-bxmpsgbrgk-lm8gs   0/1     ContainerCreating   0          0s</span></pre>
+        </div>
+      </section>
+
+      <section class="band" aria-labelledby="crTitle">
+        <p class="name">キャリア</p>
+        <h2 class="headline" id="crTitle"><span id="rankNow">見習いオペレーター</span></h2>
+        <p class="desc" id="rankNext">クリアして XP を集めると、ランクが上がります。</p>
+        <div class="career">
+          <ol class="rank-ladder" id="rankLadder" aria-label="ランク"></ol>
+          <ul class="badges" id="badgeList" aria-label="バッジ"></ul>
+        </div>
+      </section>
+
+      <footer class="home-foot">
+        <p class="backup-note">進捗はこのブラウザにだけ保存されます。別の端末や別のブラウザで続けるときは、書き出したファイルを読み込んでください。</p>
+        <div class="backup-actions">
+          <button class="btn ghost small" id="exportProgress" type="button">進捗を書き出す</button>
+          <button class="btn ghost small" id="importProgress" type="button">ファイルから読み込む</button>
+          <input type="file" id="importFile" accept=".json,application/json" hidden>
+          <button class="link-btn" id="resetProgress" type="button">進捗をリセット</button>
+        </div>
+        <p class="small-print">表示されるホスト名・IP・ログ・脆弱性・顧客データはすべて訓練用の架空データです。実在の環境・手順書を表すものではありません。</p>
+      </footer>
     </section>
 
     <!-- ============================== LEARN (drills & certifications) -->
@@ -332,6 +386,7 @@
   <script src="./js/game/missions/aws.js" defer></script>
   <script src="./js/ui/datacenter.js" defer></script>
   <script src="./js/ui/ref.js" defer></script>
+  <script src="./js/ui/wrap.js" defer></script>
   <script src="./js/ui/app.js" defer></script>
 </body>
 </html>

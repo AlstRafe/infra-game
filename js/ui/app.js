@@ -56,7 +56,11 @@
     return null;
   }
   function setNav(which) {
-    document.querySelectorAll("[data-nav]").forEach((a) => a.classList.toggle("active", a.dataset.nav === which));
+    document.querySelectorAll("[data-nav]").forEach((a) => {
+      a.classList.toggle("active", a.dataset.nav === which);
+      if (a.dataset.nav === which) a.setAttribute("aria-current", "page");
+      else a.removeAttribute("aria-current");
+    });
   }
 
   /* ------------------------------------------------------------ profile */
@@ -72,7 +76,10 @@
       : T("最高ランク到達");
   }
 
-  /* ------------------------------------------------------------ home */
+  /* ------------------------------------------------------------ home: a product page (index.html, css "home") */
+  const LOCK =
+    '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="11" width="14" height="9.5" rx="1"/><path d="M8.5 11V8a3.5 3.5 0 0 1 7 0v3"/></svg>';
+  const fact = (big, words) => `<li><b>${esc(String(big))}</b><span>${esc(words)}</span></li>`;
   function showHome() {
     stopMission();
     run = null;
@@ -82,9 +89,11 @@
     renderProfile();
     renderTracks();
     renderSide();
+    renderHomeLearn();
+    renderHomeRef();
     const all = IG.missions.filter((m) => !m.sandbox);
     $("statClear").textContent = `${all.filter((m) => progress.cleared(m.id)).length}/${all.length}`;
-    $("statStars").textContent = all.reduce((n, m) => n + progress.stars(m.id), 0);
+    $("statStars").textContent = `${all.reduce((n, m) => n + progress.stars(m.id), 0)}/${all.length * 3}`;
     $("statBadges").textContent = `${progress.data.badges.length}/${Object.keys(IG.badges).length}`;
     const nx = nextMission();
     const btn = $("continueBtn");
@@ -117,11 +126,11 @@
       tip.hidden = true;
       return;
     }
-    const box = $("viewHome").querySelector(".hero").getBoundingClientRect();
+    const box = tip.parentElement.getBoundingClientRect();
     tip.innerHTML = `<strong>${esc(h.rack.title || h.rack.label)}</strong>${h.rack.info ? `<ul>${h.rack.info.map((i) => `<li>${esc(i)}</li>`).join("")}</ul>` : ""}`;
     tip.hidden = false;
-    tip.style.left = Math.min(h.x - box.left + 14, box.width - 310) + "px";
-    tip.style.top = Math.min(h.y - box.top + 14, box.height - 90) + "px";
+    tip.style.left = Math.max(0, Math.min(h.x - box.left + 14, box.width - 310)) + "px";
+    tip.style.top = Math.max(0, Math.min(h.y - box.top + 14, box.height - 90)) + "px";
   }
   function renderTracks() {
     const nx = nextMission();
@@ -129,16 +138,17 @@
       .map((t) => {
         const ms = IG.missionsOf(t.id);
         const done = ms.filter((m) => progress.cleared(m.id)).length;
-        return `<article class="track" style="--tc:${t.color}">
-        <header class="track-head"><span class="track-icon" aria-hidden="true">${t.icon}</span><div><h2>${esc(t.name)}</h2><p>${esc(t.blurb)}</p></div><span class="track-count">${done}/${ms.length}</span></header>
+        return `<article class="track">
+        <header class="track-head"><span class="track-icon" data-t="${t.id}" aria-hidden="true"></span><div><h2>${esc(t.name)}</h2><p>${esc(t.blurb)}</p></div><span class="track-count">${done}/${ms.length}</span></header>
         <ol class="mission-list">${ms
           .map((m, i) => {
             const st = progress.stars(m.id),
               open = progress.unlocked(m, unlockAll);
             const cls = [st ? "cleared" : "", nx && nx.id === m.id ? "next" : ""].join(" ");
+            const num = !open ? LOCK : st ? "✓" : String(i + 1).padStart(2, "0");
             // the button is named by what it shows (title, summary, stars, difficulty), so a voice user can say what they see
             return `<li><button class="mission-row ${cls}" data-play="${m.id}" ${open ? "" : "disabled"}>
-            <span class="num" aria-hidden="true">${open ? i + 1 : "🔒"}</span>
+            <span class="num" aria-hidden="true">${num}</span>
             <span><strong>${esc(m.title)}</strong>${open ? "" : `<span class="sr-only">${T("（ロック中）")}</span>`}<small>${esc(m.summary)}</small></span>
             <span class="meta"><span class="stars" role="img" aria-label="★${st}/3">${starText(st)}</span><span class="diff">${T("難易度")} <span role="img" aria-label="${m.difficulty}/3">${"●".repeat(m.difficulty)}${"○".repeat(3 - m.difficulty)}</span></span></span>
           </button></li>`;
@@ -149,19 +159,67 @@
   }
   function renderSide() {
     const r = progress.rank();
+    $("rankNow").textContent = r.cur.name;
+    $("rankNext").textContent = r.next
+      ? T("次のランク「{rank}」まで {xp} XP", { rank: r.next.name, xp: r.next.xp - progress.data.xp })
+      : T("最高ランク到達");
     $("rankLadder").innerHTML = IG.ranks
       .map(
         (k, i) =>
-          `<li class="${i < r.idx ? "reached" : ""} ${i === r.idx ? "current" : ""}"><span>${esc(k.name)}</span><span>${k.xp} XP</span></li>`,
+          `<li class="${i < r.idx ? "reached" : ""} ${i === r.idx ? "current" : ""}"${i === r.idx ? ' aria-current="step"' : ""}><span>${esc(k.name)}</span><span>${k.xp} XP</span></li>`,
       )
       .join("");
     $("badgeList").innerHTML = Object.entries(IG.badges)
       .map(([id, b]) => {
         const got = progress.data.badges.includes(id);
         const label = got ? b.name : T("{name}（未獲得）", { name: b.name });
-        return `<span class="badge ${got ? "got" : ""}" role="img" title="${esc(label)}: ${esc(b.desc)}" aria-label="${esc(label)}: ${esc(b.desc)}">${b.icon}</span>`;
+        return `<li class="badge ${got ? "got" : ""}" title="${esc(label)}: ${esc(b.desc)}"><i aria-hidden="true">${b.icon}</i><span aria-hidden="true">${esc(b.name)}</span><span class="sr-only">${esc(label)}: ${esc(b.desc)}</span></li>`;
       })
       .join("");
+  }
+  // The learning, as a preview: each topic, the level to take next and the five levels; then the facts
+  function renderHomeLearn() {
+    const topics = IG.drillTopics();
+    $("homeLearn").innerHTML = topics
+      .map((t) => {
+        const d = IG.drills[t],
+          tr = trackOf(t),
+          nx = progress.nextDrill(t);
+        const bars = d.levels
+          .map((l) => {
+            const c = unitStat(t, l).cls;
+            return `<i class="${c === "passed" ? "on" : c}"></i>`;
+          })
+          .join("");
+        const passed = progress.drillPassedCount(t);
+        return `<li><a href="#/learn/${t}"><span class="track-icon" data-t="${t}" aria-hidden="true"></span><span><b>${esc(tr.name)}</b><small>Lv${nx.n} ${esc(nx.title)}</small></span><span class="lv5" role="img" aria-label="${T("段階 {done}/{all} 合格", { done: passed, all: d.levels.length })}">${bars}</span></a></li>`;
+      })
+      .join("");
+    const units = topics.reduce((n, t) => n + IG.drillUnits(t).length, 0);
+    const qs = topics.reduce((n, t) => n + IG.drillUnits(t).reduce((m, u) => m + u.qs.length, 0), 0);
+    $("learnFacts").innerHTML =
+      fact(qs, T("収録問題")) + fact(units, T("問題集（入門〜資格対策）")) + fact(IG.certs.length, T("模擬試験"));
+  }
+  // The command dictionary, as a preview: a few things a visitor may want to do and the command for each
+  const HOME_TASKS = { basics: [0, 2], docker: [1], k8s: [1, 3], aws: [3] };
+  function renderHomeRef() {
+    const R = IG.cmdref;
+    if ($("homeRefTasks").childElementCount) return;
+    const picks = [];
+    for (const [topic, idx] of Object.entries(HOME_TASKS)) {
+      const list = R.tasks.filter((t) => t.topic === topic);
+      for (const i of idx) if (list[i]) picks.push(list[i]);
+    }
+    $("homeRefTasks").innerHTML = picks
+      .map(
+        (t) =>
+          `<li><a href="#/ref/t/${encodeURIComponent(t.id)}"><b>${esc(t.q)}</b><code>${esc(t.do[0][0])}</code></a></li>`,
+      )
+      .join("");
+    $("refFacts").innerHTML =
+      fact(R.entries.filter((e) => !e.same).length, T("コマンド")) +
+      fact(R.tasks.length, T("やりたいことのレシピ")) +
+      fact(R.topics.length, T("分野"));
   }
 
   /* ------------------------------------------------------------ learning: drills & certifications */
@@ -220,7 +278,7 @@
             nx = progress.nextDrill(t);
           const certs = IG.certsOf(t);
           return `<article class="learn-card" style="--tc:${tr.color}">
-          <header><span class="track-icon" aria-hidden="true">${tr.icon}</span><div><h2>${esc(tr.name)}</h2><p>${esc(d.blurb)}</p></div></header>
+          <header><span class="track-icon" data-t="${t}" aria-hidden="true"></span><div><h2>${esc(tr.name)}</h2><p>${esc(d.blurb)}</p></div></header>
           <ol class="level-dots" aria-label="${T("レベルの進捗")}">${d.levels
             .map((l) => {
               const s = unitStat(t, l);
@@ -1247,7 +1305,7 @@
       }
     }
   });
-  $("howtoBtn").onclick = () => {
+  $("howtoBtn").onclick = $("howtoTop").onclick = () => {
     $("howtoModal").hidden = false;
   };
   $("searchBtn").onclick = openSearch;
@@ -1274,6 +1332,7 @@
   });
   // The language: the text written in index.html, and the menu (a choice reloads the page with ?lang=, keeping the screen)
   IG.i18n.page(document.body);
+  IG.wrap.start(); // natural line breaks in Japanese and Chinese, from here on (js/ui/wrap.js)
   $("langMenu").innerHTML = IG.i18n.menu();
   $("langMenu").addEventListener("click", (e) => {
     const a = e.target.closest("a[hreflang]");
@@ -1291,7 +1350,7 @@
   IG.theme.button($("themeBtn"));
   // Served under a sub-path of a site list (e.g. /infra/ on this PC's front page)? Then offer the way back to it.
   if (/^https?:$/.test(location.protocol) && !/^\/(index\.html)?$/.test(location.pathname))
-    $("portalLink").hidden = false;
+    $("portalLink").hidden = $("portalTab").hidden = false;
   $("dismissFirstRun").onclick = () => {
     progress.data.seenIntro = true;
     progress.save();
@@ -1300,6 +1359,12 @@
   $("firstRunHowto").onclick = () => {
     $("howtoModal").hidden = false;
   };
+  // The home's dictionary preview: a search there opens the dictionary with it
+  $("homeRefForm").addEventListener("submit", (e) => {
+    e.preventDefault();
+    const q = $("homeRefQ").value.trim();
+    location.hash = q ? `#/ref?q=${encodeURIComponent(q)}` : "#/ref";
+  });
   // On-screen keys for touch screens: they act as the key would in the input (Tab completes, ↑ recalls…),
   // and keep the keyboard open (mousedown would move the focus off the input).
   $("termKeys").addEventListener("mousedown", (e) => e.preventDefault());

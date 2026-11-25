@@ -7,7 +7,7 @@
   "use strict";
   const doc = typeof document !== "undefined" ? document : null;
   const ORDER = ["auto", "light", "dark"];
-  const PAINT = { light: "#edf0f2", dark: "#141822" }; // --bg of each palette (css/app.css), for phone toolbars
+  const PAINT = { light: "#fbfbfa", dark: "#0f0f10" }; // --bg of each palette (css/app.css), for phone toolbars
 
   function get() {
     try {
