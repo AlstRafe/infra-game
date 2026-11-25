@@ -3,4 +3,6 @@
 # Tables with one entry per line: the command reference and the translations.
 js/ref/
 js/i18n/
+# BudouX's phrase models, copied unchanged (one line each).
+js/phrases/
 package-lock.json

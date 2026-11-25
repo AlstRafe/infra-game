@@ -3,14 +3,17 @@
 (function (IG) {
   "use strict";
 
+  // the dark plate's colours (css/app.css): neutral near-black, the status colours of the dark palette
   const STATE = {
-    ok: "#8fc79c",
-    warn: "#d8ab52",
-    bad: "#e8877c",
-    off: "#4a5266",
-    info: "#9db4ec",
-    ghost: "rgba(130,140,160,.25)",
+    ok: "#8cc98e",
+    warn: "#e8b866",
+    bad: "#f08b7e",
+    off: "#4a4b50",
+    info: "#8fb3ff",
+    ghost: "rgba(140,142,148,.25)",
   };
+  // the LEDs and the traffic stand still for a visitor who asked for less motion
+  const still = typeof matchMedia === "function" ? matchMedia("(prefers-reduced-motion: reduce)") : { matches: false };
   const TW = 34,
     TH = 17,
     RACK_H = 66,
@@ -69,6 +72,13 @@
       this.ro = typeof ResizeObserver !== "undefined" ? new ResizeObserver(this.resize) : null;
       if (this.ro) this.ro.observe(canvas);
       else window.addEventListener("resize", this.resize);
+      // drawn only while on screen (the home's picture scrolls away; a phone need not keep painting it)
+      this.seen = true;
+      this.io =
+        typeof IntersectionObserver !== "undefined"
+          ? new IntersectionObserver((es) => (this.seen = es[es.length - 1].isIntersecting))
+          : null;
+      if (this.io) this.io.observe(canvas);
       canvas.addEventListener("mousemove", (e) => this.move(e));
       canvas.addEventListener("mouseleave", () => {
         this.hover = null;
@@ -85,23 +95,24 @@
     destroy() {
       this.alive = false;
       if (this.ro) this.ro.disconnect();
+      if (this.io) this.io.disconnect();
     }
     setScene(scene) {
       this.scene = scene;
     }
+    // the layout size (clientWidth), not the box on screen: the page's scroll-linked motion scales the canvas
     resize() {
-      const r = this.c.getBoundingClientRect();
       const dpr = Math.min(window.devicePixelRatio || 1, 2);
-      this.w = Math.max(1, r.width);
-      this.h = Math.max(1, r.height);
+      this.w = Math.max(1, this.c.clientWidth);
+      this.h = Math.max(1, this.c.clientHeight);
       this.c.width = Math.round(this.w * dpr);
       this.c.height = Math.round(this.h * dpr);
       this.dpr = dpr;
     }
     move(e) {
       const r = this.c.getBoundingClientRect();
-      const x = e.clientX - r.left,
-        y = e.clientY - r.top;
+      const x = ((e.clientX - r.left) * this.w) / (r.width || 1),
+        y = ((e.clientY - r.top) * this.h) / (r.height || 1);
       let found = null;
       for (let i = this.hit.length - 1; i >= 0; i--) {
         const h = this.hit[i];
@@ -124,9 +135,9 @@
       }
       // a hidden view (the mission's while the map shows) has no size: drawing it would scale by a
       // negative number, and one throw used to end the loop, leaving the view blank when shown again
-      if (!document.hidden && this.w > 40 && this.h > 40) {
+      if (!document.hidden && this.seen && this.w > 40 && this.h > 40) {
         try {
-          this.draw((now - this.t0) / 1000);
+          this.draw(still.matches ? 0.3 : (now - this.t0) / 1000);
         } catch (e) {
           console.error(e);
         }
@@ -163,7 +174,7 @@
       const pad = this.compact ? 14 : 24;
       const pl = this.padLeft(this.w);
       const aw = this.w - pl;
-      const s = Math.min((aw - pad * 2) / (x1 - x0), (this.h - pad * 2) / (y1 - y0), this.compact ? 1.5 : 1.8);
+      const s = Math.min((aw - pad * 2) / (x1 - x0), (this.h - pad * 2) / (y1 - y0), this.compact ? 1.5 : 2.6);
       return { s, ox: pl + (aw - (x1 - x0) * s) / 2 - x0 * s, oy: (this.h - (y1 - y0) * s) / 2 - y0 * s };
     }
     draw(t) {
@@ -264,8 +275,8 @@
         g.fillText(str, x, ty);
       };
       g.textAlign = "left";
-      text(big, hexA(mix(z.color, "#e3e6ec", 0.25), z.ghost ? 0.5 : 0.95), name, y);
-      if (z.sub) text(small, hexA("#a4adbd", z.ghost ? 0.45 : 0.8), z.sub, y + line);
+      text(big, hexA(mix(z.color, "#ececed", 0.25), z.ghost ? 0.5 : 0.95), name, y);
+      if (z.sub) text(small, hexA("#a3a5ab", z.ghost ? 0.45 : 0.8), z.sub, y + line);
     }
     links(g, P, t, s) {
       const zmap = Object.fromEntries(this.scene.zones.map((z) => [z.id, z]));
@@ -275,7 +286,7 @@
         if (!a || !b) continue;
         const pa = P(a.x + a.w / 2, a.y + a.d / 2),
           pb = P(b.x + b.w / 2, b.y + b.d / 2);
-        g.strokeStyle = hexA(l.ghost ? "#5d6780" : "#9db4ec", l.ghost ? 0.12 : 0.22);
+        g.strokeStyle = hexA(l.ghost ? "#5f6166" : "#8fb3ff", l.ghost ? 0.12 : 0.22);
         g.lineWidth = 1.2 * s;
         g.setLineDash([5 * s, 5 * s]);
         g.lineDashOffset = -t * 20;
@@ -305,7 +316,7 @@
       const { z, r, gx, gy } = it;
       const ghost = r.state === "ghost" || z.ghost;
       const H = r.kind === "bucket" ? 34 : r.kind === "small" ? 44 : RACK_H;
-      const base = ghost ? "#1b2030" : mix("#1e2433", z.color, 0.14);
+      const base = ghost ? "#1c1d20" : mix("#1f2023", z.color, 0.14);
       const hov = this.hover && this.hover.rack === r;
       if (r.kind === "bucket") return this.bucket(g, P, it, t, s, H, ghost, hov);
       const c = [P(gx, gy), P(gx + F, gy), P(gx + F, gy + F), P(gx, gy + F)];
@@ -350,7 +361,7 @@
         const u = units[i];
         poly(
           [face(0.08, v0), face(0.92, v0), face(0.92, v1), face(0.08, v1)],
-          u ? hexA("#10131b", ghost ? 0.4 : 0.85) : hexA("#10131b", 0.35),
+          u ? hexA("#121315", ghost ? 0.4 : 0.85) : hexA("#121315", 0.35),
         );
         if (!u || i >= n) continue;
         const col = STATE[u.state] || STATE.off;
@@ -379,7 +390,7 @@
       }
       if (units.length > 8) {
         const p = face(0.5, 4);
-        g.fillStyle = "#a4adbd";
+        g.fillStyle = "#a3a5ab";
         g.font = `${Math.max(8, 8 * s)}px system-ui`;
         g.textAlign = "center";
         g.fillText(`+${units.length - 8}`, p.x, p.y + 2);
@@ -417,7 +428,7 @@
       const lp = P(gx + F / 2, gy + F, 0);
       g.textAlign = "center";
       g.font = `600 ${Math.max(8, 9 * s)}px "Segoe UI","Hiragino Sans",system-ui,sans-serif`;
-      g.fillStyle = ghost ? "rgba(160,170,190,.35)" : "#dde2ea";
+      g.fillStyle = ghost ? "rgba(165,167,172,.35)" : "#e2e3e5";
       const label = r.label.length > 18 ? r.label.slice(0, 17) + "…" : r.label;
       if (this.rackLabels || hov) {
         g.fillText(label, lp.x - 4 * s, lp.y + 13 * s);
@@ -449,7 +460,7 @@
         h = H * s;
       const col = STATE[r.state] || STATE.off;
       g.globalAlpha = ghost ? 0.35 : 1;
-      g.fillStyle = mix("#1e2433", z.color, 0.15);
+      g.fillStyle = mix("#1f2023", z.color, 0.15);
       g.beginPath();
       g.ellipse(cx.x, cx.y, rx, ry, 0, 0, Math.PI);
       g.lineTo(cx.x - rx, cx.y - h);
@@ -458,7 +469,7 @@
       g.fill();
       g.strokeStyle = hexA(hov ? "#ffffff" : z.color, 0.6);
       g.stroke();
-      g.fillStyle = mix("#2a3247", z.color, 0.2);
+      g.fillStyle = mix("#2a2b2f", z.color, 0.2);
       g.beginPath();
       g.ellipse(cx.x, cx.y - h, rx, ry, 0, 0, Math.PI * 2);
       g.fill();
@@ -475,7 +486,7 @@
       g.globalAlpha = 1;
       g.textAlign = "center";
       g.font = `600 ${Math.max(8, 9 * s)}px "Segoe UI",system-ui,sans-serif`;
-      g.fillStyle = "#dde2ea";
+      g.fillStyle = "#e2e3e5";
       g.fillText(r.label.length > 18 ? r.label.slice(0, 17) + "…" : r.label, cx.x, cx.y + ry + 11 * s);
       this.hit.push({
         x0: cx.x - rx - 4,

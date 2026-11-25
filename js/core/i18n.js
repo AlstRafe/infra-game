@@ -177,10 +177,15 @@
   // they were written), and fetched first: the browser has already queued the game's scripts by now.
   // Until page() has translated the HTML the page stays hidden (css/app.css, html.i18n-wait), so a
   // visitor in another language does not see it in Japanese first.
-  if (doc && I.lang !== "ja" && doc.readyState === "loading" && doc.currentScript) {
+  // Japanese and Chinese also get the model of where their lines may break between phrases (js/ui/wrap.js).
+  if (doc && doc.readyState === "loading" && doc.currentScript) {
     const base = doc.currentScript.src.replace(/js\/core\/i18n\.js(\?.*)?$/, "");
-    doc.documentElement.classList.add("i18n-wait");
-    for (const p of PACKS)
-      doc.write(`<script src="${base}js/i18n/${I.lang}/${p}.js" defer fetchpriority="high"></script>`);
+    if (I.lang !== "ja") {
+      doc.documentElement.classList.add("i18n-wait");
+      for (const p of PACKS)
+        doc.write(`<script src="${base}js/i18n/${I.lang}/${p}.js" defer fetchpriority="high"></script>`);
+    }
+    if (I.lang === "ja" || I.lang === "zh-TW")
+      doc.write(`<script src="${base}js/phrases/${I.lang}.js" defer></script>`);
   }
 })((globalThis.IG = globalThis.IG || {}));
