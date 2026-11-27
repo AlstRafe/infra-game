@@ -112,7 +112,7 @@
           if (r.mission) {
             const m = IG.mission(r.mission);
             if (progress.unlocked(m, unlockAll)) location.hash = `#/play/${m.id}`;
-            else toast("🔒 " + T("前のミッションをクリアすると解放されます"));
+            else toast(T("前のミッションをクリアすると解放されます"));
           }
         },
       });
@@ -588,7 +588,7 @@
       return;
     }
     if (!m.sandbox && !progress.unlocked(m, unlockAll)) {
-      toast("🔒 " + T("このミッションはまだロックされています"));
+      toast(T("このミッションはまだロックされています"));
       location.hash = "#/";
       return;
     }

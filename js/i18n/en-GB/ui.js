@@ -51,7 +51,7 @@ IG.i18n.add({
   "{0}/{1} 稼働": "{0}/{1} online",
   "{0}{1} クリア済み": "{0}{1} cleared",
   "▶ 挑戦できます": "▶ Ready to play",
-  "🔒 前のミッションをクリアすると解放": "🔒 Unlocks when you clear the previous mission",
+  "前のミッションをクリアすると解放": "Unlocks when you clear the previous mission",
   "コマンド名 / やりたいこと（例: ポートを使っているプロセス）": "Command name / what you want to do (e.g. process using a port)",
   "コマンドを検索": "Search commands",
   "閉じる": "Close",
