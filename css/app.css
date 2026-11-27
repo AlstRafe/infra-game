@@ -770,9 +770,10 @@ html.i18n-wait body {
 
 /* ------------------------------------------------ home: a product page
    One thing per screen, each section on its own ground (--bg, --bg2, one dark plate), never ruled off:
-   the opening (a big headline, the way in), the data center on the dark plate, the missions, the learning,
-   the command dictionary, the free lab, the career, then the small print. Centred on wider screens, left-aligned on
-   phones (centred lines are hard to read there). */
+   the opening (the name, what the game is, the way in), the data center on the dark plate, the missions, the
+   learning, the command dictionary, the free lab, the career, then the small print. Each section is headed by its
+   plain name, no slogan, and everything is left-aligned at every width (2026-11-27: the centred product-page look
+   read as made by AI). */
 .view {
   padding: 18px 20px 40px;
   max-width: 1480px;
@@ -784,12 +785,12 @@ html.i18n-wait body {
 }
 .home > section,
 .home > .hero {
-  padding: clamp(72px, 32px + 8vw, 144px) var(--gutter);
+  padding: clamp(48px, 24px + 5vw, 88px) var(--gutter);
 }
-.home > section > *,
-.hero-in > * {
-  max-width: var(--wide);
-  margin-inline: auto;
+/* one left edge for every block: the page's width, centred in the window */
+.home > section,
+.home > .hero {
+  padding-inline: max(var(--gutter), (100% - var(--wide)) / 2);
 }
 .home .band {
   /* a hover's fill one step darker than the band itself */
@@ -818,31 +819,38 @@ html.i18n-wait body {
   height: 22px;
   transform: scale(0.85);
 }
-.home h1 {
-  max-width: 68rem;
-  margin: 12px auto 0;
-  font-size: clamp(2.5rem, 1rem + 5.2vw, 5rem);
+/* The opening's heading is the game's name itself, in the ink colour; the orange stays on the mark */
+.home h1.name {
+  gap: 0.3em;
+  font-size: clamp(2.2rem, 1.4rem + 2.8vw, 3.5rem);
+  font-weight: 800;
   line-height: 1.08;
-  letter-spacing: -0.025em;
+  letter-spacing: -0.02em;
+  color: var(--text);
+}
+.home h1.name .brand-mark {
+  width: 0.8em;
+  height: 0.8em;
+  transform: none;
 }
 .home .w {
   display: inline-block;
 }
 .home .headline {
-  margin-top: 12px;
+  margin-top: 0;
   margin-bottom: 0;
-  font-size: clamp(2.1rem, 1.1rem + 4vw, 4.25rem);
+  font-size: clamp(1.8rem, 1.2rem + 2.2vw, 2.75rem);
   font-weight: 800;
   line-height: 1.12;
   letter-spacing: -0.02em;
 }
 .home .lead,
 .home .desc {
-  margin-top: 22px;
+  max-width: 40rem;
+  margin-top: 16px;
   margin-bottom: 0;
-  font-size: clamp(1.05rem, 0.95rem + 0.45vw, 1.25rem);
-  line-height: 1.7;
-  color: var(--muted);
+  font-size: clamp(1rem, 0.95rem + 0.25vw, 1.1rem);
+  line-height: 1.8;
 }
 .lead {
   margin-top: 0;
@@ -876,12 +884,7 @@ html.i18n-wait body {
   text-overflow: ellipsis;
 }
 
-/* the opening: the first screen (at most 44rem high) */
-.home > .hero {
-  display: grid;
-  align-content: center;
-  min-height: min(44rem, calc(100svh - var(--nav)));
-}
+/* the opening: only as tall as its words, so the data center shows on the first screen */
 /* the welcome note for a first visit: a quiet filled block under the way in */
 .first-run {
   position: relative;
@@ -957,7 +960,7 @@ html.i18n-wait body {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
   gap: 24px 0;
-  margin: clamp(40px, 16px + 3vw, 56px) 0 0;
+  margin: 32px 0 0;
   padding: 0;
   list-style: none;
   text-align: left;
@@ -976,7 +979,7 @@ html.i18n-wait body {
 .facts :is(b, dd),
 .hero-stats dd {
   margin: 0;
-  font-size: clamp(2rem, 1.4rem + 2vw, 3rem);
+  font-size: clamp(1.5rem, 1.2rem + 1vw, 2rem);
   font-weight: 800;
   line-height: 1.15;
   letter-spacing: -0.01em;
@@ -1593,23 +1596,8 @@ html.i18n-wait body {
   }
 }
 
-@media (min-width: 768px) {
-  .home > .hero,
-  .home > section > :is(.name, h1, .headline, .desc, .go),
-  .hero-in > :is(.name, h1, .lead, .go) {
-    text-align: center;
-  }
-  .home .name,
-  .home .go {
-    justify-content: center;
-  }
-  .home :is(.lead, .desc) {
-    max-width: 40rem;
-  }
-}
-
-/* The learning on a computer: the words on the left, the preview beside them running off the right edge of the
-   window, held in place while the facts pass by it one after another */
+/* The learning on a computer: the words and the counts on the left, the preview beside them running off the right
+   edge of the window */
 @media (min-width: 1024px) {
   .home > section.split {
     display: grid;
@@ -1632,22 +1620,8 @@ html.i18n-wait body {
   .home > section.split > .screen {
     grid-column: visual-start / full-end;
     grid-row: 1 / -1;
-    position: sticky;
-    top: calc(var(--nav) + 48px);
     margin-top: 0;
     border-right: 0;
-  }
-  .home > section.split > .facts {
-    display: block;
-    margin-top: 0;
-  }
-  .home > section.split .facts li {
-    margin-top: clamp(4rem, 18vh, 11rem);
-    padding: 0;
-    border-left: 0;
-  }
-  .home > section.split .facts b {
-    font-size: clamp(3rem, 1.5rem + 3vw, 4.5rem);
   }
 }
 
@@ -4172,28 +4146,9 @@ code[data-ref-cmd]:hover {
    (animation-timeline), so scrolling back up plays them backwards; nothing moves by itself except the opening's
    entrance, once. Each section has its own way in, so the page does not repeat one effect all the way down. */
 @media (prefers-reduced-motion: no-preference) {
-  /* The opening: the name, then the headline phrase by phrase, then the words, the way in and the note */
-  .hero-in > *,
-  .hero .w {
-    animation: arrive 1.1s var(--settle) both;
-  }
-  .hero-in > h1 {
-    animation: none;
-  }
-  .hero .w:nth-child(1) {
-    animation-delay: 0.08s;
-  }
-  .hero .w:nth-child(2) {
-    animation-delay: 0.22s;
-  }
-  .hero-in > .lead {
-    animation-delay: 0.42s;
-  }
-  .hero-in > .go {
-    animation-delay: 0.54s;
-  }
-  .hero-in > .first-run {
-    animation-delay: 0.68s;
+  /* The opening comes in once, as one piece */
+  .hero-in {
+    animation: arrive 0.7s var(--settle) both;
   }
   /* a screen settles in when it opens (no fill: once done nothing stays on it, so a fixed child —
      the maximised terminal — is placed against the window again) */
@@ -4209,45 +4164,12 @@ code[data-ref-cmd]:hover {
   }
 
   @supports (animation-timeline: view()) {
-    /* ...and as the page moves on, the opening steps back and fades */
-    .home > .hero {
-      view-timeline: --hero block;
-    }
-    .hero-in {
-      animation: step-back linear both;
-      animation-timeline: --hero;
-      animation-range: exit 0% exit 85%;
-    }
-
-    /* A section's name, headline, words and way in rise into place as they come up */
-    .home > section > :is(.name, .headline, .desc, .go) {
-      animation: rise var(--follow) both;
-      animation-timeline: view();
-      animation-range: entry 10% cover 30%;
-    }
-
-    /* The data center: it grows from the middle of the dark plate to its full size, rising a little slower than
-       the page; the facts under it uncover their numbers one after another */
+    /* The data center grows from the middle of the dark plate to its full size, rising a little slower than the
+       page (only the pictures and the terminal move; the words are simply there) */
     .home .dc-stage {
       animation: grow var(--follow) both;
       animation-timeline: view();
       animation-range: entry 0% cover 50%;
-    }
-    .facts > * {
-      animation: rise var(--follow) both;
-      animation-timeline: view();
-      animation-range: entry 0% cover 24%;
-    }
-    .facts > :nth-child(2) {
-      animation-range: entry 0% cover 30%;
-    }
-    .facts > :nth-child(3) {
-      animation-range: entry 0% cover 36%;
-    }
-    .facts :is(b, dd) {
-      animation: uncover var(--follow) both;
-      animation-timeline: view();
-      animation-range: entry 0% cover 30%;
     }
 
     /* The missions slide in row by row from the side while the track's name holds still */
@@ -4255,11 +4177,6 @@ code[data-ref-cmd]:hover {
       animation: slide-in var(--follow) both;
       animation-timeline: view();
       animation-range: entry 0% cover 20%;
-    }
-    .track-head {
-      animation: rise var(--follow) both;
-      animation-timeline: view();
-      animation-range: entry 0% entry 100%;
     }
 
     /* A preview grows to its size; its rows come in one by one */
@@ -4282,18 +4199,6 @@ code[data-ref-cmd]:hover {
     .rows li:nth-child(n + 4) {
       animation-range: entry 0% cover 34%;
     }
-    /* the dictionary's tiles assemble from above and below */
-    .tiles li {
-      animation: assemble var(--follow) both;
-      animation-timeline: view();
-      animation-range: entry 0% cover 24%;
-    }
-    .tiles li:nth-child(even) {
-      animation-name: assemble-down;
-    }
-    .tiles li:nth-child(n + 3) {
-      animation-range: entry 0% cover 30%;
-    }
 
     /* The free lab: the terminal opens out, then its lines are written one after another as it comes up */
     .term-demo {
@@ -4315,59 +4220,6 @@ code[data-ref-cmd]:hover {
     .term-demo pre > span:nth-child(n + 7) {
       animation-range: entry 100% cover 52%;
     }
-
-    /* The career: the ladder rises step by step; the badges are set in place one by one */
-    .rank-ladder li {
-      animation: rise var(--follow) both;
-      animation-timeline: view();
-      animation-range: entry 0% cover 18%;
-    }
-    .badge {
-      animation: assemble var(--follow) both;
-      animation-timeline: view();
-      animation-range: entry 0% cover 20%;
-    }
-    .badge:nth-child(3n + 2) {
-      animation-range: entry 0% cover 25%;
-    }
-    .badge:nth-child(3n) {
-      animation-range: entry 0% cover 30%;
-    }
-
-    /* The learning's cards and units rise as they come up, a little later in each column */
-    .learn-card,
-    .unit {
-      animation: rise var(--follow) both;
-      animation-timeline: view();
-      animation-range: entry 0% cover 22%;
-    }
-    :is(.learn-card, .unit):nth-child(3n + 2) {
-      animation-range: entry 0% cover 27%;
-    }
-    :is(.learn-card, .unit):nth-child(3n) {
-      animation-range: entry 0% cover 32%;
-    }
-
-    @media (min-width: 1024px) {
-      /* Beside its words: the preview comes in from the right edge, then holds while the facts pass it, each one
-         lit as it crosses the middle of the window */
-      .home > section.split {
-        view-timeline: --split block;
-      }
-      .home > section.split > .screen {
-        animation: from-edge var(--follow) both;
-        animation-timeline: --split;
-        animation-range: entry 0% entry 75%;
-      }
-      .home > section.split .facts li {
-        animation: pass-by linear both;
-        animation-timeline: view();
-        animation-range: cover 5% cover 95%;
-      }
-      .home > section.split .facts b {
-        animation: none;
-      }
-    }
   }
 }
 @keyframes arrive {
@@ -4387,18 +4239,6 @@ code[data-ref-cmd]:hover {
     opacity: 0;
   }
 }
-@keyframes step-back {
-  to {
-    opacity: 0;
-    transform: translateY(-48px) scale(0.94);
-  }
-}
-@keyframes rise {
-  from {
-    opacity: 0;
-    transform: translateY(36px);
-  }
-}
 @keyframes grow {
   from {
     opacity: 0.35;
@@ -4409,27 +4249,6 @@ code[data-ref-cmd]:hover {
   from {
     opacity: 0;
     transform: translateX(-28px);
-  }
-}
-@keyframes assemble {
-  from {
-    opacity: 0;
-    transform: translateY(24px) scale(0.94);
-  }
-}
-@keyframes assemble-down {
-  from {
-    opacity: 0;
-    transform: translateY(-24px) scale(0.94);
-  }
-}
-@keyframes uncover {
-  from {
-    clip-path: inset(100% -0.3em -0.3em -0.3em);
-    transform: translateY(0.5em);
-  }
-  to {
-    clip-path: inset(-0.3em);
   }
 }
 @keyframes open-out {
@@ -4448,27 +4267,6 @@ code[data-ref-cmd]:hover {
   }
   to {
     clip-path: inset(0);
-  }
-}
-@keyframes from-edge {
-  from {
-    opacity: 0.3;
-    transform: translateX(10rem);
-  }
-}
-@keyframes pass-by {
-  0% {
-    opacity: 0.12;
-    transform: translateY(2rem);
-  }
-  38%,
-  62% {
-    opacity: 1;
-    transform: none;
-  }
-  100% {
-    opacity: 0.12;
-    transform: translateY(-1.5rem);
   }
 }
 @media (prefers-reduced-motion: reduce) {
