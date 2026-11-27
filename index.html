@@ -57,9 +57,8 @@
     <section id="viewHome" class="view home" aria-label="ホーム">
       <div class="hero">
         <div class="hero-in">
-          <p class="name"><span class="brand-mark" aria-hidden="true"><i></i><i></i><i></i></span>CoreLab</p>
-          <h1 data-i18n><span class="w">障害を直して、</span><span class="w">データセンターを育てよう。</span></h1>
-          <p class="lead">Kubernetes・Docker・Harbor・OpenShift・AWS の「よくある障害」を、本物そっくりのターミナルで解決するトレーニングゲーム。クリアするほどラックが稼働していきます。</p>
+          <h1 class="name"><span class="brand-mark" aria-hidden="true"><i></i><i></i><i></i></span>CoreLab</h1>
+          <p class="lead">止まった Web サーバー、起動しない Pod、容量の足りないディスク。そういう障害を、ブラウザの中のターミナルにコマンドを打って直すゲームです。Linux の基礎から Docker・Kubernetes・AWS まで、ミッションは 25 本。サーバーもログもすべて作り物なので、何を打っても大丈夫です。</p>
           <div class="go">
             <button class="btn primary" id="continueBtn">▶ はじめる</button>
             <a class="go-more" href="#/play/sandbox">フリーラボで遊ぶ<span aria-hidden="true">›</span></a>
@@ -74,9 +73,8 @@
       </div>
 
       <section class="plate" aria-labelledby="dcTitle">
-        <p class="name">YOUR DATA CENTER</p>
-        <h2 class="headline" id="dcTitle" data-i18n><span class="w">クリアするほど、</span><span class="w">ラックが動き出す。</span></h2>
-        <p class="desc">ラックを押すと、そのミッションが開きます。</p>
+        <h2 class="headline" id="dcTitle">データセンター</h2>
+        <p class="desc">クリアしたミッションの設備が、ここで 1 台ずつ動き出します。ラックを押すと、そのミッションが開きます。</p>
         <div class="dc-stage">
           <canvas id="dcHome" class="dc-canvas" role="img" aria-label="あなたのデータセンター（クリアしたミッションに応じて設備が稼働します）"></canvas>
           <div class="dc-tip" id="homeTip" hidden></div>
@@ -89,15 +87,13 @@
       </section>
 
       <section class="band" aria-labelledby="msTitle">
-        <p class="name">ミッション</p>
-        <h2 class="headline" id="msTitle" data-i18n><span class="w">現場でよくある障害を、</span><span class="w">ひとつずつ。</span></h2>
+        <h2 class="headline" id="msTitle">ミッション</h2>
         <p class="desc">Linux・Docker・Harbor・Kubernetes・OpenShift・AWS。前のミッションをクリアすると、次が開きます。</p>
         <div class="tracks" id="trackList" aria-label="トラック一覧"></div>
       </section>
 
       <section class="split" aria-labelledby="lnTitle">
-        <p class="name">ラーニング</p>
-        <h2 class="headline" id="lnTitle" data-i18n><span class="w">足りない知識は、</span><span class="w">問題で。</span></h2>
+        <h2 class="headline" id="lnTitle">ラーニング</h2>
         <p class="desc">入門からエキスパートまで 5 段階。どの問題にも公式ドキュメントの出典があり、認定資格の模擬試験も解けます。</p>
         <p class="go"><a class="btn primary" href="#/learn">ラーニングを開く</a></p>
         <div class="screen">
@@ -108,8 +104,7 @@
       </section>
 
       <section class="band" aria-labelledby="rfTitle">
-        <p class="name">コマンド辞典</p>
-        <h2 class="headline" id="rfTitle" data-i18n><span class="w">打つ前に、</span><span class="w">引ける。</span></h2>
+        <h2 class="headline" id="rfTitle">コマンド辞典</h2>
         <p class="desc">名前からでも、やりたいことからでも。使用例と関連コマンド、公式ドキュメントまで一度にたどれます。</p>
         <p class="go"><a class="btn primary" href="#/ref">コマンド辞典を開く</a><span class="note" data-i18n><kbd>Ctrl</kbd>+<kbd>K</kbd> でどの画面からでも</span></p>
         <div class="screen">
@@ -126,8 +121,7 @@
       </section>
 
       <section aria-labelledby="lbTitle">
-        <p class="name">フリーラボ</p>
-        <h2 class="headline" id="lbTitle" data-i18n><span class="w">壊しても、</span><span class="w">すぐ戻せる。</span></h2>
+        <h2 class="headline" id="lbTitle">フリーラボ</h2>
         <p class="desc">目標のない砂場です。サーバーもクラスタもクラウドも、本物そっくりの環境で好きなだけ試せます。</p>
         <p class="go"><a class="btn primary" href="#/play/sandbox">フリーラボを開く</a></p>
         <div class="term-demo" aria-hidden="true">
@@ -163,7 +157,6 @@ hello-bxmpsgbrgk-lm8gs   0/1     ContainerCreating   0          0s</span></pre>
     <!-- ============================== LEARN (drills & certifications) -->
     <section id="viewLearn" class="view" aria-label="ラーニング" hidden>
       <div class="learn-head">
-        <p class="eyebrow">LEARNING</p>
         <h1 id="learnTitle">分野ごとの学習問題</h1>
         <p class="lead" id="learnLead">ミッションに必要な知識を、入門からエキスパートまで 5 段階で。すべての問題に公式ドキュメントの出典が付いています。</p>
         <div class="learn-crumb" id="learnCrumb" hidden></div>
@@ -188,7 +181,6 @@ hello-bxmpsgbrgk-lm8gs   0/1     ContainerCreating   0          0s</span></pre>
     <!-- ============================== COMMAND REFERENCE -->
     <section id="viewRef" class="view" aria-label="コマンド辞典" hidden>
       <div class="learn-head">
-        <p class="eyebrow">COMMAND REFERENCE</p>
         <h1>コマンド辞典</h1>
         <p class="lead">「このコマンドは何？」も「〇〇したいときは何を打つ？」も、ここで。使用例・関連コマンド・使うレシピ・学習問題・公式ドキュメントまで一度にたどれます。</p>
       </div>
