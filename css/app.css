@@ -787,6 +787,12 @@ html.i18n-wait body {
 .home > .hero {
   padding: clamp(64px, 32px + 7vw, 136px) var(--gutter);
 }
+/* the opening fills the first screen, as a product page's (it steps back as the page moves on: Motion) */
+.home > .hero {
+  display: grid;
+  align-content: center;
+  min-height: min(44rem, calc(100svh - var(--nav)));
+}
 /* one left edge for every block: the page's width, centred in the window */
 .home > section,
 .home > .hero {
@@ -4156,9 +4162,18 @@ code[data-ref-cmd]:hover {
    (animation-timeline), so scrolling back up plays them backwards; nothing moves by itself except the opening's
    entrance, once. Each section has its own way in, so the page does not repeat one effect all the way down. */
 @media (prefers-reduced-motion: no-preference) {
-  /* The opening comes in once, as one piece */
-  .hero-in {
-    animation: arrive 0.7s var(--settle) both;
+  /* The opening: the name, the words, the way in and the note arrive one after another, once */
+  .hero-in > * {
+    animation: arrive 1s var(--settle) both;
+  }
+  .hero-in > :nth-child(2) {
+    animation-delay: 0.12s;
+  }
+  .hero-in > :nth-child(3) {
+    animation-delay: 0.26s;
+  }
+  .hero-in > :nth-child(n + 4) {
+    animation-delay: 0.38s;
   }
   /* a screen settles in when it opens (no fill: once done nothing stays on it, so a fixed child —
      the maximised terminal — is placed against the window again) */
@@ -4174,6 +4189,102 @@ code[data-ref-cmd]:hover {
   }
 
   @supports (animation-timeline: view()) {
+    /* ...and as the page moves on, the opening steps back and fades */
+    .home > .hero {
+      view-timeline: --hero block;
+    }
+    .hero-in {
+      animation: step-back linear both;
+      animation-timeline: --hero;
+      animation-range: exit 0% exit 85%;
+    }
+    /* A section's heading is uncovered from below like a mask lifting; its words and way in only fade in after it */
+    .home > section > .headline {
+      animation: uncover var(--follow) both;
+      animation-timeline: view();
+      animation-range: entry 5% cover 25%;
+    }
+    .home > section > :is(.desc, .go) {
+      animation: fade linear both;
+      animation-timeline: view();
+      animation-range: entry 15% cover 32%;
+    }
+    /* The player's own numbers under the data center come up one after another, each value uncovered */
+    .home .facts > * {
+      animation: rise var(--follow) both;
+      animation-timeline: view();
+      animation-range: entry 0% cover 24%;
+    }
+    .home .facts > :nth-child(2) {
+      animation-range: entry 0% cover 30%;
+    }
+    .home .facts > :nth-child(3) {
+      animation-range: entry 0% cover 36%;
+    }
+    .home .facts dd {
+      animation: uncover var(--follow) both;
+      animation-timeline: view();
+      animation-range: entry 0% cover 30%;
+    }
+    /* a track's name rises as it comes up; the dictionary's tiles assemble from above and below */
+    .track-head {
+      animation: rise var(--follow) both;
+      animation-timeline: view();
+      animation-range: entry 0% entry 100%;
+    }
+    .tiles li {
+      animation: assemble var(--follow) both;
+      animation-timeline: view();
+      animation-range: entry 0% cover 24%;
+    }
+    .tiles li:nth-child(even) {
+      animation-name: assemble-down;
+    }
+    .tiles li:nth-child(n + 3) {
+      animation-range: entry 0% cover 30%;
+    }
+    /* The career: the ladder rises step by step; the badges are set in place one by one */
+    .rank-ladder li {
+      animation: rise var(--follow) both;
+      animation-timeline: view();
+      animation-range: entry 0% cover 18%;
+    }
+    .badge {
+      animation: assemble var(--follow) both;
+      animation-timeline: view();
+      animation-range: entry 0% cover 20%;
+    }
+    .badge:nth-child(3n + 2) {
+      animation-range: entry 0% cover 25%;
+    }
+    .badge:nth-child(3n) {
+      animation-range: entry 0% cover 30%;
+    }
+    /* The learning's cards and units rise as they come up, a little later in each column */
+    .learn-card,
+    .unit {
+      animation: rise var(--follow) both;
+      animation-timeline: view();
+      animation-range: entry 0% cover 22%;
+    }
+    :is(.learn-card, .unit):nth-child(3n + 2) {
+      animation-range: entry 0% cover 27%;
+    }
+    :is(.learn-card, .unit):nth-child(3n) {
+      animation-range: entry 0% cover 32%;
+    }
+    @media (min-width: 1024px) {
+      /* Beside its words, the learning's preview comes in from the right edge of the window and settles */
+      .home > section.split {
+        view-timeline: --split block;
+      }
+      .home > section.split > .screen {
+        animation: from-edge var(--follow) both;
+        animation-timeline: --split;
+        animation-range: entry 0% entry 75%;
+      }
+    }
+
     /* The data center grows from the middle of the dark plate to its full size, rising a little slower than the
        page (only the pictures and the terminal move; the words are simply there) */
     .home .dc-stage {
@@ -4236,6 +4347,45 @@ code[data-ref-cmd]:hover {
   from {
     opacity: 0;
     transform: translateY(20px);
+  }
+}
+@keyframes step-back {
+  to {
+    opacity: 0;
+    transform: translateY(-48px) scale(0.94);
+  }
+}
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(36px);
+  }
+}
+@keyframes assemble {
+  from {
+    opacity: 0;
+    transform: translateY(24px) scale(0.94);
+  }
+}
+@keyframes assemble-down {
+  from {
+    opacity: 0;
+    transform: translateY(-24px) scale(0.94);
+  }
+}
+@keyframes uncover {
+  from {
+    clip-path: inset(100% -0.3em -0.3em -0.3em);
+    transform: translateY(0.5em);
+  }
+  to {
+    clip-path: inset(-0.3em);
+  }
+}
+@keyframes from-edge {
+  from {
+    opacity: 0.3;
+    transform: translateX(10rem);
   }
 }
 @keyframes settle {
