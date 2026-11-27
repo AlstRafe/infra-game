@@ -307,7 +307,7 @@
         const open = !this.o.progress || this.o.progress.unlocked(m, this.o.unlockAll);
         return open
           ? `<li><a href="#/play/${m.id}"><span class="ref-kind" style="--tc:${trackOf(m.track).color}">${esc(trackOf(m.track).label)}</span>${esc(m.title)}</a></li>`
-          : `<li class="locked"><span>🔒 ${esc(m.title)}</span></li>`;
+          : `<li class="locked"><span>${esc(m.title)}<span class="sr-only">${T("（ロック中）")}</span></span></li>`;
       };
       const term =
         e.topic === "basics"

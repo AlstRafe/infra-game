@@ -785,7 +785,7 @@ html.i18n-wait body {
 }
 .home > section,
 .home > .hero {
-  padding: clamp(48px, 24px + 5vw, 88px) var(--gutter);
+  padding: clamp(64px, 32px + 7vw, 136px) var(--gutter);
 }
 /* one left edge for every block: the page's width, centred in the window */
 .home > section,
@@ -822,16 +822,24 @@ html.i18n-wait body {
 /* The opening's heading is the game's name itself, in the ink colour; the orange stays on the mark */
 .home h1.name {
   gap: 0.3em;
-  font-size: clamp(2.2rem, 1.4rem + 2.8vw, 3.5rem);
+  font-size: clamp(2.75rem, 1.2rem + 5.5vw, 5.5rem);
   font-weight: 800;
-  line-height: 1.08;
-  letter-spacing: -0.02em;
+  line-height: 1.04;
+  letter-spacing: -0.035em;
   color: var(--text);
 }
+/* the mark is drawn in px: scaled up to the heading's size, with room kept on both sides */
 .home h1.name .brand-mark {
-  width: 0.8em;
-  height: 0.8em;
-  transform: none;
+  flex: none;
+  width: 26px;
+  height: 26px;
+  margin: 0 0.3em 0 0.25em;
+  transform: scale(1.7);
+}
+@media (min-width: 768px) {
+  .home h1.name .brand-mark {
+    transform: scale(2.6);
+  }
 }
 .home .w {
   display: inline-block;
@@ -839,7 +847,9 @@ html.i18n-wait body {
 .home .headline {
   margin-top: 0;
   margin-bottom: 0;
-  font-size: clamp(1.8rem, 1.2rem + 2.2vw, 2.75rem);
+  font-size: clamp(2.25rem, 1.1rem + 4vw, 4.25rem);
+  line-height: 1.06;
+  letter-spacing: -0.03em;
   font-weight: 800;
   line-height: 1.12;
   letter-spacing: -0.02em;
@@ -847,10 +857,10 @@ html.i18n-wait body {
 .home .lead,
 .home .desc {
   max-width: 40rem;
-  margin-top: 16px;
+  margin-top: 20px;
   margin-bottom: 0;
-  font-size: clamp(1rem, 0.95rem + 0.25vw, 1.1rem);
-  line-height: 1.8;
+  font-size: clamp(1.05rem, 0.95rem + 0.4vw, 1.2rem);
+  line-height: 1.75;
 }
 .lead {
   margin-top: 0;
